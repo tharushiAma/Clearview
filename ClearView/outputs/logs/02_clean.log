@@ -1,3 +1,17 @@
 2026-01-15 13:33:10,870 | INFO | Loading validated data
 2026-01-15 13:33:11,975 | INFO | Cleaning review text
 2026-01-15 13:33:12,102 | INFO | Saved cleaned data → ClearView/data/processed/clean_data.parquet
+2026-01-15 22:55:28,621 | INFO | Loading validated data
+2026-01-15 22:55:29,357 | INFO | Cleaning review text
+2026-01-15 22:55:30,883 | INFO | Saved cleaned data -> ClearView/data/processed/clean_data.parquet
+2026-01-15 23:00:44,594 | INFO | Loading validated data
+2026-01-15 23:00:44,773 | INFO | Cleaning review text
+2026-01-15 23:01:59,680 | INFO | Loading validated data
+2026-01-15 23:01:59,768 | INFO | Cleaning review text
+2026-01-15 23:02:01,188 | INFO | Saved cleaned data -> ClearView/data/processed/clean_data.parquet
+2026-01-15 23:21:08,121 | INFO | Loading validated data
+2026-01-15 23:21:08,205 | INFO | Cleaning review text
+2026-01-15 23:21:09,746 | INFO | Saved cleaned data -> data/processed/clean_data.parquet
+2026-01-15 23:23:00,943 | INFO | Loading validated data
+2026-01-15 23:23:01,044 | INFO | Cleaning review text
+2026-01-15 23:23:07,876 | INFO | Saved cleaned data -> ClearView/data/processed/clean_data.parquet

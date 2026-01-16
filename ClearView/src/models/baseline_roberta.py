@@ -1,10 +1,8 @@
-# src/models/baseline_distilbert.py
-
 import argparse
 import torch
 import torch.nn as nn
 import pandas as pd
-from transformers import DistilBertTokenizerFast, DistilBertModel
+from transformers import RobertaTokenizerFast, RobertaModel
 from torch.utils.data import Dataset, DataLoader
 from sklearn.metrics import classification_report
 import random
@@ -37,7 +35,7 @@ class ABSADataset(Dataset):
     def __getitem__(self, idx):
         text = str(self.texts[idx])
 
-        # Tokenize text for DistilBERT
+        # Tokenize text
         enc = self.tokenizer(
             text,
             padding="max_length",
@@ -61,14 +59,14 @@ class ABSADataset(Dataset):
 # ---------------------------
 # Model
 # ---------------------------
-class MultiAspectDistilBERT(nn.Module):
+class MultiAspectRoberta(nn.Module):
     """
-    DistilBERT with one classification head per aspect
+    RoBERTa with one classification head per aspect
     """
 
     def __init__(self, num_aspects, num_classes=3):
         super().__init__()
-        self.bert = DistilBertModel.from_pretrained("distilbert-base-uncased")
+        self.bert = RobertaModel.from_pretrained("roberta-base")
         self.dropout = nn.Dropout(0.3)
 
         # One classifier per aspect
@@ -146,7 +144,7 @@ def evaluate(model, dataloader, device, aspects, project_dir):
                 preds[a].extend(p.cpu().tolist())
                 trues[a].extend(labels[:, aspect_idx].cpu().tolist())
 
-    metrics_path = f"{project_dir}/outputs/reports/baseline_metrics.txt"
+    metrics_path = f"{project_dir}/outputs/reports/roberta_metrics.txt"
     with open(metrics_path, "w", encoding="utf-8") as f:
         for a in aspects:
             valid = [k for k, y in enumerate(trues[a]) if y != -100]
@@ -182,9 +180,10 @@ def evaluate(model, dataloader, device, aspects, project_dir):
             row[f"{a}_pred"] = inv_map.get(preds[a][idx], "None")
         out_rows.append(row)
 
-    out_csv = f"{project_dir}/outputs/reports/baseline_predictions.csv"
+    out_csv = f"{project_dir}/outputs/reports/roberta_predictions.csv"
     pd.DataFrame(out_rows).to_csv(out_csv, index=False, encoding="utf-8")
     print(f"Predictions saved to {out_csv}")
+
 
 # ---------------------------
 # Main
@@ -202,19 +201,7 @@ def main(project_dir):
     train_df = pd.read_parquet(f"{project_dir}/data/splits/train.parquet")
     val_df   = pd.read_parquet(f"{project_dir}/data/splits/val.parquet")
 
-    tokenizer = DistilBertTokenizerFast.from_pretrained("distilbert-base-uncased")
-
-    # Calculate class weights for evidence
-    # Calculate class weights for evidence
-    print("\nEvidence of Class Imbalance (Training Set):")
-    with open(f"{project_dir}/outputs/reports/class_distribution.txt", "w") as f:
-        f.write("Class Distribution in Training Set:\n")
-        for a in aspects:
-            counts = train_df[a].value_counts().to_dict()
-            line = f"Aspect '{a}': {counts}"
-            print(line)
-            f.write(line + "\n")
-    print(f"Class distribution saved to {project_dir}/outputs/reports/class_distribution.txt")
+    tokenizer = RobertaTokenizerFast.from_pretrained("roberta-base")
 
     train_ds = ABSADataset(train_df, tokenizer, aspects)
     val_ds   = ABSADataset(val_df, tokenizer, aspects)
@@ -223,7 +210,7 @@ def main(project_dir):
     val_dl = DataLoader(val_ds, batch_size=8, shuffle=False)
 
 
-    model = MultiAspectDistilBERT(num_aspects=len(aspects)).to(device)
+    model = MultiAspectRoberta(num_aspects=len(aspects)).to(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=2e-5)
 
     # Train
@@ -234,9 +221,9 @@ def main(project_dir):
     # Save baseline model checkpoint
         torch.save(
             model.state_dict(),
-            f"{project_dir}/outputs/checkpoints/baseline_distilbert.pt"
+            f"{project_dir}/outputs/checkpoints/baseline_roberta.pt"
         )
-        print("Baseline checkpoint saved to outputs/checkpoints/baseline_distilbert.pt")
+        print("Baseline checkpoint saved to outputs/checkpoints/baseline_roberta.pt")
 
     # Evaluate
     evaluate(model, val_dl, device, aspects, project_dir)

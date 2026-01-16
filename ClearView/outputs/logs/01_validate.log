@@ -2,3 +2,21 @@
 2026-01-15 13:32:45,329 | INFO | Total rows loaded: 199
 2026-01-15 13:32:45,349 | INFO | Removed duplicates: 0
 2026-01-15 13:32:45,916 | INFO | Saved validated data → C:\Users\TharushiAmasha\OneDrive - inivosglobal.com\FYP\ClearView Implementation\ClearView/data/processed/stage1_validated.parquet
+2026-01-15 22:54:57,989 | INFO | Loading raw CSV file
+2026-01-15 22:54:58,062 | INFO | Total rows loaded: 13343
+2026-01-15 22:54:58,135 | INFO | Removed duplicates: 102
+2026-01-15 22:54:58,638 | INFO | Saved validated data -> C:\Users\TharushiAmasha\OneDrive - inivosglobal.com\FYP\ClearView Implementation\ClearView/data/processed/stage1_validated.parquet
+2026-01-15 23:00:36,991 | INFO | Loading raw CSV file
+2026-01-15 23:01:46,684 | INFO | Loading raw CSV file
+2026-01-15 23:01:46,736 | INFO | Total rows loaded: 13343
+2026-01-15 23:01:46,802 | INFO | Removed duplicates: 102
+2026-01-15 23:01:46,894 | INFO | Saved validated data -> C:\Users\TharushiAmasha\OneDrive - inivosglobal.com\FYP\ClearView Implementation\ClearView/data/processed/stage1_validated.parquet
+2026-01-15 23:21:01,415 | INFO | Loading raw CSV file
+2026-01-15 23:21:01,446 | INFO | Total rows loaded: 13343
+2026-01-15 23:21:01,489 | INFO | Removed duplicates: 102
+2026-01-15 23:21:01,555 | INFO | Saved validated data -> C:\Users\TharushiAmasha\OneDrive - inivosglobal.com\FYP\ClearView Implementation\ClearView/data/processed/stage1_validated.parquet
+2026-01-15 23:22:09,677 | INFO | Loading raw CSV file
+2026-01-15 23:22:55,100 | INFO | Loading raw CSV file
+2026-01-15 23:22:55,139 | INFO | Total rows loaded: 13343
+2026-01-15 23:22:55,181 | INFO | Removed duplicates: 102
+2026-01-15 23:22:55,246 | INFO | Saved validated data -> C:\Users\TharushiAmasha\OneDrive - inivosglobal.com\FYP\ClearView Implementation\ClearView/data/processed/stage1_validated.parquet

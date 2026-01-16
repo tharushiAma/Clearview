@@ -1,1 +1,7 @@
 2026-01-15 13:34:55,828 | INFO | Split sizes → Train: 139, Val: 20, Test: 40
+2026-01-15 23:21:16,177 | WARNING | Stratification failed (likely due to rare classes): The least populated class in y has only 1 member, which is too few. The minimum number of groups for any class cannot be less than 2.
+2026-01-15 23:21:16,178 | WARNING | Falling back to random split.
+2026-01-15 23:21:16,272 | INFO | Split sizes -> Train: 9268, Val: 1324, Test: 2649
+2026-01-15 23:23:42,814 | WARNING | Stratification failed (likely due to rare classes): The least populated class in y has only 1 member, which is too few. The minimum number of groups for any class cannot be less than 2.
+2026-01-15 23:23:42,815 | WARNING | Falling back to random split.
+2026-01-15 23:23:42,896 | INFO | Split sizes -> Train: 9268, Val: 1324, Test: 2649

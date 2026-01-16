@@ -1,8 +1,8 @@
 Class Distribution in Training Set:
-Aspect 'stayingpower': {'positive': 17, 'negative': 14, 'neutral': 1}
-Aspect 'texture': {'positive': 47, 'negative': 10, 'neutral': 4}
-Aspect 'smell': {'positive': 24, 'negative': 6, 'neutral': 1}
-Aspect 'price': {'positive': 33}
-Aspect 'colour': {'positive': 67, 'negative': 10, 'neutral': 5}
-Aspect 'shipping': {'positive': 33, 'negative': 20, 'neutral': 2}
-Aspect 'packing': {'positive': 27, 'negative': 3}
+Aspect 'stayingpower': {'positive': 1060, 'negative': 647, 'neutral': 220}
+Aspect 'texture': {'positive': 2521, 'negative': 547, 'neutral': 358}
+Aspect 'smell': {'positive': 1625, 'negative': 313, 'neutral': 93}
+Aspect 'price': {'positive': 2244, 'negative': 17, 'neutral': 15}
+Aspect 'colour': {'positive': 4437, 'negative': 456, 'neutral': 366}
+Aspect 'shipping': {'positive': 2363, 'negative': 1135, 'neutral': 256}
+Aspect 'packing': {'positive': 2026, 'negative': 69, 'neutral': 14}

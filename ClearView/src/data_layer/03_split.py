@@ -27,17 +27,33 @@ def main(project_dir: str):
     df["signature"] = df.apply(make_signature, axis=1)
 
     # Split data
-    train_df, test_df = train_test_split(
-        df,
-        test_size=split_cfg["test_size"],
-        random_state=split_cfg["seed"]
-    )
+    try:
+        train_df, test_df = train_test_split(
+            df,
+            test_size=split_cfg["test_size"],
+            random_state=split_cfg["seed"],
+            stratify=df["signature"]
+        )
 
-    train_df, val_df = train_test_split(
-        train_df,
-        test_size=split_cfg["val_size"] / (1 - split_cfg["test_size"]),
-        random_state=split_cfg["seed"]
-    )
+        train_df, val_df = train_test_split(
+            train_df,
+            test_size=split_cfg["val_size"] / (1 - split_cfg["test_size"]),
+            random_state=split_cfg["seed"],
+            stratify=train_df["signature"]
+        )
+    except ValueError as e:
+        logger.warning(f"Stratification failed (likely due to rare classes): {e}")
+        logger.warning("Falling back to random split.")
+        train_df, test_df = train_test_split(
+            df,
+            test_size=split_cfg["test_size"],
+            random_state=split_cfg["seed"]
+        )
+        train_df, val_df = train_test_split(
+            train_df,
+            test_size=split_cfg["val_size"] / (1 - split_cfg["test_size"]),
+            random_state=split_cfg["seed"]
+        )
 
     # Save splits
     splits_dir = cfg["paths"]["splits_dir"]
