@@ -437,7 +437,7 @@ def evaluate(model, dataloader, device, aspects, project_dir):
                 trues[a].extend(labels[:, aspect_idx].cpu().tolist())
 
     # --- Save Metrics ---
-    metrics_path = f"{project_dir}/outputs/reports/roberta_gcn_fl_new_metrics.txt"
+    metrics_path = f"{project_dir}/outputs/reports/roberta_gcn_fl_only_metrics.txt"
     os.makedirs(os.path.dirname(metrics_path), exist_ok=True)
     
     with open(metrics_path, "w", encoding="utf-8") as f:
@@ -473,7 +473,7 @@ def evaluate(model, dataloader, device, aspects, project_dir):
             
         out_rows.append(row)
 
-    out_csv = f"{project_dir}/outputs/reports/roberta_msr_fl_new_results.csv"
+    out_csv = f"{project_dir}/outputs/reports/roberta_msr_fl_only_results.csv"
     pd.DataFrame(out_rows).to_csv(out_csv, index=False, encoding="utf-8")
     print(f"Final MSR results saved to {out_csv}")
 
