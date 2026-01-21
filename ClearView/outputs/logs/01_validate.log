@@ -1,4 +1,0 @@
-2026-01-15 13:32:45,301 | INFO | Loading raw CSV file
-2026-01-15 13:32:45,329 | INFO | Total rows loaded: 199
-2026-01-15 13:32:45,349 | INFO | Removed duplicates: 0
-2026-01-15 13:32:45,916 | INFO | Saved validated data → C:\Users\TharushiAmasha\OneDrive - inivosglobal.com\FYP\ClearView Implementation\ClearView/data/processed/stage1_validated.parquet

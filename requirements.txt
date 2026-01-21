@@ -1,0 +1,19 @@
+--extra-index-url https://download.pytorch.org/whl/cu121
+torch
+torchvision
+torchaudio
+transformers
+pandas
+scikit-learn
+numpy
+pyarrow
+openpyxl
+emoji
+clean-text
+tqdm
+spacy>=3.0.0
+shap
+lime
+captum
+matplotlib
+seaborn

@@ -1,0 +1,84 @@
+
+Aspect: stayingpower
+              precision    recall  f1-score   support
+
+    negative       0.73      0.89      0.80        94
+     neutral       0.28      0.69      0.40        26
+    positive       0.92      0.53      0.68       144
+
+    accuracy                           0.68       264
+   macro avg       0.64      0.71      0.62       264
+weighted avg       0.79      0.68      0.69       264
+
+
+Aspect: texture
+              precision    recall  f1-score   support
+
+    negative       0.67      0.95      0.79        76
+     neutral       0.46      0.55      0.50        56
+    positive       0.96      0.84      0.89       341
+
+    accuracy                           0.82       473
+   macro avg       0.70      0.78      0.73       473
+weighted avg       0.85      0.82      0.83       473
+
+
+Aspect: smell
+              precision    recall  f1-score   support
+
+    negative       0.71      0.92      0.80        37
+     neutral       0.33      0.38      0.35        16
+    positive       0.99      0.94      0.96       248
+
+    accuracy                           0.90       301
+   macro avg       0.68      0.74      0.70       301
+weighted avg       0.92      0.90      0.91       301
+
+
+Aspect: price
+              precision    recall  f1-score   support
+
+    negative       0.83      0.91      0.87        22
+     neutral       0.00      0.00      0.00         7
+    positive       0.97      0.99      0.98       315
+
+    accuracy                           0.97       344
+   macro avg       0.60      0.63      0.62       344
+weighted avg       0.95      0.97      0.96       344
+
+
+Aspect: colour
+              precision    recall  f1-score   support
+
+    negative       0.75      0.76      0.75        58
+     neutral       0.50      0.57      0.53        65
+    positive       0.96      0.95      0.95       638
+
+    accuracy                           0.90       761
+   macro avg       0.74      0.76      0.75       761
+weighted avg       0.91      0.90      0.90       761
+
+
+Aspect: shipping
+              precision    recall  f1-score   support
+
+    negative       0.92      0.99      0.95       178
+     neutral       0.37      0.50      0.42        28
+    positive       0.99      0.92      0.95       352
+
+    accuracy                           0.92       558
+   macro avg       0.76      0.80      0.78       558
+weighted avg       0.94      0.92      0.93       558
+
+
+Aspect: packing
+              precision    recall  f1-score   support
+
+    negative       0.85      0.85      0.85        26
+     neutral       0.00      0.00      0.00         1
+    positive       0.99      0.99      0.99       287
+
+    accuracy                           0.97       314
+   macro avg       0.61      0.61      0.61       314
+weighted avg       0.97      0.97      0.97       314
+

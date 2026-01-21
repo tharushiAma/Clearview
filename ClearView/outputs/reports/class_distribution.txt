@@ -1,8 +1,0 @@
-Class Distribution in Training Set:
-Aspect 'stayingpower': {'positive': 17, 'negative': 14, 'neutral': 1}
-Aspect 'texture': {'positive': 47, 'negative': 10, 'neutral': 4}
-Aspect 'smell': {'positive': 24, 'negative': 6, 'neutral': 1}
-Aspect 'price': {'positive': 33}
-Aspect 'colour': {'positive': 67, 'negative': 10, 'neutral': 5}
-Aspect 'shipping': {'positive': 33, 'negative': 20, 'neutral': 2}
-Aspect 'packing': {'positive': 27, 'negative': 3}

@@ -1,0 +1,151 @@
+original_text,target_aspect,original_sentiment,prompt_for_gpt,stayingpower,texture,smell,price,colour,shipping,packing
+"the lipstick is quite ok. it's a bit fast, but for the price it's reasonable. get a nice, pretty color ??",price,positive,"Rewrite the following review to express a NEUTRAL sentiment regarding price. Keep other aspects unchanged.
+Review: ""the lipstick is quite ok. it's a bit fast, but for the price it's reasonable. get a nice, pretty color ??""
+Neutral Rewrite:",negative,,,positive,positive,,
+pretty color but cheap. it's a bit dry,price,positive,"Rewrite the following review to express a NEUTRAL sentiment regarding price. Keep other aspects unchanged.
+Review: ""pretty color but cheap. it's a bit dry""
+Neutral Rewrite:",,negative,,positive,positive,,
+the lipstick is extremely pretty but the delivery took a little while. i bought it on sale so the price was even cheaper,price,positive,"Rewrite the following review to express a NEUTRAL sentiment regarding price. Keep other aspects unchanged.
+Review: ""the lipstick is extremely pretty but the delivery took a little while. i bought it on sale so the price was even cheaper""
+Neutral Rewrite:",,,,positive,,negative,
+"fast delivery, carefully packaged, smooth material, quite soft on the lips",packing,positive,"Rewrite the following review to express a NEUTRAL sentiment regarding packing. Keep other aspects unchanged.
+Review: ""fast delivery, carefully packaged, smooth material, quite soft on the lips""
+Neutral Rewrite:",,positive,,,,positive,positive
+"the matte lipstick is very nice, the color is beautiful fast delivery, carefully packaged ????",packing,positive,"Rewrite the following review to express a NEUTRAL sentiment regarding packing. Keep other aspects unchanged.
+Review: ""the matte lipstick is very nice, the color is beautiful fast delivery, carefully packaged ????""
+Neutral Rewrite:",positive,neutral,,,positive,positive,positive
+i really like the lipstick ?? the color is beautiful and also cheap next time i will support the shop more,price,positive,"Rewrite the following review to express a NEUTRAL sentiment regarding price. Keep other aspects unchanged.
+Review: ""i really like the lipstick ?? the color is beautiful and also cheap next time i will support the shop more""
+Neutral Rewrite:",,,,positive,positive,,
+"son is very beautiful because i bought it as a gift, i can't see the color in general, it's very good so it's worth buying",price,positive,"Rewrite the following review to express a NEUTRAL sentiment regarding price. Keep other aspects unchanged.
+Review: ""son is very beautiful because i bought it as a gift, i can't see the color in general, it's very good so it's worth buying""
+Neutral Rewrite:",,,,positive,neutral,,
+"bought in bulk during the flashsale after the 9/9 batch was canceled, but now i received the goods in quite solid packaging so i give 10 points?? color 25, i can't say anything kiki",packing,positive,"Rewrite the following review to express a NEUTRAL sentiment regarding packing. Keep other aspects unchanged.
+Review: ""bought in bulk during the flashsale after the 9/9 batch was canceled, but now i received the goods in quite solid packaging so i give 10 points?? color 25, i can't say anything kiki""
+Neutral Rewrite:",,,,,neutral,,positive
+"oh my god, the color 502 is super awesome. earthy pink orange, slightly nude, can be worn by any skin type. it's okay to go to school. the lipstick quality is quite ok, soft and smooth as the name suggests, there is no tint layer that sticks to it, so you should reapply it after about 2 to 3 hours. i really like it. 99k 2 bars are too cheap compared to the quality",price,positive,"Rewrite the following review to express a NEUTRAL sentiment regarding price. Keep other aspects unchanged.
+Review: ""oh my god, the color 502 is super awesome. earthy pink orange, slightly nude, can be worn by any skin type. it's okay to go to school. the lipstick quality is quite ok, soft and smooth as the name suggests, there is no tint layer that sticks to it, so you should reapply it after about 2 to 3 hours. i really like it. 99k 2 bars are too cheap compared to the quality""
+Neutral Rewrite:",,positive,,positive,positive,,
+"beautiful product, same as picture, beautiful lipstick color, slightly orange, quite similar to bbia 38 (38 on the left), asian powder lipstick quality, carefully packaged",packing,positive,"Rewrite the following review to express a NEUTRAL sentiment regarding packing. Keep other aspects unchanged.
+Review: ""beautiful product, same as picture, beautiful lipstick color, slightly orange, quite similar to bbia 38 (38 on the left), asian powder lipstick quality, carefully packaged""
+Neutral Rewrite:",,negative,,,positive,,positive
+"the lipstick is so pretty :3 packaged securely shipper is friendly i don't like the smell of this lipstick very much, but it's so beautiful when applied it's ok to be so cheap will buy more to support the shop i'm lazy to take pictures so i took another photo to receive coins :v thanks",price,positive,"Rewrite the following review to express a NEUTRAL sentiment regarding price. Keep other aspects unchanged.
+Review: ""the lipstick is so pretty :3 packaged securely shipper is friendly i don't like the smell of this lipstick very much, but it's so beautiful when applied it's ok to be so cheap will buy more to support the shop i'm lazy to take pictures so i took another photo to receive coins :v thanks""
+Neutral Rewrite:",,,negative,positive,,positive,positive
+very worth the money,price,positive,"Rewrite the following review to express a NEUTRAL sentiment regarding price. Keep other aspects unchanged.
+Review: ""very worth the money""
+Neutral Rewrite:",,,,positive,,,
+delivery is okay. lipstick quality is ok. very fragrant. packaged very securely,packing,positive,"Rewrite the following review to express a NEUTRAL sentiment regarding packing. Keep other aspects unchanged.
+Review: ""delivery is okay. lipstick quality is ok. very fragrant. packaged very securely""
+Neutral Rewrite:",,positive,positive,,,positive,positive
+"fast delivery, smooth powder, better packaging than ever",packing,positive,"Rewrite the following review to express a NEUTRAL sentiment regarding packing. Keep other aspects unchanged.
+Review: ""fast delivery, smooth powder, better packaging than ever""
+Neutral Rewrite:",,,,,,positive,positive
+"the lipstick is so fragrant, i always use it and will continue to buy it even though it's on sale, but the packaging is still very good",price,positive,"Rewrite the following review to express a NEUTRAL sentiment regarding price. Keep other aspects unchanged.
+Review: ""the lipstick is so fragrant, i always use it and will continue to buy it even though it's on sale, but the packaging is still very good""
+Neutral Rewrite:",,,positive,positive,,,positive
+"carefully packaged, fast delivery, beautiful smooth lipstick color..",packing,positive,"Rewrite the following review to express a NEUTRAL sentiment regarding packing. Keep other aspects unchanged.
+Review: ""carefully packaged, fast delivery, beautiful smooth lipstick color..""
+Neutral Rewrite:",,positive,,,positive,positive,positive
+"the lipstick is so beautiful very well packaged, friendly shipper authentic, good smell :((",packing,positive,"Rewrite the following review to express a NEUTRAL sentiment regarding packing. Keep other aspects unchanged.
+Review: ""the lipstick is so beautiful very well packaged, friendly shipper authentic, good smell :((""
+Neutral Rewrite:",,,positive,,,positive,positive
+"very pretty lipstick, received a free lip mask, color 402 is the best, the lipstick is smooth and beautiful, but it's a bit small because of the cheap price. will buy 3 or 4 402 bars to use gradually",price,positive,"Rewrite the following review to express a NEUTRAL sentiment regarding price. Keep other aspects unchanged.
+Review: ""very pretty lipstick, received a free lip mask, color 402 is the best, the lipstick is smooth and beautiful, but it's a bit small because of the cheap price. will buy 3 or 4 402 bars to use gradually""
+Neutral Rewrite:",,positive,,positive,positive,,
+"the goods were carefully packaged, the lipstick when opened had a scl scent, and the color was beautiful when tested",packing,positive,"Rewrite the following review to express a NEUTRAL sentiment regarding packing. Keep other aspects unchanged.
+Review: ""the goods were carefully packaged, the lipstick when opened had a scl scent, and the color was beautiful when tested""
+Neutral Rewrite:",,,positive,,positive,,positive
+"good product, cheap sale, very satisfied ??????????????????????????????????????????????????????",price,positive,"Rewrite the following review to express a NEUTRAL sentiment regarding price. Keep other aspects unchanged.
+Review: ""good product, cheap sale, very satisfied ??????????????????????????????????????????????????????""
+Neutral Rewrite:",,,,positive,,,
+"the lipstick color is super beautiful, international product but shipping is also very fast. will buy again next time, for this price the lipstick quality is quite ok",price,positive,"Rewrite the following review to express a NEUTRAL sentiment regarding price. Keep other aspects unchanged.
+Review: ""the lipstick color is super beautiful, international product but shipping is also very fast. will buy again next time, for this price the lipstick quality is quite ok""
+Neutral Rewrite:",,,,positive,positive,positive,
+"full delivery, affordable price, excellent product quality. you should buy it, everyone",price,positive,"Rewrite the following review to express a NEUTRAL sentiment regarding price. Keep other aspects unchanged.
+Review: ""full delivery, affordable price, excellent product quality. you should buy it, everyone""
+Neutral Rewrite:",,,,positive,,neutral,
+"cheap and beautiful, but some of the glasses were misaligned during shipping and uncomfortable to wear. the bear hairpin was also misaligned but i still give the shop 5 stars??????",price,positive,"Rewrite the following review to express a NEUTRAL sentiment regarding price. Keep other aspects unchanged.
+Review: ""cheap and beautiful, but some of the glasses were misaligned during shipping and uncomfortable to wear. the bear hairpin was also misaligned but i still give the shop 5 stars??????""
+Neutral Rewrite:",,,,positive,,,
+the color is very beautiful..... it's not matte and lasts a long time... it will wash off when you eat it but it won't dry out your lips... bought 2 for 99k... too cheap.. overseas so shipping takes a while,price,positive,"Rewrite the following review to express a NEUTRAL sentiment regarding price. Keep other aspects unchanged.
+Review: ""the color is very beautiful..... it's not matte and lasts a long time... it will wash off when you eat it but it won't dry out your lips... bought 2 for 99k... too cheap.. overseas so shipping takes a while""
+Neutral Rewrite:",negative,positive,,positive,positive,negative,
+"the lipstick is quite similar to blackrouge's a12 color but a bit more brown, exactly the color of chocolate, but i don't really like the quality of the lipstick. and hunting for 70k on sale is also cheap, so i don't ask for much :)",price,positive,"Rewrite the following review to express a NEUTRAL sentiment regarding price. Keep other aspects unchanged.
+Review: ""the lipstick is quite similar to blackrouge's a12 color but a bit more brown, exactly the color of chocolate, but i don't really like the quality of the lipstick. and hunting for 70k on sale is also cheap, so i don't ask for much :)""
+Neutral Rewrite:",,negative,,positive,positive,,
+"quite fast delivery, securely packaged. the earthy red color on my lips turned into earthy pink but still very beautiful",packing,positive,"Rewrite the following review to express a NEUTRAL sentiment regarding packing. Keep other aspects unchanged.
+Review: ""quite fast delivery, securely packaged. the earthy red color on my lips turned into earthy pink but still very beautiful""
+Neutral Rewrite:",,,,,positive,positive,positive
+"the lipstick color is very beautiful, carefully packaged,................................",packing,positive,"Rewrite the following review to express a NEUTRAL sentiment regarding packing. Keep other aspects unchanged.
+Review: ""the lipstick color is very beautiful, carefully packaged,................................""
+Neutral Rewrite:",,,,,positive,,positive
+ugh buying lipstick products is really good smell is slightly unpleasant and not fragrant stable quality genuine package delivery is a bit fast,packing,positive,"Rewrite the following review to express a NEUTRAL sentiment regarding packing. Keep other aspects unchanged.
+Review: ""ugh buying lipstick products is really good smell is slightly unpleasant and not fragrant stable quality genuine package delivery is a bit fast""
+Neutral Rewrite:",,positive,negative,,,positive,positive
+"carefully packaged, fast delivery. i really like buying products at sale prices. you should buy it, everyone.",price,positive,"Rewrite the following review to express a NEUTRAL sentiment regarding price. Keep other aspects unchanged.
+Review: ""carefully packaged, fast delivery. i really like buying products at sale prices. you should buy it, everyone.""
+Neutral Rewrite:",,,,positive,,positive,
+chat with excellent product quality with product orders okiiiiiiiiiiiiiiiiiiiiiiii,packing,positive,"Rewrite the following review to express a NEUTRAL sentiment regarding packing. Keep other aspects unchanged.
+Review: ""chat with excellent product quality with product orders okiiiiiiiiiiiiiiiiiiiiiiii""
+Neutral Rewrite:",,,,,,,positive
+"delivery takes a while, about 10 days to arrive. quite satisfactory product, cheap price. already used, feeling quite satisfied with all products purchased. packaging quite safely.",price,positive,"Rewrite the following review to express a NEUTRAL sentiment regarding price. Keep other aspects unchanged.
+Review: ""delivery takes a while, about 10 days to arrive. quite satisfactory product, cheap price. already used, feeling quite satisfied with all products purchased. packaging quite safely.""
+Neutral Rewrite:",,,,positive,,negative,positive
+"in my opinion, the lipstick takes quite a long time to dry. brushing can easily stick to your teeth. at this price, you can't ask for anything more. shipping took quite a while.",price,positive,"Rewrite the following review to express a NEUTRAL sentiment regarding price. Keep other aspects unchanged.
+Review: ""in my opinion, the lipstick takes quite a long time to dry. brushing can easily stick to your teeth. at this price, you can't ask for anything more. shipping took quite a while.""
+Neutral Rewrite:",,negative,,positive,,negative,
+cheap and delicious products fast delivery enthusiastic shop pack carefully will buy long term thanks shop you should buy it ??????,price,positive,"Rewrite the following review to express a NEUTRAL sentiment regarding price. Keep other aspects unchanged.
+Review: ""cheap and delicious products fast delivery enthusiastic shop pack carefully will buy long term thanks shop you should buy it ??????""
+Neutral Rewrite:",,,,positive,,positive,positive
+"uses: ok texture: ok color fastness: ok ok lip balm, cheap price it's the end of the year so i'll have to wait a long time :( ..........",price,positive,"Rewrite the following review to express a NEUTRAL sentiment regarding price. Keep other aspects unchanged.
+Review: ""uses: ok texture: ok color fastness: ok ok lip balm, cheap price it's the end of the year so i'll have to wait a long time :( ..........""
+Neutral Rewrite:",positive,positive,,positive,,negative,
+"excellent product quality, carefully packaged product.....",packing,positive,"Rewrite the following review to express a NEUTRAL sentiment regarding packing. Keep other aspects unchanged.
+Review: ""excellent product quality, carefully packaged product.....""
+Neutral Rewrite:",,,,,,,positive
+the lipstick color is beautiful but fades quickly. the shop packs the goods very carefully,packing,positive,"Rewrite the following review to express a NEUTRAL sentiment regarding packing. Keep other aspects unchanged.
+Review: ""the lipstick color is beautiful but fades quickly. the shop packs the goods very carefully""
+Neutral Rewrite:",negative,,,,positive,,positive
+"fast delivery, cheap price, beautiful color ...................:::::",price,positive,"Rewrite the following review to express a NEUTRAL sentiment regarding price. Keep other aspects unchanged.
+Review: ""fast delivery, cheap price, beautiful color ...................:::::""
+Neutral Rewrite:",,,,positive,positive,positive,
+"international delivery takes a long time. the quality of the lipstick is super beautiful, the smell is very fragrant, and the price is very affordable. love the belly",price,positive,"Rewrite the following review to express a NEUTRAL sentiment regarding price. Keep other aspects unchanged.
+Review: ""international delivery takes a long time. the quality of the lipstick is super beautiful, the smell is very fragrant, and the price is very affordable. love the belly""
+Neutral Rewrite:",,positive,positive,positive,,negative,
+"haven't tried the product yet, but i think it's on sale so i bought it to try, ok, i'll buy again",price,positive,"Rewrite the following review to express a NEUTRAL sentiment regarding price. Keep other aspects unchanged.
+Review: ""haven't tried the product yet, but i think it's on sale so i bought it to try, ok, i'll buy again""
+Neutral Rewrite:",,,,positive,,,
+"enough items, carefully packed",packing,positive,"Rewrite the following review to express a NEUTRAL sentiment regarding packing. Keep other aspects unchanged.
+Review: ""enough items, carefully packed""
+Neutral Rewrite:",,,,,,,positive
+"carefully packaged, beautiful design, but the lipstick comes off very quickly. when you apply it, it disappears and doesn't stay on your lips for long.",packing,positive,"Rewrite the following review to express a NEUTRAL sentiment regarding packing. Keep other aspects unchanged.
+Review: ""carefully packaged, beautiful design, but the lipstick comes off very quickly. when you apply it, it disappears and doesn't stay on your lips for long.""
+Neutral Rewrite:",negative,,,,,,positive
+just opened the package and i'm already very impressed with the lipstick. packaged in a hard inner box that looks luxurious and beautiful. the important thing is that the lipstick is smooth and the color is super pretty. son held it heavily,packing,positive,"Rewrite the following review to express a NEUTRAL sentiment regarding packing. Keep other aspects unchanged.
+Review: ""just opened the package and i'm already very impressed with the lipstick. packaged in a hard inner box that looks luxurious and beautiful. the important thing is that the lipstick is smooth and the color is super pretty. son held it heavily""
+Neutral Rewrite:",,positive,,,positive,,positive
+"product exactly as pictured, brand new delivery took a long time, ordered in august and only received in october. due to the pandemic, please understand well packaged, took forever to open shipper nch is so boring, disrespectful to customers ??",packing,positive,"Rewrite the following review to express a NEUTRAL sentiment regarding packing. Keep other aspects unchanged.
+Review: ""product exactly as pictured, brand new delivery took a long time, ordered in august and only received in october. due to the pandemic, please understand well packaged, took forever to open shipper nch is so boring, disrespectful to customers ??""
+Neutral Rewrite:",,,,,,negative,positive
+"i have bought here twice, delivery is very fast, packaging is sturdy, photos are for illustration purposes only.",packing,positive,"Rewrite the following review to express a NEUTRAL sentiment regarding packing. Keep other aspects unchanged.
+Review: ""i have bought here twice, delivery is very fast, packaging is sturdy, photos are for illustration purposes only.""
+Neutral Rewrite:",,,,,,positive,positive
+"in general, okela, cheap price, beautiful color, cheap price, so don't expect much quality",price,positive,"Rewrite the following review to express a NEUTRAL sentiment regarding price. Keep other aspects unchanged.
+Review: ""in general, okela, cheap price, beautiful color, cheap price, so don't expect much quality""
+Neutral Rewrite:",,,,positive,positive,,
+"fast delivery, well packaged, correct delivery, and a gift included",packing,positive,"Rewrite the following review to express a NEUTRAL sentiment regarding packing. Keep other aspects unchanged.
+Review: ""fast delivery, well packaged, correct delivery, and a gift included""
+Neutral Rewrite:",,,,,,positive,positive
+"fast, economical delivery the lipstick color is beautiful and the scent is fragrant. at this price, the lipstick is ok",price,positive,"Rewrite the following review to express a NEUTRAL sentiment regarding price. Keep other aspects unchanged.
+Review: ""fast, economical delivery the lipstick color is beautiful and the scent is fragrant. at this price, the lipstick is ok""
+Neutral Rewrite:",,,positive,positive,positive,positive,
+"well packaged, beautiful box, fragrant lipstick but a little strong, the color is beautiful, just the color i like ?",packing,positive,"Rewrite the following review to express a NEUTRAL sentiment regarding packing. Keep other aspects unchanged.
+Review: ""well packaged, beautiful box, fragrant lipstick but a little strong, the color is beautiful, just the color i like ?""
+Neutral Rewrite:",,,negative,,positive,,positive
+"fast delivery d0ong1 carefully packaged, beautiful lipstick color, very thicj1 ....",packing,positive,"Rewrite the following review to express a NEUTRAL sentiment regarding packing. Keep other aspects unchanged.
+Review: ""fast delivery d0ong1 carefully packaged, beautiful lipstick color, very thicj1 ....""
+Neutral Rewrite:",,,,,positive,positive,positive
+"extremely beautiful lipstick color on smooth lips, even if applied in many layers, it still looks beautiful, carefully packaged",packing,positive,"Rewrite the following review to express a NEUTRAL sentiment regarding packing. Keep other aspects unchanged.
+Review: ""extremely beautiful lipstick color on smooth lips, even if applied in many layers, it still looks beautiful, carefully packaged""
+Neutral Rewrite:",,positive,,,positive,,positive
