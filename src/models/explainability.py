@@ -144,7 +144,7 @@ class SHAPExplainer:
         
         # Get embeddings
         embeddings = self.model.roberta.embeddings(input_ids)
-        embeddings.requires_grad = True
+        embeddings = embeddings.detach().requires_grad_(True)
         
         # Forward with embeddings
         B, N, D = embeddings.shape
@@ -154,8 +154,8 @@ class SHAPExplainer:
         positions = torch.arange(N).unsqueeze(0).to(self.device)
         
         # Forward through BERT (using embeddings directly)
-        bert_output = self.model.roberta.encoder(
-            embeddings,
+        bert_output = self.model.roberta(
+            inputs_embeds=embeddings,
             attention_mask=attention_mask
         )
         h = bert_output.last_hidden_state
@@ -241,6 +241,9 @@ class AttentionVisualizer:
         self.tokenizer = tokenizer
         self.device = device
         self.attention_weights = {}
+        
+        # Enable attention output
+        self.model.roberta.config.output_attentions = True
         
         # Register hooks to capture attention
         self._register_attention_hooks()
@@ -440,7 +443,11 @@ class GraphSaliencyExplainer:
         loss.backward()
         
         # Get gradient of loss w.r.t. adjacency matrix
-        edge_saliency = torch.abs(adj.grad[0])  # [N, N]
+        if adj.grad is not None:
+            edge_saliency = torch.abs(adj.grad[0])  # [N, N]
+        else:
+            print("Warning: Adjacency matrix gradient is None. Saliency might not be differentiable for this model.")
+            edge_saliency = torch.zeros((N, N), device=self.device)
         
         return edge_saliency.cpu().detach().numpy()
     
@@ -591,7 +598,7 @@ class ExplainabilityPipeline:
             save_path=f"{output_dir}/graph_saliency_{aspect_name}.png"
         )
         
-        print(f"\n✅ All explanations saved to {output_dir}/")
+        print(f"\nAll explanations saved to {output_dir}/")
         
         return {
             'shap': shap_explanation,
@@ -615,7 +622,7 @@ def example_explainability():
     # Load model (assuming trained)
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = EAGLE(num_aspects=7, num_classes=3)
-    model.load_state_dict(torch.load('eagle_best.pt')['model_state_dict'])
+    model.load_state_dict(torch.load('outputs/checkpoints/eagle_dummy.pt', map_location=device)['model_state_dict'])
     model = model.to(device)
     model.eval()
     

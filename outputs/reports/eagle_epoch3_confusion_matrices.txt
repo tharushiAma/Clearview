@@ -1,0 +1,67 @@
+================================================================================
+EAGLE_EPOCH3 MODEL - CONFUSION MATRICES
+================================================================================
+
+
+Aspect: stayingpower
+Confusion Matrix:
+                Predicted
+              Neg  Neu  Pos
+Actual Neg  [  78    2   14]
+       Neu  [   3    3   20]
+       Pos  [   4    2  138]
+--------------------------------------------------
+
+Aspect: texture
+Confusion Matrix:
+                Predicted
+              Neg  Neu  Pos
+Actual Neg  [  66    3    7]
+       Neu  [   7   24   25]
+       Pos  [   7   16  318]
+--------------------------------------------------
+
+Aspect: smell
+Confusion Matrix:
+                Predicted
+              Neg  Neu  Pos
+Actual Neg  [  35    0    2]
+       Neu  [  14    0    2]
+       Pos  [   8    0  240]
+--------------------------------------------------
+
+Aspect: price
+Confusion Matrix:
+                Predicted
+              Neg  Neu  Pos
+Actual Neg  [   0    0    2]
+       Neu  [   0    0    7]
+       Pos  [   1    0  314]
+--------------------------------------------------
+
+Aspect: colour
+Confusion Matrix:
+                Predicted
+              Neg  Neu  Pos
+Actual Neg  [  34   10   14]
+       Neu  [   8   23   34]
+       Pos  [   3   14  621]
+--------------------------------------------------
+
+Aspect: shipping
+Confusion Matrix:
+                Predicted
+              Neg  Neu  Pos
+Actual Neg  [ 174    3    1]
+       Neu  [  11   13    4]
+       Pos  [   6   18  328]
+--------------------------------------------------
+
+Aspect: packing
+Confusion Matrix:
+                Predicted
+              Neg  Neu  Pos
+Actual Neg  [   6    0    5]
+       Neu  [   0    0    1]
+       Pos  [   8    0  279]
+--------------------------------------------------

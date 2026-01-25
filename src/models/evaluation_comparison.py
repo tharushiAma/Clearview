@@ -284,7 +284,7 @@ def evaluate_eagle_model(model, dataloader, device, aspects, project_dir, model_
     
     print(f"Summary saved to {summary_path}")
     
-    print(f"\n✅ All evaluation outputs saved to {project_dir}/outputs/reports/")
+    print(f"\nAll evaluation outputs saved to {project_dir}/outputs/reports/")
     
     return results, overall_macro_f1
 
@@ -309,7 +309,7 @@ def compare_models(project_dir, model_names=['roberta', 'roberta_gcn', 'roberta_
         metrics_path = f"{project_dir}/outputs/reports/{model_name}_metrics.txt"
         
         if not os.path.exists(metrics_path):
-            print(f"⚠️  Metrics not found for {model_name}, skipping...")
+            print(f"Metrics not found for {model_name}, skipping...")
             continue
         
         # Parse metrics file (simplified - you could make this more robust)
@@ -350,9 +350,9 @@ def compare_models(project_dir, model_names=['roberta', 'roberta_gcn', 'roberta_
             best_model = max(all_metrics.keys(), key=lambda x: all_metrics[x].get('overall', 0))
             best_f1 = all_metrics[best_model].get('overall', 0)
             
-            f.write(f"\n🏆 BEST MODEL: {best_model} (F1 = {best_f1:.4f})\n")
+            f.write(f"\nBEST MODEL: {best_model} (F1 = {best_f1:.4f})\n")
     
-    print(f"\n📊 Model comparison saved to {comparison_path}")
+    print(f"\nModel comparison saved to {comparison_path}")
 
 
 # ============================================================================
@@ -382,12 +382,26 @@ if __name__ == "__main__":
     model.load_state_dict(checkpoint['model_state_dict'])
     model = model.to(device)
     
+    aspects = ['stayingpower', 'texture', 'smell', 'price', 'colour', 'shipping', 'packing']
+    
     # Load validation data
-    # (You'll need to create the dataloader - similar to train_eagle.py)
-    # val_loader = ...
+    from train_eagle import EAGLEDataset, preprocess_and_cache_adjacency
+    import pandas as pd
+    
+    tokenizer = RobertaTokenizerFast.from_pretrained("roberta-base")
+    val_df = pd.read_parquet(f"{args.project_dir}/data/splits/val.parquet")
+    
+    # Preprocess adjacency matrices
+    cache_dir = f"{args.project_dir}/outputs/cache"
+    val_adj = preprocess_and_cache_adjacency(
+        val_df, tokenizer, 256,
+        f"{cache_dir}/val_adj_eagle.pkl"
+    )
+    
+    val_dataset = EAGLEDataset(val_df, tokenizer, val_adj, aspects, 256)
+    val_loader = DataLoader(val_dataset, batch_size=8, shuffle=False)
     
     # Evaluate
-    aspects = ['stayingpower', 'texture', 'smell', 'price', 'colour', 'shipping', 'packing']
     results, overall_f1 = evaluate_eagle_model(
         model=model,
         dataloader=val_loader,

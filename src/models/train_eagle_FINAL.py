@@ -19,6 +19,7 @@ from collections import Counter
 
 # Import EAGLE components
 from eagle_implementation import EAGLE, AdaptiveFocalLoss
+from evaluation_comparison import evaluate_eagle_model, compare_models
 
 # Load SpaCy
 try:
@@ -429,86 +430,12 @@ def train_epoch(model, dataloader, optimizer, device, epoch):
     return avg_loss, avg_components
 
 
-def evaluate(model, dataloader, device, aspects):
+def evaluate(model, dataloader, device, aspects, project_dir, model_name="eagle"):
     """
-    Evaluate model on validation/test set.
+    Wrapper for comprehensive evaluation with file saving.
+    Calls evaluate_eagle_model to save all output files for comparison.
     """
-    model.eval()
-    
-    all_preds = {a: [] for a in aspects}
-    all_labels = {a: [] for a in aspects}
-    
-    with torch.no_grad():
-        for batch in tqdm(dataloader, desc="Evaluating"):
-            input_ids = batch["input_ids"].to(device)
-            attention_mask = batch["attention_mask"].to(device)
-            adj_matrix = batch["adj_matrix"].to(device)
-            aspect_masks = batch["aspect_masks"].to(device)
-            positions = batch["positions"].to(device)
-            labels = batch["labels"].to(device)
-            
-            # Forward
-            aspect_logits, msr_output = model(
-                input_ids, attention_mask, adj_matrix, aspect_masks, positions
-            )
-            
-            # Collect predictions
-            for i, aspect in enumerate(aspects):
-                preds = torch.argmax(aspect_logits[i], dim=-1)
-                all_preds[aspect].extend(preds.cpu().tolist())
-                all_labels[aspect].extend(labels[:, i].cpu().tolist())
-    
-    # Compute metrics
-    results = {}
-    macro_f1_scores = []
-    
-    print("\n" + "="*80)
-    print("EVALUATION RESULTS")
-    print("="*80)
-    
-    for aspect in aspects:
-        # Filter valid labels
-        valid_mask = [i for i, l in enumerate(all_labels[aspect]) if l != -100]
-        
-        if not valid_mask:
-            print(f"\n{aspect}: No valid samples")
-            continue
-        
-        y_true = [all_labels[aspect][i] for i in valid_mask]
-        y_pred = [all_preds[aspect][i] for i in valid_mask]
-        
-        # Compute metrics
-        acc = accuracy_score(y_true, y_pred)
-        macro_f1 = f1_score(y_true, y_pred, average='macro', zero_division=0)
-        per_class_f1 = f1_score(y_true, y_pred, average=None, zero_division=0)
-        
-        results[aspect] = {
-            'accuracy': acc,
-            'macro_f1': macro_f1,
-            'per_class_f1': per_class_f1
-        }
-        
-        macro_f1_scores.append(macro_f1)
-        
-        # Print results
-        print(f"\n{aspect.upper()}:")
-        print(f"  Accuracy: {acc:.4f}")
-        print(f"  Macro F1: {macro_f1:.4f}")
-        
-        # Robust printing of per-class F1
-        f1_str = []
-        for i, name in enumerate(['Neg', 'Neu', 'Pos']):
-            val = per_class_f1[i] if i < len(per_class_f1) else 0.0
-            f1_str.append(f"{name}={val:.3f}")
-        print(f"  Per-class F1: {', '.join(f1_str)}")
-    
-    # Overall metrics
-    overall_macro_f1 = np.mean(macro_f1_scores)
-    print(f"\n{'='*80}")
-    print(f"OVERALL MACRO F1: {overall_macro_f1:.4f}")
-    print(f"{'='*80}\n")
-    
-    return results, overall_macro_f1, all_preds, all_labels
+    return evaluate_eagle_model(model, dataloader, device, aspects, project_dir, model_name)
 
 
 # ============================================================================
@@ -611,34 +538,18 @@ def main(args):
         checkpoint = torch.load(args.checkpoint)
         model.load_state_dict(checkpoint['model_state_dict'])
         
-        print(f"Running evaluation on validation set...")
-        val_results, val_f1, val_preds, val_labels = evaluate(model, val_loader, device, aspects)
+        print("Running evaluation on validation set...")
+        val_results, val_f1 = evaluate(
+            model, val_loader, device, aspects,
+            args.project_dir,
+            f"eagle_epoch{epoch}"
+        )
         
         # Save metrics to file for comparison
-        output_metrics = f"{args.project_dir}/outputs/reports/eagle_final_metrics.txt"
-        output_preds = f"{args.project_dir}/outputs/reports/eagle_final_predictions.csv"
-        os.makedirs(os.path.dirname(output_metrics), exist_ok=True)
+        output_path = f"{args.project_dir}/outputs/reports/eagle_final_metrics.txt"
+        os.makedirs(os.path.dirname(output_path), exist_ok=True)
         
-        # Save Predictions CSV
-        print(f"Saving predictions to {output_preds}...")
-        pred_rows = []
-        texts = val_loader.dataset.texts
-        inv_map = {0: "negative", 1: "neutral", 2: "positive"}
-        
-        for i in range(len(texts)):
-            row = {"text": texts[i]}
-            for aspect in aspects:
-                # Handle potential length mismatch if dataset truncated
-                if i < len(val_preds[aspect]):
-                    p = val_preds[aspect][i]
-                    l = val_labels[aspect][i]
-                    row[f"{aspect}_pred"] = inv_map.get(p, "None")
-                    row[f"{aspect}_true"] = inv_map.get(l, "None") if l != -100 else "None"
-            pred_rows.append(row)
-            
-        pd.DataFrame(pred_rows).to_csv(output_preds, index=False)
-        
-        with open(output_metrics, "w", encoding="utf-8") as f:
+        with open(output_path, "w", encoding="utf-8") as f:
             f.write("EAGLE FINAL EVALUATION RESULTS\n")
             f.write("================================\n\n")
             for aspect, res in val_results.items():
@@ -656,7 +567,7 @@ def main(args):
             
             f.write(f"OVERALL MACRO F1: {val_f1:.4f}\n")
             
-        print(f"Metrics saved to {output_metrics}")
+        print(f"Metrics saved to {output_path}")
         return
     # ----------------------------
     
@@ -692,7 +603,11 @@ def main(args):
         model.update_focal_loss_weights()
         
         # Evaluate
-        val_results, val_f1, _, _ = evaluate(model, val_loader, device, aspects)
+        val_results, val_f1 = evaluate(
+            model, val_loader, device, aspects,
+            args.project_dir,
+            f"eagle_epoch{epoch}"
+        )
         
         # Save best model
         if val_f1 > best_val_f1:
@@ -714,6 +629,52 @@ def main(args):
         scheduler.step()
     
     print(f"\nTraining complete! Best Val F1: {best_val_f1:.4f}")
+
+
+    # ========================================================================
+    # FINAL EVALUATION: Load best model and evaluate
+    # ========================================================================
+    
+    print(f"\n{'='*80}")
+    print("FINAL EVALUATION: Loading best model and generating final reports")
+    print(f"{'='*80}")
+    
+    # Load best checkpoint
+    best_checkpoint_path = f"{args.project_dir}/outputs/checkpoints/eagle_best.pt"
+    print(f"\nLoading best model from: {best_checkpoint_path}")
+    
+    checkpoint = torch.load(best_checkpoint_path, map_location=device)
+    model.load_state_dict(checkpoint['model_state_dict'])
+    
+    print(f"Best model from epoch: {checkpoint['epoch']}")
+    print(f"Best validation F1: {checkpoint['val_f1']:.4f}")
+    
+    # Evaluate best model and save with "eagle_final" name
+    print(f"\nGenerating final evaluation reports...")
+    final_results, final_f1 = evaluate(
+        model, val_loader, device, aspects,
+        args.project_dir,
+        "eagle_final"  # This creates eagle_final_*.txt/csv files
+    )
+    
+    print(f"\n{'='*80}")
+    print(f"FINAL MODEL EVALUATION COMPLETE")
+    print(f"{'='*80}")
+    print(f"Final reports saved with prefix: eagle_final")
+    print(f"  - eagle_final_metrics.txt")
+    print(f"  - eagle_final_confusion_matrices.txt")
+    print(f"  - eagle_final_predictions.csv")
+    print(f"  - eagle_final_msr_results.csv")
+    print(f"  - eagle_final_summary.txt")
+
+    # Generate final comparison with all models
+    print(f"\n{'='*80}")
+    print("GENERATING MODEL COMPARISON")
+    print(f"{'='*80}")
+    compare_models(
+        args.project_dir,
+        model_names=['roberta', 'roberta_gcn', 'roberta_gcn_w', 'roberta_gcn_fl', 'eagle_final']
+    )
 
 
 # ============================================================================

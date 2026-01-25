@@ -107,7 +107,9 @@ class AdaptiveFocalLoss(nn.Module):
         pt = torch.exp(-ce_loss)
         
         # Get alpha for each sample
-        alpha_t = self.alpha[targets]
+        # Use a safe version of targets for indexing (replace -100 with 0 temporarily)
+        safe_targets = torch.where(targets == -100, torch.zeros_like(targets), targets)
+        alpha_t = self.alpha[safe_targets]
         alpha_t = torch.where(targets == -100, torch.tensor(0.0, device=self.device), alpha_t)
         
         # Focal loss: alpha * (1-pt)^gamma * CE
@@ -143,8 +145,11 @@ class PositionAwareGraphAttention(nn.Module):
         # Linear transformation
         self.W = nn.Linear(in_features, out_features, bias=False)
         
-        # Attention mechanism
-        self.a = nn.Linear(2 * out_features, 1, bias=False)
+        # Attention mechanism (more memory efficient implementation)
+        self.a_src = nn.Parameter(torch.empty(size=(1, out_features)))
+        self.a_dst = nn.Parameter(torch.empty(size=(1, out_features)))
+        nn.init.xavier_uniform_(self.a_src.data, gain=1.414)
+        nn.init.xavier_uniform_(self.a_dst.data, gain=1.414)
         
         # Position embedding
         self.position_embedding = nn.Embedding(max_seq_len, out_features)
@@ -171,17 +176,13 @@ class PositionAwareGraphAttention(nn.Module):
         pos_emb = self.position_embedding(positions)  # [B, N, D']
         Wh = Wh + pos_emb
         
-        # Compute attention coefficients
-        # Concatenate all pairs: [Wh_i || Wh_j] for all i,j
-        Wh_repeated_1 = Wh.repeat_interleave(N, dim=1)  # [B, N*N, D']
-        Wh_repeated_2 = Wh.repeat(1, N, 1)              # [B, N*N, D']
+        # Compute attention coefficients (Memory Efficient Method)
+        # e_ij = LeakyReLU(a_src * Wh_i + a_dst * Wh_j)
+        f_src = torch.matmul(Wh, self.a_src.transpose(0, 1)) # [B, N, 1]
+        f_dst = torch.matmul(Wh, self.a_dst.transpose(0, 1)) # [B, N, 1]
         
-        # Concatenate
-        a_input = torch.cat([Wh_repeated_1, Wh_repeated_2], dim=-1)  # [B, N*N, 2*D']
-        
-        # Compute attention scores
-        e = self.leakyrelu(self.a(a_input).squeeze(-1))  # [B, N*N]
-        e = e.view(B, N, N)  # [B, N, N]
+        # Broadcasting addition gives us [B, N, N] without O(N^2 * D) expansion
+        e = self.leakyrelu(f_src + f_dst.transpose(1, 2)) # [B, N, N]
         
         # Mask with adjacency matrix (only attend to neighbors)
         zero_vec = -9e15 * torch.ones_like(e)
@@ -288,32 +289,28 @@ class DualChannelGCN(nn.Module):
         aspect_count = aspect_mask.sum(dim=1, keepdim=True).unsqueeze(-1)  # [B, 1, 1]
         aspect_repr = aspect_repr / (aspect_count + 1e-8)
         
-        # Compute cosine similarity to aspect
+        # Compute cosine similarity between all tokens
+        # (This makes the graph aspect-aware because we use h which already has context)
+        # Alternatively, we can use the aspect similarity to weight this
         h_norm = F.normalize(h, p=2, dim=-1)
-        aspect_norm = F.normalize(aspect_repr, p=2, dim=-1)
+        sim = torch.bmm(h_norm, h_norm.transpose(1, 2))  # [B, N, N]
         
-        sim = torch.bmm(h_norm, aspect_norm.transpose(1, 2))  # [B, N, 1]
-        sim = sim.squeeze(-1)  # [B, N]
-        
-        # Build adjacency: connect each token to top-k similar tokens
+        # Connect each token to top-k similar tokens (Vectorized)
         k = min(10, N)
-        topk_vals, topk_indices = torch.topk(sim, k=k, dim=-1)
+        topk_vals, topk_indices = torch.topk(sim, k=k, dim=-1)  # [B, N, k]
         
-        # Initialize adjacency matrix
+        # Generate indices for scatter
+        batch_idx = torch.arange(B, device=h.device).view(-1, 1, 1).expand(B, N, k)
+        row_idx = torch.arange(N, device=h.device).view(1, -1, 1).expand(B, N, k)
+        
         semantic_adj = torch.zeros(B, N, N, device=h.device)
-        
-        # Fill in top-k connections
-        batch_indices = torch.arange(B, device=h.device).unsqueeze(-1).expand(-1, N)
-        node_indices = torch.arange(N, device=h.device).unsqueeze(0).expand(B, -1)
-        
-        for i in range(k):
-            semantic_adj[batch_indices, node_indices, topk_indices[:, :, i]] = topk_vals[:, :, i]
+        semantic_adj.view(-1).scatter_(0, (batch_idx * N * N + row_idx * N + topk_indices).view(-1), topk_vals.view(-1))
         
         # Symmetrize (optional)
         semantic_adj = (semantic_adj + semantic_adj.transpose(1, 2)) / 2
         
         # Add self-loops
-        eye = torch.eye(N, device=h.device).unsqueeze(0).expand(B, -1, -1)
+        eye = torch.eye(N, device=h.device).unsqueeze(0)
         semantic_adj = semantic_adj + eye
         
         # Normalize (to prevent exploding values)
@@ -477,7 +474,7 @@ class EAGLE(nn.Module):
         ]
         
         # 1. Base encoder (RoBERTa)
-        self.roberta = RobertaModel.from_pretrained('roberta-base')
+        self.roberta = RobertaModel.from_pretrained('roberta-base', attn_implementation="eager")
         hidden_size = self.roberta.config.hidden_size  # 768
         
         # Freeze early layers (optional, for faster training)
@@ -694,7 +691,7 @@ def example_usage():
     model = model.to(device)
     
     # Example batch
-    batch_size = 8
+    batch_size = 2
     seq_len = 256
     num_aspects = 7
     

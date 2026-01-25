@@ -143,6 +143,10 @@ def preprocess_and_save_adj(df, tokenizer, max_len, save_path):
     with open(save_path, 'wb') as f:
         pickle.dump(adj_matrices, f)
         
+    print("\n" + "-"*40)
+    print("STAGE: PREPROCESSING COMPLETE")
+    print("-"*40 + "\n")
+    
     return adj_matrices
 
 # ---------------------------
@@ -549,6 +553,12 @@ def main(project_dir, head=None, train_file=None, val_file=None, eval_only=False
     # Adjacency matrices
     prefix = f"head{head}_" if head else ""
     train_cache_name = f"{prefix}{train_file.replace('.parquet', '')}_adj.pkl" if train_file else f"{prefix}train_adj.pkl"
+    
+    print("\n" + "="*80)
+    print("STAGE 1: DATA PREPARATION & DEPENDENCY PARSING")
+    print("Note: This phase is CPU-bound and may take some time (0% GPU usage expected).")
+    print("="*80)
+    
     print("Preparing Training Data...")
     train_adj = preprocess_and_save_adj(train_df, tokenizer, max_len, f"{cache_dir}/{train_cache_name}")
     
@@ -573,6 +583,16 @@ def main(project_dir, head=None, train_file=None, val_file=None, eval_only=False
         print(f"Loading checkpoint from {checkpoint}...")
         model.load_state_dict(torch.load(checkpoint))
     else:
+        print("\n" + "="*80)
+        print("STAGE 2: TRAINING PHASE (GPU ACCELERATED)")
+        print("="*80)
+        
+        if device.type == 'cuda':
+            print(f"Successfully connected to GPU: {torch.cuda.get_device_name(0)}")
+            print(f"GPU Memory Allocated: {torch.cuda.memory_allocated(device)/1024**2:.2f} MB")
+        else:
+            print("WARNING: Running on CPU. Training will be extremely slow.")
+            
         print("Starting training with DepGCN...")
         for epoch in range(1 if head else 3): # Train only 1 epoch if in test mode
             loss = train_epoch(model, train_dl, optimizer, device, class_weights)

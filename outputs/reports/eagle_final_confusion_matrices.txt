@@ -1,0 +1,67 @@
+================================================================================
+EAGLE_FINAL MODEL - CONFUSION MATRICES
+================================================================================
+
+
+Aspect: stayingpower
+Confusion Matrix:
+                Predicted
+              Neg  Neu  Pos
+Actual Neg  [  79    3   12]
+       Neu  [   3   12   11]
+       Pos  [   7    9  128]
+--------------------------------------------------
+
+Aspect: texture
+Confusion Matrix:
+                Predicted
+              Neg  Neu  Pos
+Actual Neg  [  67    5    4]
+       Neu  [   6   31   19]
+       Pos  [   6   19  316]
+--------------------------------------------------
+
+Aspect: smell
+Confusion Matrix:
+                Predicted
+              Neg  Neu  Pos
+Actual Neg  [  35    0    2]
+       Neu  [   9    4    3]
+       Pos  [   5    1  242]
+--------------------------------------------------
+
+Aspect: price
+Confusion Matrix:
+                Predicted
+              Neg  Neu  Pos
+Actual Neg  [   0    0    2]
+       Neu  [   0    0    7]
+       Pos  [   0    0  315]
+--------------------------------------------------
+
+Aspect: colour
+Confusion Matrix:
+                Predicted
+              Neg  Neu  Pos
+Actual Neg  [  42    9    7]
+       Neu  [   9   21   35]
+       Pos  [   5    9  624]
+--------------------------------------------------
+
+Aspect: shipping
+Confusion Matrix:
+                Predicted
+              Neg  Neu  Pos
+Actual Neg  [ 168    7    3]
+       Neu  [  11    8    9]
+       Pos  [   3   18  331]
+--------------------------------------------------
+
+Aspect: packing
+Confusion Matrix:
+                Predicted
+              Neg  Neu  Pos
+Actual Neg  [   6    0    5]
+       Neu  [   0    0    1]
+       Pos  [   2    0  285]
+--------------------------------------------------
