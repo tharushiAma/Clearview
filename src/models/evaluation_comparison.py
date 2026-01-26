@@ -49,15 +49,23 @@ def evaluate_eagle_model(model, dataloader, device, aspects, project_dir, model_
         for batch in tqdm(dataloader, desc="Evaluating"):
             input_ids = batch["input_ids"].to(device)
             attention_mask = batch["attention_mask"].to(device)
-            adj_matrix = batch["adj_matrix"].to(device)
+            # Support both EAGLE and EAGLE V2 batch keys
+            adj_key = "syntactic_adj" if "syntactic_adj" in batch else "adj_matrix"
+            adj_matrix = batch[adj_key].to(device)
             aspect_masks = batch["aspect_masks"].to(device)
             positions = batch["positions"].to(device)
             labels = batch["labels"].to(device)
             
-            # Forward pass
-            aspect_logits, msr_output = model(
+            # Forward pass - support both EAGLE (tuple) and EAGLE V2 (dict) returns
+            output = model(
                 input_ids, attention_mask, adj_matrix, aspect_masks, positions
             )
+            
+            if isinstance(output, dict):
+                aspect_logits = output['aspect_logits']
+                msr_output = output['msr_output']
+            else:
+                aspect_logits, msr_output = output
             
             # Collect aspect-level predictions
             for i, aspect in enumerate(aspects):
