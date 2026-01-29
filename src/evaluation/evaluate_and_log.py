@@ -377,7 +377,7 @@ def main(args):
         roberta_name="roberta-base"
     ).to(device)
 
-    state = torch.load(args.ckpt, map_location=device, weights_only=True)
+    state = torch.load(f=args.ckpt, map_location=device, weights_only=True)
     model.load_state_dict(state, strict=True)
     model.eval()
 
