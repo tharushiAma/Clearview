@@ -56,6 +56,7 @@ def ensure_dirs(project_dir: str):
     """
     Path(project_dir, "data", "processed").mkdir(parents=True, exist_ok=True)
     Path(project_dir, "data", "splits").mkdir(parents=True, exist_ok=True)
+    Path(project_dir, "data", "augmented").mkdir(parents=True, exist_ok=True)
     Path(project_dir, "outputs", "logs").mkdir(parents=True, exist_ok=True)
     Path(project_dir, "outputs", "checkpoints").mkdir(parents=True, exist_ok=True)
     Path(project_dir, "outputs", "reports").mkdir(parents=True, exist_ok=True)

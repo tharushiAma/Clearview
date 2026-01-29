@@ -1,0 +1,8 @@
+aspect,cm,labels_order
+stayingpower,"[[79, 1, 14], [4, 16, 6], [5, 5, 134]]","[""negative"", ""neutral"", ""positive""]"
+texture,"[[69, 5, 2], [9, 38, 9], [7, 28, 306]]","[""negative"", ""neutral"", ""positive""]"
+smell,"[[31, 2, 4], [6, 6, 4], [4, 6, 238]]","[""negative"", ""neutral"", ""positive""]"
+price,"[[0, 0, 2], [0, 1, 6], [2, 3, 310]]","[""negative"", ""neutral"", ""positive""]"
+colour,"[[47, 5, 6], [7, 42, 16], [4, 17, 617]]","[""negative"", ""neutral"", ""positive""]"
+shipping,"[[160, 18, 0], [6, 19, 3], [3, 22, 327]]","[""negative"", ""neutral"", ""positive""]"
+packing,"[[8, 0, 3], [0, 0, 1], [3, 0, 284]]","[""negative"", ""neutral"", ""positive""]"
