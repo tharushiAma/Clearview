@@ -1,0 +1,31 @@
+Purpose: Data loading, preprocessing, and augmentation utilities.
+
+Files:
+1. _common.py (2.5 KB)
+   - ASPECTS list: ['stayingpower', 'texture', 'smell', 'price', 'colour', 'shipping', 'packing']
+   - LABEL_MAP: 4-class system (negative: 0, neutral: 1, positive: 2, none/null: 3)
+   - Configuration loader and logger setup
+   - Shared constants used across all modules
+
+2. 01_validate.py (1.8 KB)
+   - Data validation script for raw input
+   - Checks for missing columns and invalid labels
+
+3. 02_Clean.py (1.7 KB)
+   - Text cleaning and preprocessing
+   - Removes special characters, normalizes whitespace
+
+4. 03_split.py (2.9 KB)
+   - Splits data into train/val/test sets
+   - Stratified splitting to maintain class balance
+
+5. 04_create_train_aug.py (2.6 KB)
+   - Combines original training data with augmented versions
+   - Creates train_aug.parquet (Original + Sampler + Synthetic)
+
+6. convert_synthetic_robust.py (3.4 KB)
+   - Generates synthetic mixed-sentiment reviews
+   - Programmatic creation of complex examples for MSR training
+
+Essential for understanding how the 4-class (negative, neutral, positive, none) system works.
+

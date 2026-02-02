@@ -1,0 +1,8 @@
+Aspect,Errors Before MSR,Errors After MSR,Reduction Count
+stayingpower,38,37,1
+texture,59,59,0
+smell,20,21,-1
+price,14,13,1
+colour,76,66,10
+shipping,97,58,39
+packing,7,7,0

@@ -1,0 +1,2 @@
+Configuration: Full EAGLE implementation (All Augmentations + MSR).
+Purpose: The complete system being proposed in the thesis. Shows the cumulative gain from both data and architectural components.

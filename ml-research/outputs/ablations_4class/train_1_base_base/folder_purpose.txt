@@ -1,0 +1,2 @@
+Configuration: Baseline model on original data with MSR Disabled (0.0).
+Purpose: Control group for the entire ablation study. Represents standard RoBERTa performance.

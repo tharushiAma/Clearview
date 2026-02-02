@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# IDE
+.vscode/
+
+# Large model files - NEVER commit these!
+*.pt
+*.pth
+*.ckpt
+*.h5
+*.pkl
+*.joblib
+
+# ML Research: Output directories with large files
+ml-research/outputs/checkpoints/
+ml-research/outputs/*/*.pt
+ml-research/outputs/*/best_model.pt
+ml-research/archive/outputs/checkpoints/
+
+
+# Logs
+*.log
+ml-research/outputs/logs/
+
+# Allow specific thesis tables (small CSV files)
+!ml-research/outputs/eval/*.csv
+!ml-research/outputs/eval/*.md
+!ml-research/outputs/ablations_4class/*.md
+
+# Website
+website/node_modules/
+website/.next/
+website/out/
+website/dist/
+website/.vercel/

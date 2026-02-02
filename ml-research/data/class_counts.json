@@ -1,0 +1,113 @@
+{
+  "train": {
+    "stayingpower": {
+      "positive": 1060,
+      "negative": 647,
+      "neutral": 220
+    },
+    "texture": {
+      "positive": 2521,
+      "negative": 547,
+      "neutral": 358
+    },
+    "smell": {
+      "positive": 1625,
+      "negative": 313,
+      "neutral": 93
+    },
+    "price": {
+      "positive": 2244,
+      "negative": 17,
+      "neutral": 15
+    },
+    "colour": {
+      "positive": 4437,
+      "negative": 456,
+      "neutral": 366
+    },
+    "shipping": {
+      "positive": 2363,
+      "negative": 1135,
+      "neutral": 256
+    },
+    "packing": {
+      "positive": 2026,
+      "negative": 69,
+      "neutral": 14
+    }
+  },
+  "val": {
+    "stayingpower": {
+      "positive": 144,
+      "negative": 94,
+      "neutral": 26
+    },
+    "texture": {
+      "positive": 341,
+      "negative": 76,
+      "neutral": 56
+    },
+    "smell": {
+      "positive": 248,
+      "negative": 37,
+      "neutral": 16
+    },
+    "price": {
+      "positive": 315,
+      "neutral": 7,
+      "negative": 2
+    },
+    "colour": {
+      "positive": 638,
+      "neutral": 65,
+      "negative": 58
+    },
+    "shipping": {
+      "positive": 352,
+      "negative": 178,
+      "neutral": 28
+    },
+    "packing": {
+      "positive": 287,
+      "negative": 11,
+      "neutral": 1
+    }
+  },
+  "test": {
+    "stayingpower": {
+      "positive": 315,
+      "negative": 199,
+      "neutral": 71
+    },
+    "texture": {
+      "positive": 676,
+      "negative": 172,
+      "neutral": 132
+    },
+    "smell": {
+      "positive": 463,
+      "negative": 89,
+      "neutral": 21
+    },
+    "price": {
+      "positive": 665,
+      "neutral": 4,
+      "negative": 2
+    },
+    "colour": {
+      "positive": 1218,
+      "negative": 148,
+      "neutral": 111
+    },
+    "shipping": {
+      "positive": 679,
+      "negative": 376,
+      "neutral": 58
+    },
+    "packing": {
+      "positive": 574,
+      "negative": 21,
+      "neutral": 3
+    }
+  }
+}

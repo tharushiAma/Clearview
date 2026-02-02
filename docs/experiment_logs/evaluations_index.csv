@@ -1,0 +1,9 @@
+folder,macro_f1,conflict_f1,mixed_f1,msr_red,ckpt,report_path
+abl_no_sampler_baseline,0.6875903341582829,0.8056085743649978,0.7551020408163265,0,outputs/abl_no_sampler_baseline/best_model.pt,outputs\eval\abl_no_sampler_baseline\report.json
+abl_no_sampler_msr,0.6823705977871066,0.8081804191990027,0.7600806451612904,38,outputs/abl_no_sampler_msr/best_model.pt,outputs\eval\abl_no_sampler_msr\report.json
+abl_no_synth_baseline,0.6932264771652736,0.741729941473479,0.6748216106014271,0,outputs/abl_no_synth_baseline/best_model.pt,outputs\eval\abl_no_synth_baseline\report.json
+abl_no_synth_msr,0.7124124978015403,0.7786752245044304,0.7377201112140871,310,outputs/abl_no_synth_msr/best_model.pt,outputs\eval\abl_no_synth_msr\report.json
+baseline_fixed,0.6952548615632337,0.7776989509728804,0.7360594795539034,0,outputs/exp_a_baseline_fixed_eval/best_model.pt,outputs\eval\baseline_fixed\report.json
+msr,0.7240908891030912,0.8108260129605415,0.7669616519174042,50,outputs/exp_b_msr_fixed_er/best_model.pt,outputs\eval\msr\report.json
+abl_no_sampler_msr,0.6823705977871066,0.8081804191990027,0.7600806451612904,38,outputs/abl_no_sampler_msr/best_model.pt,outputs\eval\_rerun_all\abl_no_sampler_msr\report.json
+abl_no_synth_msr,0.7124124978015403,0.7786752245044304,0.7377201112140871,310,outputs/abl_no_synth_msr/best_model.pt,outputs\eval\_rerun_all\abl_no_synth_msr\report.json

@@ -1,0 +1,478 @@
+{
+  "run": {
+    "ckpt": "outputs/gold_msr_4class/best_model.pt",
+    "val_path": "data/splits/val.parquet",
+    "text_col": "text_clean",
+    "msr_strength": 0.3
+  },
+  "absa": {
+    "overall_macro_f1_4class": 0.6907390353039846,
+    "overall_macro_f1_sentiment": 0.751865033580558,
+    "per_aspect": {
+      "stayingpower": {
+        "f1_macro_4class": 0.7220263464903752,
+        "f1_macro_sentiment": 0.815618272910498,
+        "f1_presence": 0.7901234567901234,
+        "per_class": {
+          "negative": {
+            "precision": 0.46195652173913043,
+            "recall": 0.9042553191489362,
+            "f1": 0.6115107913669064
+          },
+          "neutral": {
+            "precision": 0.4166666666666667,
+            "recall": 0.7692307692307693,
+            "f1": 0.5405405405405406
+          },
+          "positive": {
+            "precision": 0.7828947368421053,
+            "recall": 0.8263888888888888,
+            "f1": 0.8040540540540541
+          },
+          "null": {
+            "precision": 0.9914893617021276,
+            "recall": 0.879245283018868,
+            "f1": 0.932
+          }
+        },
+        "confusion_matrix": [
+          [
+            85,
+            2,
+            3,
+            4
+          ],
+          [
+            4,
+            20,
+            2,
+            0
+          ],
+          [
+            10,
+            11,
+            119,
+            4
+          ],
+          [
+            85,
+            15,
+            28,
+            932
+          ]
+        ],
+        "labels_order": [
+          "negative",
+          "neutral",
+          "positive",
+          "null"
+        ]
+      },
+      "texture": {
+        "f1_macro_4class": 0.6910925927119682,
+        "f1_macro_sentiment": 0.7905825118258439,
+        "f1_presence": 0.7904599659284497,
+        "per_class": {
+          "negative": {
+            "precision": 0.6181818181818182,
+            "recall": 0.8947368421052632,
+            "f1": 0.7311827956989247
+          },
+          "neutral": {
+            "precision": 0.38823529411764707,
+            "recall": 0.5892857142857143,
+            "f1": 0.46808510638297873
+          },
+          "positive": {
+            "precision": 0.6126482213438735,
+            "recall": 0.9090909090909091,
+            "f1": 0.731995277449823
+          },
+          "null": {
+            "precision": 0.985553772070626,
+            "recall": 0.7215041128084606,
+            "f1": 0.8331071913161465
+          }
+        },
+        "confusion_matrix": [
+          [
+            68,
+            4,
+            3,
+            1
+          ],
+          [
+            10,
+            33,
+            11,
+            2
+          ],
+          [
+            5,
+            20,
+            310,
+            6
+          ],
+          [
+            27,
+            28,
+            182,
+            614
+          ]
+        ],
+        "labels_order": [
+          "negative",
+          "neutral",
+          "positive",
+          "null"
+        ]
+      },
+      "smell": {
+        "f1_macro_4class": 0.7369863400180564,
+        "f1_macro_sentiment": 0.7010078123156082,
+        "f1_presence": 0.9310344827586207,
+        "per_class": {
+          "negative": {
+            "precision": 0.5932203389830508,
+            "recall": 0.9459459459459459,
+            "f1": 0.7291666666666666
+          },
+          "neutral": {
+            "precision": 0.5,
+            "recall": 0.25,
+            "f1": 0.3333333333333333
+          },
+          "positive": {
+            "precision": 0.8703703703703703,
+            "recall": 0.9475806451612904,
+            "f1": 0.9073359073359073
+          },
+          "null": {
+            "precision": 0.9959473150962512,
+            "recall": 0.9608993157380255,
+            "f1": 0.9781094527363184
+          }
+        },
+        "confusion_matrix": [
+          [
+            35,
+            1,
+            1,
+            0
+          ],
+          [
+            9,
+            4,
+            3,
+            0
+          ],
+          [
+            6,
+            3,
+            235,
+            4
+          ],
+          [
+            9,
+            0,
+            31,
+            983
+          ]
+        ],
+        "labels_order": [
+          "negative",
+          "neutral",
+          "positive",
+          "null"
+        ]
+      },
+      "price": {
+        "f1_macro_4class": 0.5552087319445083,
+        "f1_macro_sentiment": 0.5856227106227107,
+        "f1_presence": 0.8390501319261213,
+        "per_class": {
+          "negative": {
+            "precision": 0.14285714285714285,
+            "recall": 0.5,
+            "f1": 0.2222222222222222
+          },
+          "neutral": {
+            "precision": 0.2,
+            "recall": 0.2857142857142857,
+            "f1": 0.23529411764705882
+          },
+          "positive": {
+            "precision": 0.7266187050359713,
+            "recall": 0.9619047619047619,
+            "f1": 0.8278688524590164
+          },
+          "null": {
+            "precision": 0.9932584269662922,
+            "recall": 0.884,
+            "f1": 0.9354497354497354
+          }
+        },
+        "confusion_matrix": [
+          [
+            1,
+            0,
+            1,
+            0
+          ],
+          [
+            0,
+            2,
+            5,
+            0
+          ],
+          [
+            1,
+            5,
+            303,
+            6
+          ],
+          [
+            5,
+            3,
+            108,
+            884
+          ]
+        ],
+        "labels_order": [
+          "negative",
+          "neutral",
+          "positive",
+          "null"
+        ]
+      },
+      "colour": {
+        "f1_macro_4class": 0.7442349390676908,
+        "f1_macro_sentiment": 0.7839453204468372,
+        "f1_presence": 0.892434988179669,
+        "per_class": {
+          "negative": {
+            "precision": 0.7368421052631579,
+            "recall": 0.7241379310344828,
+            "f1": 0.7304347826086957
+          },
+          "neutral": {
+            "precision": 0.6,
+            "recall": 0.5538461538461539,
+            "f1": 0.576
+          },
+          "positive": {
+            "precision": 0.7678132678132679,
+            "recall": 0.9796238244514106,
+            "f1": 0.8608815426997245
+          },
+          "null": {
+            "precision": 0.9847328244274809,
+            "recall": 0.6873889875666075,
+            "f1": 0.8096234309623431
+          }
+        },
+        "confusion_matrix": [
+          [
+            42,
+            7,
+            8,
+            1
+          ],
+          [
+            10,
+            36,
+            19,
+            0
+          ],
+          [
+            1,
+            7,
+            625,
+            5
+          ],
+          [
+            4,
+            10,
+            162,
+            387
+          ]
+        ],
+        "labels_order": [
+          "negative",
+          "neutral",
+          "positive",
+          "null"
+        ]
+      },
+      "shipping": {
+        "f1_macro_4class": 0.758065830083162,
+        "f1_macro_sentiment": 0.7570604999465225,
+        "f1_presence": 0.9279731993299832,
+        "per_class": {
+          "negative": {
+            "precision": 0.865,
+            "recall": 0.9719101123595506,
+            "f1": 0.9153439153439153
+          },
+          "neutral": {
+            "precision": 0.24390243902439024,
+            "recall": 0.35714285714285715,
+            "f1": 0.2898550724637681
+          },
+          "positive": {
+            "precision": 0.8379746835443038,
+            "recall": 0.9403409090909091,
+            "f1": 0.8862115127175368
+          },
+          "null": {
+            "precision": 0.9941860465116279,
+            "recall": 0.8929503916449086,
+            "f1": 0.9408528198074277
+          }
+        },
+        "confusion_matrix": [
+          [
+            173,
+            0,
+            2,
+            3
+          ],
+          [
+            12,
+            10,
+            6,
+            0
+          ],
+          [
+            4,
+            16,
+            331,
+            1
+          ],
+          [
+            11,
+            15,
+            56,
+            684
+          ]
+        ],
+        "labels_order": [
+          "negative",
+          "neutral",
+          "positive",
+          "null"
+        ]
+      },
+      "packing": {
+        "f1_macro_4class": 0.6275584668121321,
+        "f1_macro_sentiment": 0.8292181069958847,
+        "f1_presence": 0.7793923381770145,
+        "per_class": {
+          "negative": {
+            "precision": 0.37037037037037035,
+            "recall": 0.9090909090909091,
+            "f1": 0.5263157894736842
+          },
+          "neutral": {
+            "precision": 0.16666666666666666,
+            "recall": 1.0,
+            "f1": 0.2857142857142857
+          },
+          "positive": {
+            "precision": 0.6588235294117647,
+            "recall": 0.975609756097561,
+            "f1": 0.7865168539325843
+          },
+          "null": {
+            "precision": 0.9953810623556582,
+            "recall": 0.8409756097560975,
+            "f1": 0.9116869381279746
+          }
+        },
+        "confusion_matrix": [
+          [
+            10,
+            0,
+            0,
+            1
+          ],
+          [
+            0,
+            1,
+            0,
+            0
+          ],
+          [
+            3,
+            1,
+            280,
+            3
+          ],
+          [
+            14,
+            4,
+            145,
+            862
+          ]
+        ],
+        "labels_order": [
+          "negative",
+          "neutral",
+          "positive",
+          "null"
+        ]
+      }
+    }
+  },
+  "conflict": {
+    "best_threshold": 0.05,
+    "mixed_f1_at_best_threshold": 1.0,
+    "conf_f1_macro": 1.0,
+    "mixed_f1": 1.0,
+    "clear_mean_score": 0.0,
+    "mixed_mean_score": 0.47170791029930115,
+    "separation": 0.47170791029930115,
+    "mixed_rate_true": 1.0,
+    "mixed_rate_pred": 1.0
+  },
+  "msr_error_reduction": {
+    "per_aspect": {
+      "stayingpower": {
+        "before": 155,
+        "after": 168,
+        "reduction": -13
+      },
+      "texture": {
+        "before": 256,
+        "after": 299,
+        "reduction": -43
+      },
+      "smell": {
+        "before": 51,
+        "after": 67,
+        "reduction": -16
+      },
+      "price": {
+        "before": 99,
+        "after": 134,
+        "reduction": -35
+      },
+      "colour": {
+        "before": 228,
+        "after": 234,
+        "reduction": -6
+      },
+      "shipping": {
+        "before": 131,
+        "after": 126,
+        "reduction": 5
+      },
+      "packing": {
+        "before": 149,
+        "after": 171,
+        "reduction": -22
+      }
+    },
+    "total_reduction": -130
+  }
+}

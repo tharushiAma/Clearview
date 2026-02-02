@@ -1,0 +1,2 @@
+Purpose: Best performing baseline model weights.
+Details: Contains the reference RoBERTa model trained without MSR for the 4-class system. Used as the primary control group.
