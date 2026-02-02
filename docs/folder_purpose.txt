@@ -1,0 +1,10 @@
+Purpose: Research documentation, experiment logs, and analysis reports.
+
+Key Documents:
+- baseline_analysis.md - Analysis of baseline model performance
+- class_balanced_data.md - Class balancing strategies documentation
+- msr_fixes_summary.md - Summary of MSR mechanism improvements
+- walkThroughFixes.md - Detailed walkthrough of bug fixes and updates
+- experiment_logs/ - Historical logs from development iterations
+
+Use these documents to understand the evolution of the project and key design decisions.

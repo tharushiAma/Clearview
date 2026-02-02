@@ -1,0 +1,7 @@
+The outputs/eval/baseline_fixed folder specifically contains the evaluation results for the RoBERTa Baseline model (the version without MSR) that was updated or "fixed" to work with your current data splits (data/splits/val.parquet).
+
+What’s inside:
+report.json: Shows that this run used roberta_baseline_seed42.pt with msr_strength: 0.0 (meaning the MSR gate was completely disabled). This is your scientific "Control Group."
+Performance: It shows an overall Macro-F1 of 0.695 for ABSA.
+The "Fixed" part: This folder was created to ensure you had a clean, comparable baseline after certain data loading or class-mapping issues were resolved in the earlier stages of the project.
+Verdict: This folder is ESSENTIAL because it provides the benchmark scores that prove your MSR model is better. Without these "Baseline Fixed" results, you wouldn't have a fair "Before vs. After" comparison for your thesis.

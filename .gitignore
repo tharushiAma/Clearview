@@ -1,41 +1,38 @@
 # Python
 __pycache__/
 *.pyc
-*.pyo
-*.pyd
-.Python
-env/
-venv/
-.env
 .venv/
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-share/python-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
 
-# Jupyter Notebooks
-.ipynb_checkpoints
-
-# VS Code
+# IDE
 .vscode/
-.idea/
 
-# Project Specific - Large Data & Models
-outputs/checkpoints/
-outputs/cache/
+# Large model files - NEVER commit these!
+*.pt
+*.pth
+*.ckpt
+*.h5
+*.pkl
+*.joblib
+
+# ML Research: Output directories with large files
+ml-research/outputs/checkpoints/
+ml-research/outputs/*/*.pt
+ml-research/outputs/*/best_model.pt
+ml-research/archive/outputs/checkpoints/
+
 
 # Logs
 *.log
+ml-research/outputs/logs/
+
+# Allow specific thesis tables (small CSV files)
+!ml-research/outputs/eval/*.csv
+!ml-research/outputs/eval/*.md
+!ml-research/outputs/ablations_4class/*.md
+
+# Website
+website/node_modules/
+website/.next/
+website/out/
+website/dist/
+website/.vercel/

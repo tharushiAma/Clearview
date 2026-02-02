@@ -1,0 +1,365 @@
+{
+  "run": {
+    "ckpt": "outputs/checkpoints/roberta_baseline_seed42.pt",
+    "val_path": "data/splits/val.parquet",
+    "text_col": "text_clean",
+    "msr_strength": 0.0
+  },
+  "absa": {
+    "overall_macro_f1": 0.6952548615632337,
+    "per_aspect": {
+      "stayingpower": {
+        "f1_macro": 0.8113757979529792,
+        "f1_weighted": 0.8653071387970717,
+        "per_class": {
+          "negative": {
+            "precision": 0.8977272727272727,
+            "recall": 0.8404255319148937,
+            "f1": 0.8681318681318682
+          },
+          "neutral": {
+            "precision": 0.7272727272727273,
+            "recall": 0.6153846153846154,
+            "f1": 0.6666666666666666
+          },
+          "positive": {
+            "precision": 0.8701298701298701,
+            "recall": 0.9305555555555556,
+            "f1": 0.8993288590604027
+          }
+        },
+        "confusion_matrix": [
+          [
+            79,
+            1,
+            14
+          ],
+          [
+            4,
+            16,
+            6
+          ],
+          [
+            5,
+            5,
+            134
+          ]
+        ],
+        "labels_order": [
+          "negative",
+          "neutral",
+          "positive"
+        ]
+      },
+      "texture": {
+        "f1_macro": 0.7952197464678616,
+        "f1_weighted": 0.8791030917365817,
+        "per_class": {
+          "negative": {
+            "precision": 0.8117647058823529,
+            "recall": 0.9078947368421053,
+            "f1": 0.8571428571428571
+          },
+          "neutral": {
+            "precision": 0.5352112676056338,
+            "recall": 0.6785714285714286,
+            "f1": 0.5984251968503937
+          },
+          "positive": {
+            "precision": 0.9652996845425867,
+            "recall": 0.8973607038123167,
+            "f1": 0.9300911854103343
+          }
+        },
+        "confusion_matrix": [
+          [
+            69,
+            5,
+            2
+          ],
+          [
+            9,
+            38,
+            9
+          ],
+          [
+            7,
+            28,
+            306
+          ]
+        ],
+        "labels_order": [
+          "negative",
+          "neutral",
+          "positive"
+        ]
+      },
+      "smell": {
+        "f1_macro": 0.7194781826360774,
+        "f1_weighted": 0.9128698311072851,
+        "per_class": {
+          "negative": {
+            "precision": 0.7560975609756098,
+            "recall": 0.8378378378378378,
+            "f1": 0.7948717948717948
+          },
+          "neutral": {
+            "precision": 0.42857142857142855,
+            "recall": 0.375,
+            "f1": 0.4
+          },
+          "positive": {
+            "precision": 0.967479674796748,
+            "recall": 0.9596774193548387,
+            "f1": 0.9635627530364372
+          }
+        },
+        "confusion_matrix": [
+          [
+            31,
+            2,
+            4
+          ],
+          [
+            6,
+            6,
+            4
+          ],
+          [
+            4,
+            6,
+            238
+          ]
+        ],
+        "labels_order": [
+          "negative",
+          "neutral",
+          "positive"
+        ]
+      },
+      "price": {
+        "f1_macro": 0.38709368567188474,
+        "f1_weighted": 0.9561837437034908,
+        "per_class": {
+          "negative": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0
+          },
+          "neutral": {
+            "precision": 0.25,
+            "recall": 0.14285714285714285,
+            "f1": 0.18181818181818182
+          },
+          "positive": {
+            "precision": 0.9748427672955975,
+            "recall": 0.9841269841269841,
+            "f1": 0.9794628751974723
+          }
+        },
+        "confusion_matrix": [
+          [
+            0,
+            0,
+            2
+          ],
+          [
+            0,
+            1,
+            6
+          ],
+          [
+            2,
+            3,
+            310
+          ]
+        ],
+        "labels_order": [
+          "negative",
+          "neutral",
+          "positive"
+        ]
+      },
+      "colour": {
+        "f1_macro": 0.8092783159876055,
+        "f1_weighted": 0.9275196027996181,
+        "per_class": {
+          "negative": {
+            "precision": 0.8103448275862069,
+            "recall": 0.8103448275862069,
+            "f1": 0.8103448275862069
+          },
+          "neutral": {
+            "precision": 0.65625,
+            "recall": 0.6461538461538462,
+            "f1": 0.6511627906976745
+          },
+          "positive": {
+            "precision": 0.9655712050078247,
+            "recall": 0.9670846394984326,
+            "f1": 0.966327329678935
+          }
+        },
+        "confusion_matrix": [
+          [
+            47,
+            5,
+            6
+          ],
+          [
+            7,
+            42,
+            16
+          ],
+          [
+            4,
+            17,
+            617
+          ]
+        ],
+        "labels_order": [
+          "negative",
+          "neutral",
+          "positive"
+        ]
+      },
+      "shipping": {
+        "f1_macro": 0.7726386974831452,
+        "f1_weighted": 0.9210181506487929,
+        "per_class": {
+          "negative": {
+            "precision": 0.9467455621301775,
+            "recall": 0.898876404494382,
+            "f1": 0.9221902017291066
+          },
+          "neutral": {
+            "precision": 0.3220338983050847,
+            "recall": 0.6785714285714286,
+            "f1": 0.4367816091954023
+          },
+          "positive": {
+            "precision": 0.990909090909091,
+            "recall": 0.9289772727272727,
+            "f1": 0.9589442815249267
+          }
+        },
+        "confusion_matrix": [
+          [
+            160,
+            18,
+            0
+          ],
+          [
+            6,
+            19,
+            3
+          ],
+          [
+            3,
+            22,
+            327
+          ]
+        ],
+        "labels_order": [
+          "negative",
+          "neutral",
+          "positive"
+        ]
+      },
+      "packing": {
+        "f1_macro": 0.571699604743083,
+        "f1_weighted": 0.9749367456739858,
+        "per_class": {
+          "negative": {
+            "precision": 0.7272727272727273,
+            "recall": 0.7272727272727273,
+            "f1": 0.7272727272727273
+          },
+          "neutral": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0
+          },
+          "positive": {
+            "precision": 0.9861111111111112,
+            "recall": 0.9895470383275261,
+            "f1": 0.9878260869565217
+          }
+        },
+        "confusion_matrix": [
+          [
+            8,
+            0,
+            3
+          ],
+          [
+            0,
+            0,
+            1
+          ],
+          [
+            3,
+            0,
+            284
+          ]
+        ],
+        "labels_order": [
+          "negative",
+          "neutral",
+          "positive"
+        ]
+      }
+    }
+  },
+  "conflict": {
+    "best_threshold": 0.5499999999999999,
+    "mixed_f1_at_best_threshold": 0.7360594795539034,
+    "conf_f1_macro": 0.7776989509728804,
+    "mixed_f1": 0.7360594795539034,
+    "clear_mean_score": 0.5475143790245056,
+    "mixed_mean_score": 0.6043946743011475,
+    "separation": 0.056880295276641846,
+    "mixed_rate_true": 0.32326283987915405,
+    "mixed_rate_pred": 0.48942598187311176
+  },
+  "msr_error_reduction": {
+    "per_aspect": {
+      "stayingpower": {
+        "before": 35,
+        "after": 35,
+        "reduction": 0
+      },
+      "texture": {
+        "before": 60,
+        "after": 60,
+        "reduction": 0
+      },
+      "smell": {
+        "before": 26,
+        "after": 26,
+        "reduction": 0
+      },
+      "price": {
+        "before": 13,
+        "after": 13,
+        "reduction": 0
+      },
+      "colour": {
+        "before": 55,
+        "after": 55,
+        "reduction": 0
+      },
+      "shipping": {
+        "before": 52,
+        "after": 52,
+        "reduction": 0
+      },
+      "packing": {
+        "before": 7,
+        "after": 7,
+        "reduction": 0
+      }
+    },
+    "total_reduction": 0
+  }
+}

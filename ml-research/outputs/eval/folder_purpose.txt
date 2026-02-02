@@ -1,0 +1,2 @@
+Purpose: Final thesis-grade evaluation tables.
+Details: Contains CSV files like 'thesis_table_per_aspect.csv' and 'thesis_table_msr_effect.csv'. These are the primary tables for results discussion.
