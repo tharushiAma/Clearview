@@ -84,13 +84,18 @@ pip install -r requirements.txt
 python src/models/train_roberta_improved.py --use_synthetic --use_sampler --msr_strength 0.3
 ```
 
-### Website
+### Website (UI Demo)
 
 ```bash
-cd website
-pnpm install
-pnpm dev  # http://localhost:3000
+cd website/ui_demo
+./run_all.ps1
 ```
+
+This starts:
+- **Frontend**: http://localhost:3000 (Next.js + shadcn/ui)
+- **Backend**: http://localhost:8000 (FastAPI + Uvicorn)
+
+Refer to [`website/ui_demo/README.md`](website/ui_demo/README.md) for manual startup.
 
 ## Documentation
 

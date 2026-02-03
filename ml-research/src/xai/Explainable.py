@@ -39,6 +39,9 @@ class ClearViewExplainer:
 
         # Captum IG works best on embedding layer
         self.emb_layer = self.model.roberta.embeddings.word_embeddings
+        
+        # Simple cache for attributions to avoid redundant work
+        self._ig_cache = {}
 
     def encode(self, text: str, max_len: int = 256):
         enc = self.tokenizer(
@@ -49,6 +52,9 @@ class ClearViewExplainer:
             return_tensors="pt"
         )
         return enc["input_ids"].to(self.device), enc["attention_mask"].to(self.device)
+
+    def _get_cache_key(self, text, task, aspect, enable_msr):
+        return (text, task, aspect, enable_msr)
 
     # --------------------------
     # Forward wrappers for Captum
@@ -69,6 +75,10 @@ class ClearViewExplainer:
     # Integrated Gradients
     # --------------------------
     def explain_ig_aspect(self, text: str, aspect: str, target_label: str = None, enable_msr: bool = True, top_k: int = 12):
+        key = self._get_cache_key(text, "aspect", aspect, enable_msr)
+        if key in self._ig_cache:
+            return self._ig_cache[key]
+
         aspect_idx = ASPECTS.index(aspect)
         input_ids, attn = self.encode(text)
 
@@ -99,7 +109,7 @@ class ClearViewExplainer:
 
         toks_sorted = sorted(toks, key=lambda x: abs(x[1]), reverse=True)[:top_k]
 
-        return {
+        res = {
             "method": "integrated_gradients",
             "task": "aspect_sentiment",
             "aspect": aspect,
@@ -110,8 +120,14 @@ class ClearViewExplainer:
             "top_tokens": toks_sorted,
             "conflict_score": float(conf[0].detach().cpu().item())
         }
+        self._ig_cache[key] = res
+        return res
 
     def explain_ig_conflict(self, text: str, enable_msr: bool = True, top_k: int = 12):
+        key = self._get_cache_key(text, "conflict", None, enable_msr)
+        if key in self._ig_cache:
+            return self._ig_cache[key]
+
         input_ids, attn = self.encode(text)
 
         lig = LayerIntegratedGradients(
@@ -137,13 +153,15 @@ class ClearViewExplainer:
         with torch.no_grad():
             prob = self._forward_conflict_logit(input_ids, attn, enable_msr)[0].item()
 
-        return {
+        res = {
             "method": "integrated_gradients",
             "task": "conflict_detection",
             "enable_msr": enable_msr,
             "conflict_prob": float(prob),
             "top_tokens": toks_sorted
         }
+        self._ig_cache[key] = res
+        return res
 
     # --------------------------
     # LIME
