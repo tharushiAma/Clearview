@@ -1,83 +1,50 @@
-# Clearview Website
+# ClearView UI Demo
 
-This directory contains the frontend website for the Clearview sentiment analysis project.
+This folder contains the UI Demo for the ClearView project, featuring a Next.js frontend and a FastAPI backend.
 
-## Tech Stack
+## Prerequisites
 
-- **Framework**: Next.js (React)
-- **Language**: TypeScript
-- **Styling**: Tailwind CSS
-- **UI Components**: shadcn/ui
-- **Package Manager**: pnpm
+- Node.js (v18+)
+- Python (3.9+) with the project virtual environment active.
+- `pip install fastapi uvicorn pydantic pandas` (if not already installed)
 
-## Quick Start
+## Setup
 
-### Installation
+1. Copy `.env.example` to `.env.local` in this directory:
+   ```bash
+   cp .env.example .env.local
+   ```
 
-```bash
-# Install dependencies
-pnpm install
+2. Ensure your model checkpoint exists. By default, it looks for:
+   `../../outputs/exp_b_msr_fixed_er/best_model.pt`
+   You can override this by setting `CKPT_PATH` in the environment variables for the backend.
+
+## Running the Demo
+
+Use the helper script to start both services:
+
+**Windows (PowerShell):**
+```powershell
+./run_all.ps1
 ```
 
-### Development
+**Manual Start:**
 
+Backend (Terminal 1):
 ```bash
-# Run development server
-pnpm dev
+python -m uvicorn backend_api.main:app --reload --port 8000
+```
+
+Frontend (Terminal 2):
+```bash
+npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-### Build
+## Backend API
 
-```bash
-# Create production build
-pnpm build
-
-# Start production server
-pnpm start
-```
-
-## Project Structure
-
-```
-website/
-├── app/          # Next.js app directory (routes)
-├── components/   # React components
-├── hooks/        # Custom React hooks
-├── lib/          # Utility functions
-├── public/       # Static assets
-├── styles/       # Global styles
-└── package.json  # Dependencies
-```
-
-## Features
-
-- Interactive sentiment analysis demo
-- Multi-aspect visualization
-- Real-time XAI explanations
-- Responsive design
-
-## Development Notes
-
-- Uses App Router (Next.js 13+)
-- Configured with ESLint and Prettier
-- TypeScript strict mode enabled
-
-## Deployment
-
-This website can be deployed to Vercel, Netlify, or any Next.js-compatible hosting platform.
-
-```bash
-# Production build
-pnpm build
-```
-
-## Contributing
-
-Please ensure code passes linting and type-checking before committing:
-
-```bash
-pnpm lint
-pnpm type-check
-```
+- `POST /api/predict`: Get predictions with before/after MSR.
+- `POST /api/explain`: Get XAI attribution data.
+- `GET /api/metrics`: Get evaluation metrics from `outputs/`.
+- `GET /api/logs`: Get recent logs.
