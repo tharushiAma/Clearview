@@ -1,2 +1,0 @@
-Configuration: Synthetic-augmented data with MSR Enabled (0.3).
-Purpose: Tests the synergy between synthetic data training and the MSR conflict-resolution gate.
