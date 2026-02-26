@@ -1,0 +1,178 @@
+{
+  "Strongly positive": {
+    "stayingpower": {
+      "negative": 0.48332855105400085,
+      "neutral": 0.19546936452388763,
+      "positive": 0.32120203971862793,
+      "pred": "negative"
+    },
+    "texture": {
+      "negative": 0.3119873106479645,
+      "neutral": 0.4173271954059601,
+      "positive": 0.27068546414375305,
+      "pred": "neutral"
+    },
+    "smell": {
+      "negative": 0.4060077965259552,
+      "neutral": 0.3244376480579376,
+      "positive": 0.2695544958114624,
+      "pred": "negative"
+    },
+    "price": {
+      "negative": 0.31689468026161194,
+      "neutral": 0.3463413715362549,
+      "positive": 0.3367639482021332,
+      "pred": "neutral"
+    },
+    "colour": {
+      "negative": 0.2701285779476166,
+      "neutral": 0.5149824023246765,
+      "positive": 0.21488898992538452,
+      "pred": "neutral"
+    },
+    "shipping": {
+      "negative": 0.32190653681755066,
+      "neutral": 0.37616103887557983,
+      "positive": 0.3019323945045471,
+      "pred": "neutral"
+    },
+    "packing": {
+      "negative": 0.41530993580818176,
+      "neutral": 0.27559369802474976,
+      "positive": 0.3090963363647461,
+      "pred": "negative"
+    }
+  },
+  "Strongly negative": {
+    "stayingpower": {
+      "negative": 0.21731208264827728,
+      "neutral": 0.37222427129745483,
+      "positive": 0.41046369075775146,
+      "pred": "positive"
+    },
+    "texture": {
+      "negative": 0.3581402897834778,
+      "neutral": 0.24828162789344788,
+      "positive": 0.3935781419277191,
+      "pred": "positive"
+    },
+    "smell": {
+      "negative": 0.3739968538284302,
+      "neutral": 0.3745340406894684,
+      "positive": 0.25146907567977905,
+      "pred": "neutral"
+    },
+    "price": {
+      "negative": 0.3615351617336273,
+      "neutral": 0.3542358875274658,
+      "positive": 0.28422898054122925,
+      "pred": "negative"
+    },
+    "colour": {
+      "negative": 0.33389735221862793,
+      "neutral": 0.35702335834503174,
+      "positive": 0.30907925963401794,
+      "pred": "neutral"
+    },
+    "shipping": {
+      "negative": 0.3041668236255646,
+      "neutral": 0.37735798954963684,
+      "positive": 0.3184751570224762,
+      "pred": "neutral"
+    },
+    "packing": {
+      "negative": 0.3362067937850952,
+      "neutral": 0.3895125985145569,
+      "positive": 0.2742805778980255,
+      "pred": "neutral"
+    }
+  },
+  "Mixed MSR test": {
+    "stayingpower": {
+      "negative": 0.21349826455116272,
+      "neutral": 0.3884601891040802,
+      "positive": 0.3980415165424347,
+      "pred": "positive"
+    },
+    "texture": {
+      "negative": 0.3614550232887268,
+      "neutral": 0.3777797222137451,
+      "positive": 0.2607651948928833,
+      "pred": "neutral"
+    },
+    "smell": {
+      "negative": 0.3739396631717682,
+      "neutral": 0.39221107959747314,
+      "positive": 0.23384928703308105,
+      "pred": "neutral"
+    },
+    "price": {
+      "negative": 0.303800493478775,
+      "neutral": 0.3890015780925751,
+      "positive": 0.3071979582309723,
+      "pred": "neutral"
+    },
+    "colour": {
+      "negative": 0.29438862204551697,
+      "neutral": 0.47141391038894653,
+      "positive": 0.2341974526643753,
+      "pred": "neutral"
+    },
+    "shipping": {
+      "negative": 0.294815331697464,
+      "neutral": 0.36472266912460327,
+      "positive": 0.3404620587825775,
+      "pred": "neutral"
+    },
+    "packing": {
+      "negative": 0.34754934906959534,
+      "neutral": 0.35403403639793396,
+      "positive": 0.2984166145324707,
+      "pred": "neutral"
+    }
+  },
+  "Neutral": {
+    "stayingpower": {
+      "negative": 0.4359041750431061,
+      "neutral": 0.26960834860801697,
+      "positive": 0.2944873869419098,
+      "pred": "negative"
+    },
+    "texture": {
+      "negative": 0.285812646150589,
+      "neutral": 0.31369340419769287,
+      "positive": 0.4004940092563629,
+      "pred": "positive"
+    },
+    "smell": {
+      "negative": 0.2927383780479431,
+      "neutral": 0.3315756022930145,
+      "positive": 0.37568598985671997,
+      "pred": "positive"
+    },
+    "price": {
+      "negative": 0.3092963397502899,
+      "neutral": 0.34906724095344543,
+      "positive": 0.34163641929626465,
+      "pred": "neutral"
+    },
+    "colour": {
+      "negative": 0.3587462306022644,
+      "neutral": 0.4254463315010071,
+      "positive": 0.21580740809440613,
+      "pred": "neutral"
+    },
+    "shipping": {
+      "negative": 0.3744017481803894,
+      "neutral": 0.3457231819629669,
+      "positive": 0.27987512946128845,
+      "pred": "negative"
+    },
+    "packing": {
+      "negative": 0.35622647404670715,
+      "neutral": 0.3615129292011261,
+      "positive": 0.28226056694984436,
+      "pred": "neutral"
+    }
+  }
+}
