@@ -11,6 +11,7 @@ import {
   Settings,
   Info,
   Eye,
+  UploadCloud,
 } from "lucide-react";
 
 import {
@@ -30,6 +31,7 @@ const navItems = [
   { title: "Overview", href: "/", icon: LayoutDashboard },
   { title: "Live Demo", href: "/demo", icon: Play },
   { title: "XAI", href: "/xai", icon: Sparkles },
+  { title: "Bulk Reviews", href: "/bulk", icon: UploadCloud },
   { title: "Analytics", href: "/analytics", icon: BarChart3 },
   { title: "Logs", href: "/logs", icon: FileText },
 ];

@@ -3,16 +3,35 @@ import type { PredictResponse } from '@/types/api';
 
 export const maxDuration = 60; // 60 seconds timeout
 
+/**
+ * Prediction API Route
+ * 
+ * Next.js API route that proxies prediction requests to the Python FastAPI backend.
+ * Handles ABSA sentiment analysis with optional MSR refinement.
+ * 
+ * @route POST /api/predict
+ * @param {PredictRequest} body - Request containing review text and MSR settings
+ * @returns {PredictResponse} Aspect-level sentiments, conflict probability, and timing info
+ */
+
 interface PredictRequest {
-  text: string;
-  msr_enabled?: boolean;
-  msr_strength?: number;
-  ckpt_path?: string;
+  text: string;  // Review text to analyze
+  msr_enabled?: boolean;  // Whether to apply MSR refinement (default: true)
+  msr_strength?: number;  // MSR strength parameter 0.0-1.0 (default: 0.3)
+  ckpt_path?: string;  // Optional custom model checkpoint path
 }
 
 // FastAPI backend URL - can be configured via environment variable
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8000';
 
+/**
+ * POST handler for prediction requests.
+ * 
+ * Flow:
+ * 1. Validate incoming request
+ * 2. Forward to Python backend (/predict endpoint)
+ * 3. Return results or handle errors
+ */
 export async function POST(request: NextRequest) {
   try {
     const body: PredictRequest = await request.json();

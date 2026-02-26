@@ -1,7 +1,0 @@
-Purpose: Jupyter notebooks for data preprocessing and exploratory analysis.
-
-Contents:
-- Google_Translator.ipynb - Translation utilities for multilingual data
-- remove_other_and_no_aspect_rows.ipynb - Data cleaning notebook
-
-Note: These notebooks were used during initial data preparation. The finalized data is in the data/ directory.

@@ -112,3 +112,37 @@ export interface AppSettings {
   defaultCheckpointPath: string;
   darkMode: boolean;
 }
+
+// Bulk Review types
+export interface BulkAspectData {
+  name: string;
+  label: SentimentLabel;
+  confidence: number;
+}
+
+export interface BulkReviewRow {
+  review_index: number;
+  text: string;
+  aspects: BulkAspectData[];
+  conflict_prob: number;
+  error?: string;
+}
+
+export interface AspectSentimentCounts {
+  POS: number;
+  NEG: number;
+  NEU: number;
+  NULL: number;
+  [key: string]: number;
+}
+
+export interface BulkPredictResult {
+  total_reviews: number;
+  total_processed: number;
+  mixed_count: number;
+  overall_counts: AspectSentimentCounts;
+  aspect_summary: Record<string, AspectSentimentCounts>;
+  avg_confidence: Record<string, number>;
+  rows: BulkReviewRow[];
+  timings: { total_ms: number };
+}

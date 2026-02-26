@@ -53,8 +53,8 @@ export default function XAIPage() {
   };
 
   const getMethodExplanations = (method: ExplanationMethod) => {
-    if (!result) return [];
-    return result.explanations.filter((e) => e.method === method);
+    if (!result || !result.explanations) return [];
+    return result.explanations.filter((e) => e && e.method === method);
   };
 
   return (
@@ -168,7 +168,7 @@ export default function XAIPage() {
                 </TabsList>
                 {(["ig", "lime", "shap"] as ExplanationMethod[]).map((method) => (
                   <TabsContent key={method} value={method} className="space-y-4 mt-4">
-                    {getMethodExplanations(method).map((exp) => (
+                    {(getMethodExplanations(method) || []).map((exp) => (
                       <div key={`${exp.aspect}-${exp.method}`} className="space-y-2">
                         <h4 className="text-sm font-medium capitalize">
                           {exp.aspect}
@@ -208,9 +208,9 @@ export default function XAIPage() {
                   Gained Importance
                 </h4>
                 <div className="flex flex-wrap gap-2">
-                  {result.explanations
-                    .flatMap((e) => e.tokens)
-                    .filter((t) => t.msrDelta && t.msrDelta > 0.1)
+                  {(result.explanations || [])
+                    .flatMap((e) => e.tokens || [])
+                    .filter((t) => t && t.msrDelta && t.msrDelta > 0.1)
                     .slice(0, 10)
                     .map((t, i) => (
                       <span
@@ -231,9 +231,9 @@ export default function XAIPage() {
                   Lost Importance
                 </h4>
                 <div className="flex flex-wrap gap-2">
-                  {result.explanations
-                    .flatMap((e) => e.tokens)
-                    .filter((t) => t.msrDelta && t.msrDelta < -0.1)
+                  {(result.explanations || [])
+                    .flatMap((e) => e.tokens || [])
+                    .filter((t) => t && t.msrDelta && t.msrDelta < -0.1)
                     .slice(0, 10)
                     .map((t, i) => (
                       <span
@@ -288,12 +288,12 @@ function TokenHighlightViewer({
   tokens: { token: string; attribution: number; msrDelta?: number }[];
   showMsrDelta: boolean;
 }) {
-  const maxAttr = Math.max(...tokens.map((t) => Math.abs(t.attribution)));
+  const maxAttr = Math.max(...(tokens || []).map((t) => Math.abs(t.attribution || 0)), 0.001);
 
   return (
     <div className="flex flex-wrap gap-1 p-3 rounded-lg bg-muted/50">
-      {tokens.map((t, i) => {
-        const normalizedAttr = t.attribution / maxAttr;
+      {(tokens || []).map((t, i) => {
+        const normalizedAttr = (t.attribution || 0) / maxAttr;
         const isPositive = normalizedAttr > 0;
         const intensity = Math.abs(normalizedAttr);
 

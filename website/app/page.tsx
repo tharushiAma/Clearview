@@ -1,4 +1,4 @@
-import ClearViewDemo from "@/components/ClearViewDemo";
+import ClientClearViewDemo from "@/components/ClientClearViewDemo";
 
 export default function Home() {
   return (
@@ -9,11 +9,11 @@ export default function Home() {
             ClearView <span className="text-blue-600">AI</span> Console
           </h1>
           <p className="text-neutral-500">
-            Multi-Aspect Sentiment Analysis & Conflict Resolution with MSR
+            Multi-Aspect Sentiment Analysis &amp; Conflict Resolution with MSR
           </p>
         </header>
 
-        <ClearViewDemo />
+        <ClientClearViewDemo />
       </div>
     </main>
   );

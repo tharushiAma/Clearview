@@ -1,8 +1,9 @@
 export interface AspectData {
-  name: string;
+  aspect: string;
   label: string;
   confidence: number;
-  probs: number[];
+  topTokens?: string[];
+  probs?: number[];
   before?: {
     label: string;
     confidence: number;
@@ -11,19 +12,22 @@ export interface AspectData {
     label: string;
     confidence: number;
   };
-  changed_by_msr: boolean;
+  msrChanged: boolean;
 }
 
 export interface PredictResponse {
-  aspects: AspectData[];
-  conflict_prob: number;
-  timings: {
+  predictions: AspectData[];
+  conflictProbability: number;
+  mixedSentimentDetected: boolean;
+  timings?: {
     total_ms: number;
   };
+  before?: AspectData[];
+  after?: AspectData[];
 }
 
 export interface MetricData {
-  overall_macro_f1_4class: number;
+  overall_macro_f1: number;    // 3-class: negative / neutral / positive
   overall_macro_f1_sentiment: number;
   conflict: {
     conf_f1_macro: number;

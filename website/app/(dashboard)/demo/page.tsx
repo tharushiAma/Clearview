@@ -246,7 +246,7 @@ function PredictionTable({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {predictions.map((pred) => (
+          {(predictions || []).map((pred) => (
             <TableRow key={pred.aspect}>
               <TableCell className="font-medium capitalize">
                 {pred.aspect}
@@ -259,9 +259,9 @@ function PredictionTable({
                   {pred.label}
                 </Badge>
               </TableCell>
-              <TableCell>{(pred.confidence * 100).toFixed(1)}%</TableCell>
+              <TableCell>{((pred.confidence || 0) * 100).toFixed(1)}%</TableCell>
               <TableCell className="text-muted-foreground text-sm">
-                {pred.topTokens.join(", ")}
+                {(pred.topTokens || []).join(", ")}
               </TableCell>
               {showMsrBadge && (
                 <TableCell>
@@ -300,10 +300,10 @@ function ComparisonTable({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {before.map((b, i) => {
-            const a = after[i];
+          {(before || []).map((b, i) => {
+            const a = (after || [])[i];
             if (!a) return null;
-            const confDiff = a.confidence - b.confidence;
+            const confDiff = (a.confidence || 0) - (b.confidence || 0);
             const labelChanged = b.label !== a.label;
             return (
               <TableRow key={b.aspect}>
@@ -318,7 +318,7 @@ function ComparisonTable({
                     {b.label}
                   </Badge>
                   <span className="ml-2 text-sm text-muted-foreground">
-                    {(b.confidence * 100).toFixed(0)}%
+                    {((b.confidence || 0) * 100).toFixed(0)}%
                   </span>
                 </TableCell>
                 <TableCell>
@@ -334,18 +334,17 @@ function ComparisonTable({
                     {a.label}
                   </Badge>
                   <span className="ml-2 text-sm text-muted-foreground">
-                    {(a.confidence * 100).toFixed(0)}%
+                    {((a.confidence || 0) * 100).toFixed(0)}%
                   </span>
                 </TableCell>
                 <TableCell>
                   <span
-                    className={`text-sm font-medium ${
-                      confDiff > 0
+                    className={`text-sm font-medium ${confDiff > 0
                         ? "text-green-600 dark:text-green-400"
                         : confDiff < 0
                           ? "text-red-600 dark:text-red-400"
                           : "text-muted-foreground"
-                    }`}
+                      }`}
                   >
                     {confDiff > 0 ? "+" : ""}
                     {(confDiff * 100).toFixed(1)}%
