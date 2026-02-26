@@ -1,0 +1,21 @@
+{
+  "mixed_review_count": 621,
+  "mixed_detection_rate": 43.09507286606523,
+  "mixed_review_accuracy": 66.98872785829307,
+  "mixed_aspect_accuracy": 86.61814109742441,
+  "stats": {
+    "total_reviews": 1987,
+    "mixed_sentiment_reviews": 621,
+    "single_aspect_reviews": 546,
+    "multi_aspect_reviews": 1441,
+    "conflict_types": {
+      "positive_negative": 410,
+      "positive_neutral_negative": 43,
+      "neutral_with_extremes": 168
+    },
+    "mixed_percentage_of_multi": 43.09507286606523,
+    "mixed_percentage_of_total": 31.25314544539507
+  },
+  "total_mixed_aspects": 1786,
+  "correct_mixed_aspects": 1547
+}
