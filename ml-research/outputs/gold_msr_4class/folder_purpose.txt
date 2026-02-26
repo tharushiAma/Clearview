@@ -1,2 +1,0 @@
-Purpose: Best performing final MSR model weights.
-Details: Contains the proposed EAGLE model with MSR logic enabled. This is the primary result of the research.

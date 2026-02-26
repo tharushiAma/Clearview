@@ -1,2 +1,0 @@
-Configuration: Sampler-augmented data with MSR Enabled (0.3).
-Purpose: Hybrid approach testing the sampler-based augmentation combined with the MSR architectural improvement.

@@ -1,3 +1,0 @@
-Purpose: Contains the full 2x2 ablation matrix results. 
-Details: Compares 4 configurations (Base, Sampler-Only, Synthetic-Only, Full-EAGLE) across MSR=Off (0.0) and MSR=On (0.3). 
-Used to identify which component drives specific metric gains.
