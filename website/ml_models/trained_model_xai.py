@@ -17,7 +17,15 @@ import re
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.abspath(os.path.join(current_dir, "..", ".."))
-sys.path.insert(0, project_root)
+
+# inference.py lives inside ml-research/outputs/cosmetic_sentiment_v1/evaluation/
+# We also need ml-research/src on the path so inference.py can find models/model.py
+inference_dir = os.path.join(project_root, "ml-research", "outputs", "cosmetic_sentiment_v1", "evaluation")
+ml_src_dir = os.path.join(project_root, "ml-research", "src")
+if inference_dir not in sys.path:
+    sys.path.insert(0, inference_dir)
+if ml_src_dir not in sys.path:
+    sys.path.insert(0, ml_src_dir)
 
 from inference import SentimentPredictor
 
@@ -206,7 +214,7 @@ class TrainedModelXAI:
 if __name__ == "__main__":
     import json
 
-    ckpt = os.path.join(project_root, "results", "cosmetic_sentiment_v1", "best_model.pt")
+    ckpt = os.path.join(project_root, "ml-research", "outputs", "cosmetic_sentiment_v1", "best_model.pt")
     if len(sys.argv) > 1:
         ckpt = sys.argv[1]
 

@@ -5,8 +5,12 @@ Loads ML models once at startup and keeps them in memory for instant predictions
 """
 
 import sys
+import io
+if hasattr(sys.stdout, 'reconfigure'): sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+if hasattr(sys.stderr, 'reconfigure'): sys.stderr.reconfigure(encoding='utf-8', errors='replace')
 import os
 import json
+from contextlib import asynccontextmanager
 import time
 from typing import Optional, List, Dict, Any
 import torch
@@ -24,7 +28,7 @@ _ml_research_found = False
 for p in [os.path.join(current_dir, "ml-research"), os.path.join(current_dir, "..", "ml-research")]:
     if os.path.exists(p):
         sys.path.append(p)
-        print(f"✅ Found ml-research at: {p}")
+        print(f"[OK] Found ml-research at: {p}")
         _ml_research_found = True
         break
 
@@ -36,18 +40,18 @@ _trained_adapter_available = False
 try:
     from ml_models.trained_model_adapter import TrainedModelAdapter
     _trained_adapter_available = True
-    print("✅ Trained model adapter available")
+    print("[OK] Trained model adapter available")
 except ImportError as e:
-    print(f"⚠️  Trained model adapter not available: {e}")
+    print(f"[WARN]  Trained model adapter not available: {e}")
 
 # Try to import trained model XAI bridge
 _trained_xai_available = False
 try:
     from ml_models.trained_model_xai import TrainedModelXAI
     _trained_xai_available = True
-    print("✅ Trained model XAI bridge available")
+    print("[OK] Trained model XAI bridge available")
 except ImportError as e:
-    print(f"⚠️  Trained model XAI bridge not available: {e}")
+    print(f"[WARN]  Trained model XAI bridge not available: {e}")
 
 # Try to import legacy ml-research model
 _legacy_model_available = False
@@ -58,11 +62,11 @@ if _ml_research_found:
         from src.xai.Explainable import ClearViewExplainer
         from transformers import RobertaTokenizerFast
         _legacy_model_available = True
-        print("✅ Legacy ml-research model available")
+        print("[OK] Legacy ml-research model available")
     except ImportError as e:
-        print(f"⚠️  Legacy model not available: {e}")
+        print(f"[WARN]  Legacy model not available: {e}")
 else:
-    print("⚠️  ml-research directory not found - legacy model unavailable")
+    print("[WARN]  ml-research directory not found - legacy model unavailable")
 
 # ============================================================================
 # Pydantic Models for Request/Response
@@ -95,19 +99,19 @@ _MODEL_CACHE: Dict[tuple, tuple] = {}
 _EXPLAINER_CACHE: Dict[tuple, Any] = {}
 
 # Checkpoint paths
-# Newly trained model (preferred)
-TRAINED_CKPT = os.path.join(project_root, "results", "cosmetic_sentiment_v1", "best_model.pt")
+# Newly trained model (preferred) - ml-research is a sibling of website/
+TRAINED_CKPT = os.path.join(project_root, "ml-research", "outputs", "cosmetic_sentiment_v1", "best_model.pt")
 # Legacy ml-research model (fallback)
-DEFAULT_CKPT = os.path.join("ml-research", "outputs", "gold_msr_4class", "best_model.pt")
-if not os.path.exists(DEFAULT_CKPT) and os.path.exists(os.path.join("..", DEFAULT_CKPT)):
-    DEFAULT_CKPT = os.path.join("..", DEFAULT_CKPT)
+DEFAULT_CKPT = os.path.join(project_root, "ml-research", "outputs", "gold_msr_4class", "best_model.pt")
+if not os.path.exists(DEFAULT_CKPT):
+    DEFAULT_CKPT = os.path.join(project_root, "ml-research", "outputs", "cosmetic_sentiment_v1", "best_model.pt")
 
 # Check which model to use
 _use_trained_model = _trained_adapter_available and os.path.exists(TRAINED_CKPT)
 if _use_trained_model:
-    print(f"🎯 Using NEWLY TRAINED model: {TRAINED_CKPT}")
+    print(f"[MODEL] Using NEWLY TRAINED model: {TRAINED_CKPT}")
 else:
-    print(f"🔄 Using LEGACY model: {DEFAULT_CKPT}")
+    print(f"[LOAD] Using LEGACY model: {DEFAULT_CKPT}")
 
 # Global cache for trained adapter and XAI
 _TRAINED_ADAPTER = None
@@ -121,11 +125,11 @@ def get_trained_adapter():
     """Load or return cached trained model adapter."""
     global _TRAINED_ADAPTER
     if _TRAINED_ADAPTER is None:
-        print(f"\n🔄 Loading trained model adapter from: {TRAINED_CKPT}")
+        print(f"\n[LOAD] Loading trained model adapter from: {TRAINED_CKPT}")
         start_time = time.time()
         _TRAINED_ADAPTER = TrainedModelAdapter(TRAINED_CKPT)
         elapsed = time.time() - start_time
-        print(f"✅ Trained adapter loaded in {elapsed:.2f} seconds")
+        print(f"[OK] Trained adapter loaded in {elapsed:.2f} seconds")
     return _TRAINED_ADAPTER
 
 
@@ -133,11 +137,11 @@ def get_trained_xai():
     """Load or return cached trained model XAI bridge."""
     global _TRAINED_XAI
     if _TRAINED_XAI is None:
-        print(f"\n🔄 Loading trained model XAI bridge from: {TRAINED_CKPT}")
+        print(f"\n[LOAD] Loading trained model XAI bridge from: {TRAINED_CKPT}")
         start_time = time.time()
         _TRAINED_XAI = TrainedModelXAI(TRAINED_CKPT)
         elapsed = time.time() - start_time
-        print(f"✅ Trained XAI bridge loaded in {elapsed:.2f} seconds")
+        print(f"[OK] Trained XAI bridge loaded in {elapsed:.2f} seconds")
     return _TRAINED_XAI
 
 
@@ -152,7 +156,7 @@ def get_model(ckpt_path: str, msr_strength: float):
 
     key = (ckpt_path, msr_strength)
     if key not in _MODEL_CACHE:
-        print(f"\n🔄 Loading legacy model from: {ckpt_path}")
+        print(f"\n[LOAD] Loading legacy model from: {ckpt_path}")
         start_time = time.time()
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         tokenizer = RobertaTokenizerFast.from_pretrained("roberta-base")
@@ -168,10 +172,10 @@ def get_model(ckpt_path: str, msr_strength: float):
         model.load_state_dict(state, strict=True)
         model.eval()
         elapsed = time.time() - start_time
-        print(f"✅ Legacy model loaded in {elapsed:.2f} seconds")
+        print(f"[OK] Legacy model loaded in {elapsed:.2f} seconds")
         _MODEL_CACHE[key] = (model, tokenizer, device)
     else:
-        print(f"♻️  Using cached legacy model")
+        print(f"[CACHE]  Using cached legacy model")
     return _MODEL_CACHE[key]
 
 def get_explainer(ckpt_path: str, msr_strength: float):
@@ -179,17 +183,17 @@ def get_explainer(ckpt_path: str, msr_strength: float):
     key = (ckpt_path, msr_strength)
     
     if key not in _EXPLAINER_CACHE:
-        print(f"\n🔄 Loading XAI explainer...")
+        print(f"\n[LOAD] Loading XAI explainer...")
         start_time = time.time()
         
         explainer = ClearViewExplainer(ckpt_path, msr_strength=msr_strength)
         
         elapsed = time.time() - start_time
-        print(f"✅ Explainer loaded in {elapsed:.2f} seconds")
+        print(f"[OK] Explainer loaded in {elapsed:.2f} seconds")
         
         _EXPLAINER_CACHE[key] = explainer
     else:
-        print(f"♻️  Using cached explainer")
+        print(f"[CACHE]  Using cached explainer")
     
     return _EXPLAINER_CACHE[key]
 
@@ -197,10 +201,35 @@ def get_explainer(ckpt_path: str, msr_strength: float):
 # FastAPI Application
 # ============================================================================
 
+@asynccontextmanager
+async def lifespan(application: FastAPI):
+    """Load models into memory at startup."""
+    print("\n" + "=" * 80)
+    print("[START] STARTUP: Pre-loading models into memory...")
+    print("=" * 80)
+    try:
+        if _use_trained_model:
+            get_trained_adapter()
+            if _trained_xai_available:
+                get_trained_xai()
+            print("\n[OK] Newly trained model + XAI bridge loaded and ready!")
+        else:
+            get_model(DEFAULT_CKPT, 0.3)
+            get_explainer(DEFAULT_CKPT, 0.3)
+            print("\n[OK] Legacy model loaded and ready!")
+        print("[MODEL] Server is ready to handle requests")
+        print("=" * 80 + "\n")
+    except Exception as e:
+        print(f"\n[ERR] ERROR loading models: {e}")
+        print("Server will start but predictions will fail until models are loaded.")
+    yield  # App runs here
+
+
 app = FastAPI(
     title="ClearView ML Backend",
     description="Persistent ML model server for aspect-based sentiment analysis",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan,
 )
 
 # Add CORS middleware to allow Next.js to call this API
@@ -215,32 +244,6 @@ app.add_middleware(
 # ============================================================================
 # Startup Event - Load Models
 # ============================================================================
-
-@app.on_event("startup")
-async def startup_event():
-    """Load models into memory at startup."""
-    print("\n" + "=" * 80)
-    print("🚀 STARTUP: Pre-loading models into memory...")
-    print("=" * 80)
-    
-    try:
-        if _use_trained_model:
-            # Pre-load the newly trained model adapter + XAI bridge
-            get_trained_adapter()
-            if _trained_xai_available:
-                get_trained_xai()
-            print("\n✅ Newly trained model + XAI bridge loaded and ready!")
-        else:
-            # Fallback to legacy model
-            get_model(DEFAULT_CKPT, 0.3)
-            get_explainer(DEFAULT_CKPT, 0.3)
-            print("\n✅ Legacy model loaded and ready!")
-        
-        print("🎯 Server is ready to handle requests")
-        print("=" * 80 + "\n")
-    except Exception as e:
-        print(f"\n❌ ERROR loading models: {e}")
-        print("Server will start but predictions will fail until models are loaded.")
 
 # ============================================================================
 # API Endpoints
@@ -313,7 +316,7 @@ def predict(request: PredictRequest):
         }
         
     except Exception as e:
-        print(f"❌ Prediction error: {e}")
+        print(f"[ERR] Prediction error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/predict-bulk")
@@ -333,7 +336,7 @@ def predict_bulk(request: BulkPredictRequest):
                     res = adapter.predict(review_text, enable_msr=request.msr_enabled)
                     rows.append({"review_index": i, "text": review_text, "aspects": res.get("aspects", []), "conflict_prob": res.get("conflict_prob", 0.0)})
                 except Exception as e:
-                    print(f"⚠️  Error processing review {i}: {e}")
+                    print(f"[WARN]  Error processing review {i}: {e}")
                     rows.append({"review_index": i, "text": review_text, "aspects": [], "conflict_prob": 0.0, "error": str(e)})
         else:
             if not _legacy_model_available:
@@ -353,7 +356,7 @@ def predict_bulk(request: BulkPredictRequest):
                         aspects_res.append({"name": asp, "label": INV_LABEL[pa_cls], "confidence": prob_a_vec[pa_cls]})
                     rows.append({"review_index": i, "text": review_text, "aspects": aspects_res, "conflict_prob": float(conf_a[0].item())})
                 except Exception as e:
-                    print(f"⚠️  Error processing review {i}: {e}")
+                    print(f"[WARN]  Error processing review {i}: {e}")
                     rows.append({"review_index": i, "text": review_text, "aspects": [], "conflict_prob": 0.0, "error": str(e)})
 
         # ── Aggregate statistics ────────────────────────────────────────────────
@@ -415,7 +418,7 @@ def predict_bulk(request: BulkPredictRequest):
     except HTTPException:
         raise
     except Exception as e:
-        print(f"❌ Bulk prediction error: {e}")
+        print(f"[ERR] Bulk prediction error: {e}")
         import traceback; traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -427,19 +430,19 @@ def explain(request: ExplainRequest):
         start_time = time.time()
 
         print("\n" + "="*60)
-        print(f"🔍 Starting XAI Analysis")
+        print(f"[SEARCH] Starting XAI Analysis")
         print("="*60)
 
         # ── Route to trained model XAI (preferred) ──────────────────
         if _use_trained_model and _trained_xai_available:
-            print("📊 Using trained model XAI bridge (attention-based)")
+            print("[DATA] Using trained model XAI bridge (attention-based)")
             ex = get_trained_xai()
 
             aspect_list = ex.aspect_names if request.aspect == "all" else [request.aspect]
 
-            print(f"📊 Step 1/2: Computing conflict explanation...")
+            print(f"[DATA] Step 1/2: Computing conflict explanation...")
             ig_conflict = ex.explain_ig_conflict(request.text, enable_msr=True, top_k=10)
-            print(f"✅ Conflict explanation complete")
+            print(f"[OK] Conflict explanation complete")
 
             bundle = {
                 "text":             request.text,
@@ -450,24 +453,24 @@ def explain(request: ExplainRequest):
             }
 
             total_aspects = len(aspect_list)
-            print(f"📊 Step 2/2: Analyzing {total_aspects} aspect(s)...")
+            print(f"[DATA] Step 2/2: Analyzing {total_aspects} aspect(s)...")
 
             for idx, asp in enumerate(aspect_list, 1):
                 if asp not in ex.aspect_names:
                     continue
-                print(f"  🔍 [{idx}/{total_aspects}] Analyzing '{asp}' aspect...")
+                print(f"  [SEARCH] [{idx}/{total_aspects}] Analyzing '{asp}' aspect...")
                 bundle["aspects"][asp] = {
                     "ig_aspect": ex.explain_ig_aspect(request.text, asp,
                                                        enable_msr=True, top_k=10),
                     "msr_delta": ex.explain_msr_delta(request.text, asp, top_k=10),
                 }
                 bundle["progress"].append(f"Completed {asp}")
-                print(f"  ✅ '{asp}' complete")
+                print(f"  [OK] '{asp}' complete")
 
             elapsed = (time.time() - start_time) * 1000
             bundle["timings"] = {"total_ms": elapsed}
-            print(f"\n✅ XAI Analysis Complete!")
-            print(f"⏱️  Total time: {elapsed/1000:.1f} seconds")
+            print(f"\n[OK] XAI Analysis Complete!")
+            print(f"[TIME]  Total time: {elapsed/1000:.1f} seconds")
             print("="*60 + "\n")
             return bundle
 
@@ -479,14 +482,14 @@ def explain(request: ExplainRequest):
             )
 
         ckpt_path = request.ckpt_path or DEFAULT_CKPT
-        print(f"📊 Step 1/3: Loading legacy explainer...")
+        print(f"[DATA] Step 1/3: Loading legacy explainer...")
         ex = get_explainer(ckpt_path, request.msr_strength)
 
         if hasattr(ex, "_ig_cache"):
             ex._ig_cache.clear()
 
-        print(f"✅ Explainer loaded")
-        print(f"📊 Step 2/3: Computing conflict explanation...")
+        print(f"[OK] Explainer loaded")
+        print(f"[DATA] Step 2/3: Computing conflict explanation...")
         bundle = {
             "text": request.text,
             "requested_aspect": request.aspect,
@@ -494,34 +497,34 @@ def explain(request: ExplainRequest):
             "aspects": {},
             "progress": []
         }
-        print(f"✅ Conflict explanation complete")
+        print(f"[OK] Conflict explanation complete")
 
         aspect_list = ASPECTS if request.aspect == "all" else [request.aspect]
         total_aspects = len(aspect_list)
-        print(f"📊 Step 3/3: Analyzing {total_aspects} aspect(s)...")
+        print(f"[DATA] Step 3/3: Analyzing {total_aspects} aspect(s)...")
 
         for idx, asp in enumerate(aspect_list, 1):
             if asp not in ASPECTS:
                 continue
-            print(f"  🔍 [{idx}/{total_aspects}] Analyzing '{asp}' aspect...")
+            print(f"  [SEARCH] [{idx}/{total_aspects}] Analyzing '{asp}' aspect...")
             bundle["aspects"][asp] = {
                 "ig_aspect": ex.explain_ig_aspect(request.text, asp, enable_msr=True, top_k=10),
                 "msr_delta": ex.explain_msr_delta(request.text, asp, top_k=10)
             }
             bundle["progress"].append(f"Completed {asp}")
-            print(f"  ✅ '{asp}' complete")
+            print(f"  [OK] '{asp}' complete")
 
         elapsed = (time.time() - start_time) * 1000
         bundle["timings"] = {"total_ms": elapsed}
-        print(f"\n✅ XAI Analysis Complete!")
-        print(f"⏱️  Total time: {elapsed/1000:.1f} seconds")
+        print(f"\n[OK] XAI Analysis Complete!")
+        print(f"[TIME]  Total time: {elapsed/1000:.1f} seconds")
         print("="*60 + "\n")
         return bundle
 
     except HTTPException:
         raise
     except Exception as e:
-        print(f"❌ Explanation error: {e}")
+        print(f"[ERR] Explanation error: {e}")
         import traceback; traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -532,12 +535,10 @@ def get_metrics():
         # Import metrics script logic
         import glob
         
-        if os.path.exists(os.path.join(project_root, "results", "cosmetic_sentiment_v1")):
-             metrics_dir = os.path.join(project_root, "results", "cosmetic_sentiment_v1")
-        elif os.path.exists("ml-research"):
-             metrics_dir = os.path.join("ml-research", "outputs", "eval")
+        if os.path.exists(os.path.join(project_root, "ml-research", "outputs", "cosmetic_sentiment_v1")):
+             metrics_dir = os.path.join(project_root, "ml-research", "outputs", "cosmetic_sentiment_v1")
         else:
-             metrics_dir = os.path.join("..", "ml-research", "outputs", "eval")
+             metrics_dir = os.path.join(project_root, "ml-research", "outputs", "eval")
         
         # Try finding test_results.json or metrics_*.json
         metrics_file = os.path.join(metrics_dir, "test_results.json")
@@ -575,7 +576,7 @@ def get_metrics():
         return data
         
     except Exception as e:
-        print(f"⚠️  Metrics error: {e}")
+        print(f"[WARN]  Metrics error: {e}")
         # Return default metrics on error
         return {
             "overall_macro_f1": 0.89,
@@ -588,12 +589,10 @@ def get_metrics():
 def get_logs():
     """Get training logs."""
     try:
-        if os.path.exists(os.path.join(project_root, "results", "cosmetic_sentiment_v1", "training.log")):
-            logs_file = os.path.join(project_root, "results", "cosmetic_sentiment_v1", "training.log")
-        elif os.path.exists("ml-research"):
-            logs_file = os.path.join("ml-research", "outputs", "logs", "training.log")
+        if os.path.exists(os.path.join(project_root, "ml-research", "outputs", "cosmetic_sentiment_v1", "training.log")):
+            logs_file = os.path.join(project_root, "ml-research", "outputs", "cosmetic_sentiment_v1", "training.log")
         else:
-            logs_file = os.path.join("..", "ml-research", "outputs", "logs", "training.log")
+            logs_file = os.path.join(project_root, "ml-research", "outputs", "logs", "training.log")
         
         if not os.path.exists(logs_file):
             return {"logs": []}
@@ -612,7 +611,7 @@ def get_logs():
         return {"logs": logs}
         
     except Exception as e:
-        print(f"⚠️  Logs error: {e}")
+        print(f"[WARN]  Logs error: {e}")
         return {"logs": []}
 
 # ============================================================================
@@ -621,11 +620,11 @@ def get_logs():
 
 if __name__ == "__main__":
     print("\n" + "=" * 80)
-    print("🚀 Starting ClearView Backend Server")
+    print("[START] Starting ClearView Backend Server")
     print("=" * 80)
-    print(f"📍 Server will run on: http://localhost:8000")
-    print(f"📍 Health check: http://localhost:8000/")
-    print(f"📍 Docs: http://localhost:8000/docs")
+    print(f"[LOC] Server will run on: http://localhost:8000")
+    print(f"[LOC] Health check: http://localhost:8000/")
+    print(f"[LOC] Docs: http://localhost:8000/docs")
     print("=" * 80 + "\n")
     
     uvicorn.run(

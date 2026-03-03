@@ -12,7 +12,14 @@ import os
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+_this_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(_this_dir)
+
+# models/model.py lives in ml-research/src/models/ — add that directory to the path
+# Resolve: evaluation/ -> cosmetic_sentiment_v1/ -> outputs/ -> ml-research/ -> src/
+_ml_src_dir = os.path.abspath(os.path.join(_this_dir, "..", "..", "..", "src"))
+if _ml_src_dir not in sys.path:
+    sys.path.insert(0, _ml_src_dir)
 
 from models.model import create_model
 
