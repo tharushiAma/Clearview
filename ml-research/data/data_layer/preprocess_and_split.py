@@ -4,356 +4,591 @@ For: Class balanced aspect base mixed sentiment resolution with XAI
 
 This script:
 1. Loads translated data
-2. Handles missing values
-3. Processes aspect sentiment labels
-4. Creates stratified train/val/test splits (70%/15%/15%)
-5. Analyzes and documents class imbalance
+2. Applies deep text cleaning pipeline:
+   a) HTML tag & entity removal
+   b) URL / email scrubbing
+   c) Garbled / keyboard-spam detection & removal
+   d) Translation artifact normalisation (Vietnamese-origin noise)
+3. Handles missing values
+4. Processes aspect sentiment labels
+5. Creates stratified train/val/test splits (70%/15%/15%)
+6. Analyzes and documents class imbalance
 """
 
+import re
+import unicodedata
+import html
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
 from collections import Counter
 import os
 import json
+import logging
 
-# Configuration
-DATA_PATH = 'data/full_data_en.csv'
-OUTPUT_DIR = 'data'
+# ── Logging ──────────────────────────────────────────────────────────────────
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+log = logging.getLogger(__name__)
+
+# ── Configuration ─────────────────────────────────────────────────────────────
+DATA_PATH   = "data/raw/full_data_en.csv"
+OUTPUT_DIR  = "data/splits"
 TRAIN_SPLIT = 0.70
-VAL_SPLIT = 0.15
-TEST_SPLIT = 0.15
+VAL_SPLIT   = 0.15
+TEST_SPLIT  = 0.15
 RANDOM_SEED = 42
 
-# Aspect columns (based on the CSV structure)
-ASPECT_COLUMNS = ['stayingpower', 'texture', 'smell', 'price', 'others', 'colour', 'shipping', 'packing']
+# Text columns that should be cleaned (model reads "data" column directly)
+TEXT_COLUMNS = ["data"]
 
-def load_and_explore_data():
-    """Load translated data and perform initial exploration"""
-    print("Loading translated data...")
+# Aspect columns
+ASPECT_COLUMNS = [
+    "stayingpower", "texture", "smell", "price",
+     "colour", "shipping", "packing",
+]
+
+# ── Garbled-text detection parameters ─────────────────────────────────────────
+# A token is considered garbled when it looks like keyboard spam
+GARBLED_MIN_LENGTH       = 6     # only inspect tokens >= this length
+GARBLED_CONSONANT_RATIO  = 0.82  # if consonant proportion exceeds this → garbled
+GARBLED_REPEAT_RATIO     = 0.60  # if a single char makes up this share → garbled
+# A whole sentence is considered spam when garbled-token ratio exceeds:
+SPAM_TOKEN_RATIO         = 0.40
+
+# ── Vietnamese translation-artifact patterns ───────────────────────────────────
+# Common literal phrases that survive vi→en machine translation unchanged or
+# turn into semantically empty filler:
+TRANSLATION_ARTIFACTS = [
+    # Filler phrases
+    r"\bthe product is\b",
+    r"\bthe goods\b",
+    r"\bgoods received\b",
+    r"\bpackaging is\b",
+    r"\bthe seller\b(?= (is|sent|ships))",
+    r"\border received\b",
+    r"\bfast delivery\b\.?\s*$",   # standalone at end
+    r"\bwill buy again\b\.?\s*$",
+    r"\bgood product\b\.?\s*$",
+    # Emoji + punctuation duplicates produced by some translators
+    r"\.{3,}",                     # excessive ellipsis → single …
+    r"!{2,}",                      # multiple exclamation → single
+    r"\?{2,}",                     # multiple question marks → single
+    # Zero-width / invisible Unicode
+    r"[\u200b-\u200f\u202a-\u202e\ufeff]",
+]
+
+# Pre-compile for speed
+_ARTIFACT_RE = [re.compile(p, re.IGNORECASE) for p in TRANSLATION_ARTIFACTS]
+
+# ── HTML / URL / Email patterns ────────────────────────────────────────────────
+_HTML_TAG_RE     = re.compile(r"<[^>]+>")
+_HTML_ENTITY_RE  = re.compile(r"&(?:#\d+|#x[\da-fA-F]+|[a-zA-Z]+);")
+_URL_RE          = re.compile(
+    r"https?://\S+|www\.\S+|ftp://\S+", re.IGNORECASE
+)
+_EMAIL_RE        = re.compile(r"[\w.+-]+@[\w-]+\.[a-zA-Z]{2,}", re.IGNORECASE)
+
+# Consonant set for garbled detection (excluding 'y' which is often vowel-like)
+_CONSONANTS = set("bcdfghjklmnpqrstvwxz")
+
+
+# ── Text Cleaning Functions ────────────────────────────────────────────────────
+
+def remove_html(text: str) -> str:
+    """
+    1. Decode HTML entities (&amp; → &, &lt; → <, &#39; → ', etc.)
+    2. Strip remaining HTML tags (<br>, <strong>, etc.)
+    """
+    text = html.unescape(text)                 # handles named + numeric entities
+    text = _HTML_ENTITY_RE.sub(" ", text)      # catch any stragglers
+    text = _HTML_TAG_RE.sub(" ", text)
+    return text
+
+
+def remove_urls_and_emails(text: str) -> str:
+    """Replace URLs and e-mail addresses with a single space."""
+    text = _URL_RE.sub(" ", text)
+    text = _EMAIL_RE.sub(" ", text)
+    return text
+
+
+def _is_garbled_token(token: str) -> bool:
+    """
+    Heuristic: a token is 'garbled' (keyboard spam) when:
+      - It is long enough to be worth checking
+      - Its consonant ratio is abnormally high  OR
+      - A single character dominates the token
+    """
+    t = token.lower()
+    if len(t) < GARBLED_MIN_LENGTH:
+        return False
+
+    letters = [c for c in t if c.isalpha()]
+    if not letters:
+        return False
+
+    consonant_ratio = sum(1 for c in letters if c in _CONSONANTS) / len(letters)
+    if consonant_ratio >= GARBLED_CONSONANT_RATIO:
+        return True
+
+    # Single-character repetition (e.g. "aaaaaaa", "hhhhhh")
+    max_char_ratio = max(t.count(c) for c in set(t)) / len(t)
+    if max_char_ratio >= GARBLED_REPEAT_RATIO:
+        return True
+
+    return False
+
+
+def remove_garbled_text(text: str) -> str:
+    """
+    Remove individual garbled tokens.
+    If the resulting sentence still has a large proportion of garbled content,
+    mark the whole sentence for removal (returns empty string).
+    
+    Short reviews (< 5 tokens) are protected — only individual garbled tokens
+    are stripped, the whole sentence is never blanked.
+    """
+    tokens = text.split()
+    if not tokens:
+        return text
+
+    clean_tokens = [tok for tok in tokens if not _is_garbled_token(tok)]
+
+    removed = len(tokens) - len(clean_tokens)
+    # Only blank the entire sentence for longer texts with high spam ratio
+    # Short reviews (e.g. "Beautiful hhhhhh") should keep the clean tokens
+    if len(tokens) >= 5 and removed / len(tokens) >= SPAM_TOKEN_RATIO:
+        # The whole sentence was basically spam
+        return ""
+
+    return " ".join(clean_tokens)
+
+
+def fix_translation_artifacts(text: str) -> str:
+    """
+    Normalise or remove patterns that commonly survive vi→en MT pipelines.
+    """
+    # Collapse excessive punctuation first
+    text = re.sub(r"\.{3,}", "…", text)
+    text = re.sub(r"!{2,}", "!", text)
+    text = re.sub(r"\?{2,}", "?", text)
+
+    # Remove zero-width and other invisible Unicode characters
+    text = re.sub(r"[\u200b-\u200f\u202a-\u202e\ufeff]", "", text)
+
+    return text
+
+
+def normalise_whitespace(text: str) -> str:
+    """Collapse multiple spaces / tabs / newlines into a single space."""
+    text = re.sub(r"[\t\r\n]+", " ", text)
+    text = re.sub(r" {2,}", " ", text)
+    return text.strip()
+
+
+def clean_text(text) -> str:
+    """
+    Master cleaning pipeline applied to every review text column.
+    Ordering matters:
+      1. Validate input
+      2. Unicode normalisation (NFC)
+      3. HTML removal
+      4. URL / e-mail removal
+      5. Translation artifact normalisation
+      6. Garbled-text removal
+      7. Whitespace collapse
+    """
+    if not isinstance(text, str) or not text.strip():
+        return ""
+
+    # 1. Unicode NFC normalisation (combines combining characters)
+    text = unicodedata.normalize("NFC", text)
+
+    # 2. HTML
+    text = remove_html(text)
+
+    # 3. URLs / emails
+    text = remove_urls_and_emails(text)
+
+    # 4. Translation artifacts
+    text = fix_translation_artifacts(text)
+
+    # 5. Garbled tokens / keyboard spam
+    text = remove_garbled_text(text)
+
+    # 6. Whitespace
+    text = normalise_whitespace(text)
+
+    return text
+
+
+# ── Data Loading & Exploration ────────────────────────────────────────────────
+
+def load_and_explore_data() -> pd.DataFrame:
+    """Load translated data and perform initial exploration."""
+    log.info("Loading translated data from %s …", DATA_PATH)
     df = pd.read_csv(DATA_PATH)
-    print(f"Loaded {len(df)} rows and {len(df.columns)} columns")
-    
-    print("\nDataset Info:")
-    print(df.info())
-    
-    print("\nFirst 5 rows:")
-    print(df.head())
-    
-    print("\nMissing values:")
-    print(df.isnull().sum())
-    
+    log.info("Loaded %d rows × %d columns", len(df), len(df.columns))
+
+    log.info("Column names: %s", df.columns.tolist())
+    log.info("Missing values:\n%s", df.isnull().sum().to_string())
     return df
 
-def process_aspect_labels(df):
-    """Process aspect sentiment labels"""
-    print("\nProcessing aspect sentiment labels...")
-    
-    # Replace empty strings with NaN for consistent handling
-    for col in ASPECT_COLUMNS:
-        if col in df.columns:
-            df[col] = df[col].replace('', np.nan)
-    
-    # Map sentiment labels to standardized format
+
+# ── Cleaning Pipeline ─────────────────────────────────────────────────────────
+
+def apply_cleaning_pipeline(df: pd.DataFrame) -> pd.DataFrame:
+    """Apply the full text cleaning pipeline to all text columns."""
+    log.info("Applying cleaning pipeline to text columns: %s", TEXT_COLUMNS)
+
+    stats = {}
+    for col in TEXT_COLUMNS:
+        if col not in df.columns:
+            log.warning("Column '%s' not found — skipping.", col)
+            continue
+
+        before_empty = df[col].isna().sum() + (df[col] == "").sum()
+
+        df[col] = df[col].apply(clean_text)
+        # After cleaning, empty strings → NaN for consistency
+        df[col] = df[col].replace("", np.nan)
+
+        after_empty = df[col].isna().sum()
+        newly_empty = int(after_empty - before_empty)
+        stats[col] = {
+            "rows_emptied_by_cleaning": newly_empty,
+            "total_missing_after": int(after_empty),
+        }
+        log.info(
+            "  %-15s  newly emptied: %4d  |  total missing: %4d",
+            col, newly_empty, after_empty,
+        )
+
+    return df
+
+
+def log_cleaning_examples(df_raw: pd.DataFrame, df_clean: pd.DataFrame,
+                           col: str = "data", n: int = 5):
+    """Print before/after examples for a quick sanity check."""
+    log.info("=== Cleaning examples (column: %s) ===", col)
+    if col not in df_raw.columns:
+        return
+    sample = df_raw[col].dropna().head(n)
+    for idx, raw_val in sample.items():
+        clean_val = df_clean.loc[idx, col] if idx in df_clean.index else "N/A"
+        print(f"\n  [BEFORE] {str(raw_val)[:150]}")
+        print(f"  [AFTER ] {str(clean_val)[:150]}")
+
+
+# ── Aspect Label Processing ────────────────────────────────────────────────────
+
+def process_aspect_labels(df: pd.DataFrame) -> pd.DataFrame:
+    """Standardise aspect sentiment labels."""
+    log.info("Processing aspect sentiment labels …")
+
     sentiment_mapping = {
-        'positive': 'positive',
-        'negative': 'negative',
-        'neutral': 'neutral',
-        # Handle any variations if present
+        "positive": "positive",
+        "negative": "negative",
+        "neutral":  "neutral",
+        "pos":      "positive",
+        "neg":      "negative",
+        "neu":      "neutral",
     }
-    
+
     for col in ASPECT_COLUMNS:
-        if col in df.columns:
-            df[col] = df[col].map(lambda x: sentiment_mapping.get(str(x).lower(), x) if pd.notna(x) else x)
-    
+        if col not in df.columns:
+            continue
+        df[col] = df[col].replace("", np.nan)
+        df[col] = df[col].map(
+            lambda x: sentiment_mapping.get(str(x).lower().strip(), x)
+            if pd.notna(x) else x
+        )
+
     return df
 
-def create_multi_label_target(df):
-    """Create a composite target for stratification that considers all aspects"""
-    print("\nCreating multi-label target for stratified sampling...")
-    
-    # Create a string representation of all aspect sentiments
+
+# ── Stratified Splitting ───────────────────────────────────────────────────────
+
+def create_multi_label_target(df: pd.DataFrame) -> pd.DataFrame:
+    """Create a composite key over all aspect labels for stratified splitting."""
+    log.info("Building stratification key …")
+
     def combine_labels(row):
-        labels = []
-        for col in ASPECT_COLUMNS:
-            if col in df.columns:
-                val = row[col]
-                if pd.notna(val) and val != '':
-                    labels.append(f"{col}_{val}")
-        return '|'.join(sorted(labels)) if labels else 'no_labels'
-    
-    df['_stratify_key'] = df.apply(combine_labels, axis=1)
-    
-    # Handle rare stratification keys (count < 2) which cause train_test_split to fail
-    key_counts = df['_stratify_key'].value_counts()
-    rare_keys = key_counts[key_counts < 2].index
-    
-    print(f"Found {len(rare_keys)} rare stratification keys with only 1 sample. Grouping them to 'other'...")
-    df['_stratify_key'] = df['_stratify_key'].apply(lambda x: 'other_rare_combination' if x in rare_keys else x)
-    
+        labels = [
+            f"{col}_{row[col]}"
+            for col in ASPECT_COLUMNS
+            if col in df.columns and pd.notna(row[col]) and row[col] != ""
+        ]
+        return "|".join(sorted(labels)) if labels else "no_labels"
+
+    df["_stratify_key"] = df.apply(combine_labels, axis=1)
+
+    key_counts = df["_stratify_key"].value_counts()
+    rare_keys  = key_counts[key_counts < 2].index
+    log.info(
+        "Rare stratification keys (n=1): %d → grouped as 'other_rare_combination'",
+        len(rare_keys),
+    )
+    df["_stratify_key"] = df["_stratify_key"].apply(
+        lambda x: "other_rare_combination" if x in rare_keys else x
+    )
     return df
 
-def perform_stratified_split(df):
-    """Perform stratified train/val/test split"""
-    print("\nPerforming stratified split...")
-    
-    # First split: train+val vs test
+
+def perform_stratified_split(df: pd.DataFrame):
+    """Stratified train / val / test split."""
+    log.info("Performing stratified split (%.0f/%.0f/%.0f) …",
+             TRAIN_SPLIT * 100, VAL_SPLIT * 100, TEST_SPLIT * 100)
+
     train_val_df, test_df = train_test_split(
         df,
         test_size=TEST_SPLIT,
-        stratify=df['_stratify_key'],
-        random_state=RANDOM_SEED
+        stratify=df["_stratify_key"],
+        random_state=RANDOM_SEED,
     )
-    
-    # Second split: train vs val
-    # Calculate validation size as percentage of train+val
-    val_size_adjusted = VAL_SPLIT / (TRAIN_SPLIT + VAL_SPLIT)
-    
+
+    val_size_adj = VAL_SPLIT / (TRAIN_SPLIT + VAL_SPLIT)
     train_df, val_df = train_test_split(
         train_val_df,
-        test_size=val_size_adjusted,
-        stratify=train_val_df['_stratify_key'],
-        random_state=RANDOM_SEED
+        test_size=val_size_adj,
+        stratify=train_val_df["_stratify_key"],
+        random_state=RANDOM_SEED,
     )
-    
-    # Remove the temporary stratify key
-    train_df = train_df.drop('_stratify_key', axis=1)
-    val_df = val_df.drop('_stratify_key', axis=1)
-    test_df = test_df.drop('_stratify_key', axis=1)
-    
-    print(f"\nSplit sizes:")
-    print(f"Train: {len(train_df)} ({len(train_df)/len(df)*100:.1f}%)")
-    print(f"Val: {len(val_df)} ({len(val_df)/len(df)*100:.1f}%)")
-    print(f"Test: {len(test_df)} ({len(test_df)/len(df)*100:.1f}%)")
-    
+
+    for split_df in (train_df, val_df, test_df):
+        split_df.drop("_stratify_key", axis=1, inplace=True)
+
+    n = len(df)
+    log.info(
+        "Split → Train: %d (%.1f%%)  Val: %d (%.1f%%)  Test: %d (%.1f%%)",
+        len(train_df), len(train_df) / n * 100,
+        len(val_df),   len(val_df)   / n * 100,
+        len(test_df),  len(test_df)  / n * 100,
+    )
     return train_df, val_df, test_df
 
-def analyze_class_distribution(df, dataset_name="Full"):
-    """Analyze class distribution for each aspect"""
-    print(f"\n{'='*60}")
-    print(f"Class Distribution Analysis - {dataset_name} Dataset")
-    print(f"{'='*60}")
-    
-    distribution_data = {}
-    
+
+# ── Distribution Analysis ──────────────────────────────────────────────────────
+
+def analyze_class_distribution(df: pd.DataFrame, dataset_name: str = "Full") -> dict:
+    """Return per-aspect class counts & percentages."""
+    log.info("Class distribution — %s dataset", dataset_name)
+    distribution = {}
+    total = len(df)
+
     for aspect in ASPECT_COLUMNS:
         if aspect not in df.columns:
             continue
-            
-        # Count values including NaN
-        value_counts = df[aspect].value_counts(dropna=False)
-        total = len(df)
-        
-        print(f"\n{aspect.upper()}:")
-        print("-" * 40)
-        
+        vc = df[aspect].value_counts(dropna=False)
         aspect_dist = {}
-        for label, count in value_counts.items():
-            percentage = (count / total) * 100
-            print(f"  {str(label):15s}: {count:6d} ({percentage:5.2f}%)")
-            aspect_dist[str(label)] = {
-                'count': int(count),
-                'percentage': float(percentage)
-            }
-        
-        distribution_data[aspect] = aspect_dist
-    
-    return distribution_data
+        for label, count in vc.items():
+            pct = count / total * 100
+            aspect_dist[str(label)] = {"count": int(count), "percentage": float(pct)}
+        distribution[aspect] = aspect_dist
+    return distribution
 
-def identify_imbalanced_classes(train_df, val_df, test_df, threshold=10.0):
-    """Identify imbalanced classes across all datasets"""
-    print(f"\n{'='*60}")
-    print("IDENTIFYING IMBALANCED CLASSES")
-    print(f"{'='*60}")
-    print(f"Threshold: Classes with < {threshold}% representation are considered rare")
-    
-    imbalanced_info = {
-        'threshold_percentage': threshold,
-        'rare_classes': {},
-        'recommendations': []
+
+def identify_imbalanced_classes(train_df, val_df, test_df, threshold: float = 10.0) -> dict:
+    """Identify rare classes in the training set."""
+    log.info("Identifying imbalanced classes (threshold < %.1f%%) …", threshold)
+
+    info = {
+        "threshold_percentage": threshold,
+        "rare_classes": {},
+        "recommendations": [],
     }
-    
+
     for aspect in ASPECT_COLUMNS:
         if aspect not in train_df.columns:
             continue
-        
-        # Analyze in training set (most important)
-        value_counts = train_df[aspect].value_counts(dropna=True)
+        vc    = train_df[aspect].value_counts(dropna=True)
         total = len(train_df)
-        
-        rare_classes = []
-        for label, count in value_counts.items():
-            percentage = (count / total) * 100
-            if percentage < threshold and label not in ['', np.nan]:
-                rare_classes.append({
-                    'label': str(label),
-                    'count_train': int(count),
-                    'percentage_train': float(percentage)
-                })
-        
-        if rare_classes:
-            imbalanced_info['rare_classes'][aspect] = rare_classes
-            print(f"\n⚠️  {aspect.upper()} - Rare classes detected:")
-            for rc in rare_classes:
-                print(f"    - {rc['label']}: {rc['count_train']} ({rc['percentage_train']:.2f}%)")
-    
-    # Generate recommendations
-    if imbalanced_info['rare_classes']:
-        imbalanced_info['recommendations'] = [
-            "Use class-balanced loss functions (e.g., Focal Loss, Weighted Cross-Entropy)",
-            "Consider oversampling rare classes or undersampling majority classes",
-            "Apply data augmentation techniques for minority classes",
-            "Use ensemble methods to boost minority class performance",
-            "Monitor per-class metrics in addition to overall metrics"
+        rare  = [
+            {"label": str(lbl), "count_train": int(cnt),
+             "percentage_train": float(cnt / total * 100)}
+            for lbl, cnt in vc.items()
+            if cnt / total * 100 < threshold
         ]
-    
-    return imbalanced_info
+        if rare:
+            info["rare_classes"][aspect] = rare
+            log.warning("⚠  %s — rare classes: %s", aspect.upper(),
+                        [r["label"] for r in rare])
+
+    if info["rare_classes"]:
+        info["recommendations"] = [
+            "Use class-balanced loss functions (Focal Loss or Weighted Cross-Entropy)",
+            "Consider oversampling rare classes (SMOTE on embeddings or text augmentation)",
+            "Apply label-smoothing during training to reduce over-confident predictions",
+            "Use ensemble methods / multi-exit architectures to boost minority class F1",
+            "Monitor per-class Precision / Recall / F1 — do NOT rely on macro accuracy alone",
+        ]
+
+    return info
+
+
+# ── I/O Helpers ───────────────────────────────────────────────────────────────
 
 def save_splits(train_df, val_df, test_df):
-    """Save the splits to CSV files"""
-    print("\nSaving splits to CSV files...")
-    
     os.makedirs(OUTPUT_DIR, exist_ok=True)
-    
-    train_path = os.path.join(OUTPUT_DIR, 'train.csv')
-    val_path = os.path.join(OUTPUT_DIR, 'val.csv')
-    test_path = os.path.join(OUTPUT_DIR, 'test.csv')
-    
-    train_df.to_csv(train_path, index=False)
-    val_df.to_csv(val_path, index=False)
-    test_df.to_csv(test_path, index=False)
-    
-    print(f"✓ Saved train set to: {train_path}")
-    print(f"✓ Saved validation set to: {val_path}")
-    print(f"✓ Saved test set to: {test_path}")
+    for name, split in [("train", train_df), ("val", val_df), ("test", test_df)]:
+        path = os.path.join(OUTPUT_DIR, f"{name}.csv")
+        split.to_csv(path, index=False)
+        log.info("Saved %s → %s (%d rows)", name, path, len(split))
 
-def create_class_imbalance_report(train_dist, val_dist, test_dist, imbalance_info):
-    """Create markdown report for class imbalance"""
-    
+
+# ── Markdown Report ───────────────────────────────────────────────────────────
+
+def create_class_imbalance_report(train_dist, val_dist, test_dist, imbalance_info) -> str:
+
     report = f"""# Class Imbalance Analysis
 
 **Project**: Class balanced aspect base mixed sentiment resolution with XAI  
 **Date**: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}
 
-## Overview
+## Cleaning Pipeline Applied
 
-This document analyzes the class distribution across all aspect-based sentiment labels in the cosmetic review dataset after stratified splitting.
+| Stage | Technique | Purpose |
+|-------|-----------|---------|
+| 1 | Unicode NFC normalisation | Unify combining characters |
+| 2 | HTML tag & entity removal | Strip `<br>`, `&amp;`, `&#39;` etc. |
+| 3 | URL / e-mail removal | Free up token budget |
+| 4 | Translation artifact normalisation | Fix vi→en MT filler & punctuation |
+| 5 | Garbled / keyboard-spam removal | Drop incoherent tokens |
+| 6 | Whitespace collapse | Clean token boundaries |
 
 ## Dataset Split Distribution
 
-- **Train**: {train_dist.get('_total', 'N/A')} samples (70%)
-- **Validation**: {val_dist.get('_total', 'N/A')} samples (15%)
-- **Test**: {test_dist.get('_total', 'N/A')} samples (15%)
+| Set | Samples | % |
+|-----|---------|---|
+| Train | {train_dist.get('_total', 'N/A')} | 70% |
+| Validation | {val_dist.get('_total', 'N/A')} | 15% |
+| Test | {test_dist.get('_total', 'N/A')} | 15% |
 
 ## Aspect-wise Class Distribution
 
 """
-    
-    # Add distribution tables for each aspect
+
     for aspect in ASPECT_COLUMNS:
-        if aspect in train_dist and aspect != '_total':
-            report += f"\n### {aspect.upper()}\n\n"
-            report += "| Class | Train Count (%) | Val Count (%) | Test Count (%) |\n"
-            report += "|-------|----------------|---------------|----------------|\n"
-            
-            # Get all unique labels across all sets
-            all_labels = set()
-            for dist in [train_dist, val_dist, test_dist]:
-                if aspect in dist:
-                    all_labels.update(dist[aspect].keys())
-            
-            for label in sorted(all_labels):
-                train_info = train_dist.get(aspect, {}).get(label, {'count': 0, 'percentage': 0.0})
-                val_info = val_dist.get(aspect, {}).get(label, {'count': 0, 'percentage': 0.0})
-                test_info = test_dist.get(aspect, {}).get(label, {'count': 0, 'percentage': 0.0})
-                
-                report += f"| {label} | {train_info['count']} ({train_info['percentage']:.2f}%) | "
-                report += f"{val_info['count']} ({val_info['percentage']:.2f}%) | "
-                report += f"{test_info['count']} ({test_info['percentage']:.2f}%) |\n"
-    
-    # Add imbalanced classes section
+        if aspect not in train_dist:
+            continue
+        report += f"\n### {aspect.upper()}\n\n"
+        report += "| Class | Train Count (%) | Val Count (%) | Test Count (%) |\n"
+        report += "|-------|----------------|---------------|----------------|\n"
+
+        all_labels = (
+            set(train_dist.get(aspect, {}).keys()) |
+            set(val_dist.get(aspect, {}).keys())   |
+            set(test_dist.get(aspect, {}).keys())
+        )
+        for label in sorted(all_labels):
+            def _fmt(dist, a, lbl):
+                d = dist.get(a, {}).get(lbl, {"count": 0, "percentage": 0.0})
+                return f"{d['count']} ({d['percentage']:.2f}%)"
+            report += (
+                f"| {label} | {_fmt(train_dist, aspect, label)} | "
+                f"{_fmt(val_dist, aspect, label)} | "
+                f"{_fmt(test_dist, aspect, label)} |\n"
+            )
+
     report += "\n## Imbalanced Classes Identified\n\n"
-    report += f"**Threshold**: Classes with < {imbalance_info['threshold_percentage']}% representation\n\n"
-    
-    if imbalance_info['rare_classes']:
-        for aspect, rare_list in imbalance_info['rare_classes'].items():
+    report += f"**Threshold**: < {imbalance_info['threshold_percentage']}% in training set\n\n"
+
+    if imbalance_info["rare_classes"]:
+        for aspect, rare_list in imbalance_info["rare_classes"].items():
             report += f"### {aspect.upper()}\n\n"
-            for rare_class in rare_list:
-                report += f"- **{rare_class['label']}**: {rare_class['count_train']} samples ({rare_class['percentage_train']:.2f}%)\n"
+            for rc in rare_list:
+                report += (
+                    f"- **{rc['label']}**: {rc['count_train']} samples "
+                    f"({rc['percentage_train']:.2f}%)\n"
+                )
             report += "\n"
-        
-        report += "## Recommendations for Handling Class Imbalance\n\n"
-        for i, rec in enumerate(imbalance_info['recommendations'], 1):
+
+        report += "## Recommendations\n\n"
+        for i, rec in enumerate(imbalance_info["recommendations"], 1):
             report += f"{i}. {rec}\n"
     else:
-        report += "*No severely imbalanced classes detected based on the threshold.*\n"
-    
-    report += "\n## Stratification Strategy\n\n"
-    report += "The dataset was split using **stratified sampling** based on multi-label combinations to ensure:\n"
-    report += "- Proportional representation of all aspect-sentiment combinations\n"
-    report += "- Rare classes maintain the same percentage across train/val/test sets\n"
-    report += "- Model evaluation is performed on representative test data\n"
-    
+        report += "*No severely imbalanced classes detected.*\n"
+
+    report += """
+## Stratification Strategy
+
+Dataset split with **stratified sampling** over multi-label aspect-sentiment keys to ensure:
+- Proportional representation of all aspect-sentiment combinations across every split
+- Rare classes maintain the same percentage in train / val / test
+- Garbled / empty rows are excluded before splitting so they do not dilute any split
+"""
     return report
 
+
+# ── Main ──────────────────────────────────────────────────────────────────────
+
 def main():
-    """Main execution function"""
-    print("="*60)
-    print("Data Preprocessing and Stratified Splitting")
-    print("="*60)
-    
-    # Step 1: Load and explore data
+    log.info("=" * 65)
+    log.info("Data Preprocessing and Stratified Splitting")
+    log.info("=" * 65)
+
+    # 1. Load
     df = load_and_explore_data()
-    
-    # Step 2: Process aspect labels
+    df_raw = df.copy()   # keep original for before/after logging
+
+    # 2. Clean text columns
+    df = apply_cleaning_pipeline(df)
+    log_cleaning_examples(df_raw, df, col=TEXT_COLUMNS[0] if TEXT_COLUMNS else "data")
+
+    # 2b. Drop rows where review text is empty after cleaning
+    before_drop = len(df)
+    df = df.dropna(subset=["data"])
+    dropped = before_drop - len(df)
+    log.info("Dropped %d rows with empty 'data' after cleaning (%d remaining)", dropped, len(df))
+
+    # 3. Standardise aspect labels
     df = process_aspect_labels(df)
-    
-    # Step 3: Create multi-label target for stratification
+
+    # 4. Stratification key
     df = create_multi_label_target(df)
-    
-    # Step 4: Perform stratified split
+
+    # 5. Split
     train_df, val_df, test_df = perform_stratified_split(df)
-    
-    # Step 5: Analyze class distribution
+
+    # 6. Distribution analysis
     train_dist = analyze_class_distribution(train_df, "Training")
-    val_dist = analyze_class_distribution(val_df, "Validation")
-    test_dist = analyze_class_distribution(test_df, "Test")
-    
-    # Add total counts
-    train_dist['_total'] = len(train_df)
-    val_dist['_total'] = len(val_df)
-    test_dist['_total'] = len(test_df)
-    
-    # Step 6: Identify imbalanced classes
+    val_dist   = analyze_class_distribution(val_df,   "Validation")
+    test_dist  = analyze_class_distribution(test_df,  "Test")
+    train_dist["_total"] = len(train_df)
+    val_dist["_total"]   = len(val_df)
+    test_dist["_total"]  = len(test_df)
+
+    # 7. Imbalance detection
     imbalance_info = identify_imbalanced_classes(train_df, val_df, test_df)
-    
-    # Step 7: Save splits
+
+    # 8. Save splits
     save_splits(train_df, val_df, test_df)
-    
-    # Step 8: Create class imbalance report
+
+    # 9. Markdown report
     report = create_class_imbalance_report(train_dist, val_dist, test_dist, imbalance_info)
-    
-    report_path = 'class_imbalance.md'
-    with open(report_path, 'w', encoding='utf-8') as f:
+    report_path = "class_imbalance.md"
+    with open(report_path, "w", encoding="utf-8") as f:
         f.write(report)
-    print(f"\n✓ Saved class imbalance report to: {report_path}")
-    
-    # Save distribution data as JSON for future reference
-    distribution_json = {
-        'train': train_dist,
-        'val': val_dist,
-        'test': test_dist,
-        'imbalance_info': imbalance_info
+    log.info("Saved class imbalance report → %s", report_path)
+
+    # 10. JSON distribution dump
+    dist_json = {
+        "train": train_dist, "val": val_dist, "test": test_dist,
+        "imbalance_info": imbalance_info,
     }
-    
-    json_path = 'data/class_distribution.json'
-    with open(json_path, 'w', encoding='utf-8') as f:
-        json.dump(distribution_json, f, indent=2)
-    print(f"✓ Saved distribution data to: {json_path}")
-    
-    print("\n" + "="*60)
-    print("✓ PREPROCESSING COMPLETE!")
-    print("="*60)
+    json_path = os.path.join(OUTPUT_DIR, "class_distribution.json")
+    with open(json_path, "w", encoding="utf-8") as f:
+        json.dump(dist_json, f, indent=2)
+    log.info("Saved distribution data → %s", json_path)
+
+    log.info("=" * 65)
+    log.info("PREPROCESSING COMPLETE!")
+    log.info("=" * 65)
+
 
 if __name__ == "__main__":
     main()

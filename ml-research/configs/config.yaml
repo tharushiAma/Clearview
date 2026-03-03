@@ -73,7 +73,7 @@ training:
 
 # Data Configuration
 data:
-  train_path: "data/splits/train_augmented.csv" # Preprocessed synthetic data integrated!
+  train_path: "data/splits/train_augmented.csv" # Preprocessed + synthetic augmented data
   val_path: "data/splits/val.csv"
   test_path: "data/splits/test.csv"
   max_seq_length: 256

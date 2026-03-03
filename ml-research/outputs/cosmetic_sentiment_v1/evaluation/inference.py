@@ -24,6 +24,56 @@ if _ml_src_dir not in sys.path:
 from models.model import create_model
 
 
+# ── Lightweight text cleaning (mirrors preprocess_and_split.py pipeline) ──────
+# This ensures inference-time text matches what the model was trained on.
+# We inline the function here to avoid fragile cross-project imports.
+import re as _re
+import unicodedata as _ud
+import html as _html
+
+_HTML_TAG_RE    = _re.compile(r"<[^>]+>")
+_HTML_ENTITY_RE = _re.compile(r"&(?:#\d+|#x[\da-fA-F]+|[a-zA-Z]+);")
+_URL_RE         = _re.compile(r"https?://\S+|www\.\S+|ftp://\S+", _re.IGNORECASE)
+_EMAIL_RE       = _re.compile(r"[\w.+-]+@[\w-]+\.[a-zA-Z]{2,}", _re.IGNORECASE)
+_CONSONANTS     = set("bcdfghjklmnpqrstvwxz")
+
+def _is_garbled(tok: str, min_len=6, cons_ratio=0.82, rep_ratio=0.60) -> bool:
+    t = tok.lower()
+    if len(t) < min_len:
+        return False
+    letters = [c for c in t if c.isalpha()]
+    if not letters:
+        return False
+    if sum(1 for c in letters if c in _CONSONANTS) / len(letters) >= cons_ratio:
+        return True
+    if max(t.count(c) for c in set(t)) / len(t) >= rep_ratio:
+        return True
+    return False
+
+def clean_text_for_inference(text: str) -> str:
+    """Clean text the same way training data was preprocessed."""
+    if not isinstance(text, str) or not text.strip():
+        return ""
+    text = _ud.normalize("NFC", text)
+    text = _html.unescape(text)
+    text = _HTML_ENTITY_RE.sub(" ", text)
+    text = _HTML_TAG_RE.sub(" ", text)
+    text = _URL_RE.sub(" ", text)
+    text = _EMAIL_RE.sub(" ", text)
+    text = _re.sub(r"\.{3,}", "…", text)
+    text = _re.sub(r"!{2,}", "!", text)
+    text = _re.sub(r"\?{2,}", "?", text)
+    text = _re.sub(r"[\u200b-\u200f\u202a-\u202e\ufeff]", "", text)
+    tokens = text.split()
+    clean_tokens = [t for t in tokens if not _is_garbled(t)]
+    if len(tokens) >= 5 and len(tokens) - len(clean_tokens) >= 0.4 * len(tokens):
+        return ""
+    text = " ".join(clean_tokens)
+    text = _re.sub(r"[\t\r\n]+", " ", text)
+    text = _re.sub(r" {2,}", " ", text)
+    return text.strip()
+
+
 class SentimentPredictor:
     """
     Predictor class for making sentiment predictions
@@ -33,7 +83,7 @@ class SentimentPredictor:
         Args:
             checkpoint_path: Path to model checkpoint
             device: Device to run on ('cuda' or 'cpu')
-            temperature: Softmax temperature for calibration (< 1.0 sharpens flat logits).
+            temperature: Softmax temperature for calibration (<1.0 sharpens flat logits).
                          The model produces logits in a small range (~0.1-0.3), so a
                          temperature of 0.5 converts near-uniform distributions into
                          decisive predictions without retraining.
@@ -83,6 +133,17 @@ class SentimentPredictor:
         """
         if aspect not in self.aspect_to_id:
             raise ValueError(f"Invalid aspect. Must be one of: {', '.join(self.aspect_names)}")
+        
+        # Apply the same cleaning pipeline used during training
+        text = clean_text_for_inference(text)
+        if not text:
+            # If text becomes empty after cleaning, return neutral with low confidence
+            return {
+                'aspect': aspect,
+                'sentiment': 'neutral',
+                'confidence': 0.0,
+                'probabilities': {'negative': 0.33, 'neutral': 0.34, 'positive': 0.33}
+            }
         
         # Tokenize
         encoding = self.tokenizer(

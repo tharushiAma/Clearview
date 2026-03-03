@@ -1,0 +1,480 @@
+{
+  "train": {
+    "stayingpower": {
+      "nan": {
+        "count": 7299,
+        "percentage": 78.8399222294232
+      },
+      "positive": {
+        "count": 1066,
+        "percentage": 11.514365953769714
+      },
+      "negative": {
+        "count": 664,
+        "percentage": 7.1721754158565565
+      },
+      "neutral": {
+        "count": 229,
+        "percentage": 2.473536400950529
+      }
+    },
+    "texture": {
+      "nan": {
+        "count": 5830,
+        "percentage": 62.97256426874055
+      },
+      "positive": {
+        "count": 2475,
+        "percentage": 26.733635774465327
+      },
+      "negative": {
+        "count": 561,
+        "percentage": 6.059624108878808
+      },
+      "neutral": {
+        "count": 392,
+        "percentage": 4.234175847915316
+      }
+    },
+    "smell": {
+      "nan": {
+        "count": 7221,
+        "percentage": 77.99740764744006
+      },
+      "positive": {
+        "count": 1637,
+        "percentage": 17.68200475264636
+      },
+      "negative": {
+        "count": 307,
+        "percentage": 3.316050982933679
+      },
+      "neutral": {
+        "count": 93,
+        "percentage": 1.0045366169799093
+      }
+    },
+    "price": {
+      "nan": {
+        "count": 6965,
+        "percentage": 75.23223158349536
+      },
+      "positive": {
+        "count": 2256,
+        "percentage": 24.36811406351264
+      },
+      "neutral": {
+        "count": 22,
+        "percentage": 0.23763231799524737
+      },
+      "negative": {
+        "count": 15,
+        "percentage": 0.16202203499675957
+      }
+    },
+    "colour": {
+      "positive": {
+        "count": 4397,
+        "percentage": 47.494059192050116
+      },
+      "nan": {
+        "count": 4016,
+        "percentage": 43.37869950313243
+      },
+      "negative": {
+        "count": 458,
+        "percentage": 4.947072801901058
+      },
+      "neutral": {
+        "count": 387,
+        "percentage": 4.180168502916397
+      }
+    },
+    "shipping": {
+      "nan": {
+        "count": 5459,
+        "percentage": 58.9652192698207
+      },
+      "positive": {
+        "count": 2373,
+        "percentage": 25.631885936487365
+      },
+      "negative": {
+        "count": 1182,
+        "percentage": 12.767336357744652
+      },
+      "neutral": {
+        "count": 244,
+        "percentage": 2.6355584359472886
+      }
+    },
+    "packing": {
+      "nan": {
+        "count": 7139,
+        "percentage": 77.11168718945777
+      },
+      "positive": {
+        "count": 2038,
+        "percentage": 22.01339382155973
+      },
+      "negative": {
+        "count": 70,
+        "percentage": 0.756102829984878
+      },
+      "neutral": {
+        "count": 11,
+        "percentage": 0.11881615899762368
+      }
+    },
+    "_total": 9258
+  },
+  "val": {
+    "stayingpower": {
+      "nan": {
+        "count": 1571,
+        "percentage": 79.14357682619647
+      },
+      "positive": {
+        "count": 230,
+        "percentage": 11.586901763224182
+      },
+      "negative": {
+        "count": 138,
+        "percentage": 6.952141057934509
+      },
+      "neutral": {
+        "count": 46,
+        "percentage": 2.3173803526448364
+      }
+    },
+    "texture": {
+      "nan": {
+        "count": 1267,
+        "percentage": 63.8287153652393
+      },
+      "positive": {
+        "count": 526,
+        "percentage": 26.498740554156168
+      },
+      "negative": {
+        "count": 118,
+        "percentage": 5.944584382871536
+      },
+      "neutral": {
+        "count": 74,
+        "percentage": 3.7279596977329974
+      }
+    },
+    "smell": {
+      "nan": {
+        "count": 1551,
+        "percentage": 78.1360201511335
+      },
+      "positive": {
+        "count": 349,
+        "percentage": 17.581863979848865
+      },
+      "negative": {
+        "count": 67,
+        "percentage": 3.3753148614609576
+      },
+      "neutral": {
+        "count": 18,
+        "percentage": 0.906801007556675
+      }
+    },
+    "price": {
+      "nan": {
+        "count": 1493,
+        "percentage": 75.21410579345088
+      },
+      "positive": {
+        "count": 487,
+        "percentage": 24.534005037783373
+      },
+      "negative": {
+        "count": 3,
+        "percentage": 0.15113350125944583
+      },
+      "neutral": {
+        "count": 2,
+        "percentage": 0.10075566750629722
+      }
+    },
+    "colour": {
+      "positive": {
+        "count": 950,
+        "percentage": 47.858942065491185
+      },
+      "nan": {
+        "count": 854,
+        "percentage": 43.02267002518892
+      },
+      "negative": {
+        "count": 103,
+        "percentage": 5.188916876574307
+      },
+      "neutral": {
+        "count": 78,
+        "percentage": 3.929471032745592
+      }
+    },
+    "shipping": {
+      "nan": {
+        "count": 1174,
+        "percentage": 59.14357682619647
+      },
+      "positive": {
+        "count": 505,
+        "percentage": 25.440806045340054
+      },
+      "negative": {
+        "count": 256,
+        "percentage": 12.896725440806044
+      },
+      "neutral": {
+        "count": 50,
+        "percentage": 2.518891687657431
+      }
+    },
+    "packing": {
+      "nan": {
+        "count": 1545,
+        "percentage": 77.83375314861462
+      },
+      "positive": {
+        "count": 428,
+        "percentage": 21.561712846347607
+      },
+      "negative": {
+        "count": 11,
+        "percentage": 0.5541561712846348
+      },
+      "neutral": {
+        "count": 1,
+        "percentage": 0.05037783375314861
+      }
+    },
+    "_total": 1985
+  },
+  "test": {
+    "stayingpower": {
+      "nan": {
+        "count": 1586,
+        "percentage": 79.89924433249371
+      },
+      "positive": {
+        "count": 223,
+        "percentage": 11.23425692695214
+      },
+      "negative": {
+        "count": 138,
+        "percentage": 6.952141057934509
+      },
+      "neutral": {
+        "count": 38,
+        "percentage": 1.9143576826196476
+      }
+    },
+    "texture": {
+      "nan": {
+        "count": 1257,
+        "percentage": 63.324937027707804
+      },
+      "positive": {
+        "count": 536,
+        "percentage": 27.00251889168766
+      },
+      "negative": {
+        "count": 116,
+        "percentage": 5.843828715365239
+      },
+      "neutral": {
+        "count": 76,
+        "percentage": 3.828715365239295
+      }
+    },
+    "smell": {
+      "nan": {
+        "count": 1553,
+        "percentage": 78.2367758186398
+      },
+      "positive": {
+        "count": 348,
+        "percentage": 17.531486146095716
+      },
+      "negative": {
+        "count": 65,
+        "percentage": 3.27455919395466
+      },
+      "neutral": {
+        "count": 19,
+        "percentage": 0.9571788413098238
+      }
+    },
+    "price": {
+      "nan": {
+        "count": 1500,
+        "percentage": 75.56675062972292
+      },
+      "positive": {
+        "count": 480,
+        "percentage": 24.181360201511335
+      },
+      "negative": {
+        "count": 3,
+        "percentage": 0.15113350125944583
+      },
+      "neutral": {
+        "count": 2,
+        "percentage": 0.10075566750629722
+      }
+    },
+    "colour": {
+      "positive": {
+        "count": 943,
+        "percentage": 47.50629722921914
+      },
+      "nan": {
+        "count": 864,
+        "percentage": 43.5264483627204
+      },
+      "negative": {
+        "count": 101,
+        "percentage": 5.08816120906801
+      },
+      "neutral": {
+        "count": 77,
+        "percentage": 3.8790931989924435
+      }
+    },
+    "shipping": {
+      "nan": {
+        "count": 1173,
+        "percentage": 59.09319899244333
+      },
+      "positive": {
+        "count": 514,
+        "percentage": 25.894206549118387
+      },
+      "negative": {
+        "count": 250,
+        "percentage": 12.594458438287154
+      },
+      "neutral": {
+        "count": 48,
+        "percentage": 2.4181360201511333
+      }
+    },
+    "packing": {
+      "nan": {
+        "count": 1538,
+        "percentage": 77.48110831234257
+      },
+      "positive": {
+        "count": 421,
+        "percentage": 21.209068010075566
+      },
+      "negative": {
+        "count": 20,
+        "percentage": 1.0075566750629723
+      },
+      "neutral": {
+        "count": 6,
+        "percentage": 0.30226700251889166
+      }
+    },
+    "_total": 1985
+  },
+  "imbalance_info": {
+    "threshold_percentage": 10.0,
+    "rare_classes": {
+      "stayingpower": [
+        {
+          "label": "negative",
+          "count_train": 664,
+          "percentage_train": 7.1721754158565565
+        },
+        {
+          "label": "neutral",
+          "count_train": 229,
+          "percentage_train": 2.473536400950529
+        }
+      ],
+      "texture": [
+        {
+          "label": "negative",
+          "count_train": 561,
+          "percentage_train": 6.059624108878808
+        },
+        {
+          "label": "neutral",
+          "count_train": 392,
+          "percentage_train": 4.234175847915316
+        }
+      ],
+      "smell": [
+        {
+          "label": "negative",
+          "count_train": 307,
+          "percentage_train": 3.316050982933679
+        },
+        {
+          "label": "neutral",
+          "count_train": 93,
+          "percentage_train": 1.0045366169799093
+        }
+      ],
+      "price": [
+        {
+          "label": "neutral",
+          "count_train": 22,
+          "percentage_train": 0.23763231799524737
+        },
+        {
+          "label": "negative",
+          "count_train": 15,
+          "percentage_train": 0.16202203499675957
+        }
+      ],
+      "colour": [
+        {
+          "label": "negative",
+          "count_train": 458,
+          "percentage_train": 4.947072801901058
+        },
+        {
+          "label": "neutral",
+          "count_train": 387,
+          "percentage_train": 4.180168502916397
+        }
+      ],
+      "shipping": [
+        {
+          "label": "neutral",
+          "count_train": 244,
+          "percentage_train": 2.6355584359472886
+        }
+      ],
+      "packing": [
+        {
+          "label": "negative",
+          "count_train": 70,
+          "percentage_train": 0.756102829984878
+        },
+        {
+          "label": "neutral",
+          "count_train": 11,
+          "percentage_train": 0.11881615899762368
+        }
+      ]
+    },
+    "recommendations": [
+      "Use class-balanced loss functions (Focal Loss or Weighted Cross-Entropy)",
+      "Consider oversampling rare classes (SMOTE on embeddings or text augmentation)",
+      "Apply label-smoothing during training to reduce over-confident predictions",
+      "Use ensemble methods / multi-exit architectures to boost minority class F1",
+      "Monitor per-class Precision / Recall / F1 \u2014 do NOT rely on macro accuracy alone"
+    ]
+  }
+}
