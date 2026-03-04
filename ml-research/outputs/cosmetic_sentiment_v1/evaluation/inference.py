@@ -556,6 +556,336 @@ class SentimentPredictor:
             'confidence': result['confidence']
         }
 
+    # ─────────────────────────────────────────────────────────────────────
+    # Integrated Gradients
+    # ─────────────────────────────────────────────────────────────────────
+    def explain_with_integrated_gradients(self, text, aspect, target_label=None,
+                                          n_steps=50, top_k=12, save_path=None):
+        """
+        Generate Integrated Gradients explanation for a prediction.
+
+        Integrated Gradients (Sundararajan et al., 2017) computes the
+        attribution of each input token by integrating gradients from a
+        baseline (all-PAD) to the actual input along a straight-line path.
+        This satisfies the completeness axiom — attribution scores sum exactly
+        to the model output change, making them more rigorous than LIME/SHAP
+        for transformer models.
+
+        Args:
+            text:         Input review text
+            aspect:       Aspect name (e.g. 'smell', 'price')
+            target_label: Sentiment class to explain ('negative'|'neutral'|'positive').
+                          Defaults to the model's predicted class.
+            n_steps:      Number of interpolation steps (higher = more accurate,
+                          but slower; 50 is a good balance)
+            top_k:        Number of top tokens to print
+            save_path:    Optional path to save the bar-chart PNG
+
+        Returns:
+            dict with keys:
+                'tokens':        List of token strings (no padding)
+                'attributions':  List of float attribution scores (one per token)
+                'target_label':  The class being explained
+                'confidence':    Model confidence for that class
+        """
+        try:
+            from captum.attr import LayerIntegratedGradients
+        except ImportError:
+            raise ImportError(
+                "Captum is not installed. Install with: pip install captum"
+            )
+
+        if aspect not in self.aspect_to_id:
+            raise ValueError(f"Invalid aspect. Must be one of: {', '.join(self.aspect_names)}")
+
+        # Tokenise
+        encoding = self.tokenizer(
+            text,
+            add_special_tokens=True,
+            max_length=self.config['data']['max_seq_length'],
+            padding='max_length',
+            truncation=True,
+            return_tensors='pt'
+        )
+        input_ids      = encoding['input_ids'].to(self.device)
+        attention_mask = encoding['attention_mask'].to(self.device)
+        aspect_id_t    = torch.tensor([self.aspect_to_id[aspect]], dtype=torch.long).to(self.device)
+
+        # Determine target class
+        result = self.predict(text, aspect)
+        if target_label is None:
+            target_label = result['sentiment']
+        if target_label not in self.label_names:
+            raise ValueError(f"Invalid target_label. Must be one of {self.label_names}")
+        target_idx = self.label_names.index(target_label)
+
+        # ── Define the forward function for Captum ────────────────────────
+        # Captum requires a function: input_embeds → scalar score
+        # We hook into the embedding layer so IG can attribute per-token.
+        def forward_fn(input_embeds):
+            # Temporarily replace the embedding lookup with our interpolated embeds
+            with torch.no_grad():
+                # Run RoBERTa with pre-computed embeddings
+                roberta_output = self.model.aspect_aware_roberta.roberta(
+                    inputs_embeds=input_embeds,
+                    attention_mask=attention_mask,
+                    output_hidden_states=True
+                )
+            hidden_states = roberta_output.last_hidden_state
+            # Aspect attention (or CLS fallback for ablation models)
+            if self.model.aspect_aware_roberta.use_aspect_attention:
+                aspect_query = self.model.aspect_aware_roberta.aspect_embeddings(aspect_id_t)
+                aspect_query = aspect_query.unsqueeze(1)
+                attended, _ = self.model.aspect_aware_roberta.aspect_attention(
+                    query=aspect_query,
+                    key=hidden_states,
+                    value=hidden_states,
+                    key_padding_mask=~attention_mask.bool()
+                )
+                aspect_repr = attended.squeeze(1)
+            else:
+                aspect_repr = hidden_states[:, 0, :]
+            aspect_repr = self.model.aspect_aware_roberta.layer_norm(aspect_repr)
+            # Classifier head
+            if self.model.aspect_aware_roberta.use_shared_classifier:
+                logits = self.model.aspect_aware_roberta.shared_classifier(aspect_repr)
+            else:
+                logits = self.model.aspect_aware_roberta.aspect_classifiers[
+                    self.aspect_to_id[aspect]
+                ](aspect_repr)
+            scaled = logits / self.temperature
+            return scaled[:, target_idx]  # Return scalar for the target class
+
+        # ── Baseline: all-PAD embedding ───────────────────────────────────
+        embedding_layer = self.model.aspect_aware_roberta.roberta.embeddings
+
+        input_embeds    = embedding_layer(input_ids)
+        baseline_ids    = torch.full_like(input_ids, self.tokenizer.pad_token_id)
+        baseline_embeds = embedding_layer(baseline_ids)
+
+        # ── Run Integrated Gradients ──────────────────────────────────────
+        lig = LayerIntegratedGradients(forward_fn, embedding_layer)
+        attributions, delta = lig.attribute(
+            inputs=input_embeds,
+            baselines=baseline_embeds,
+            n_steps=n_steps,
+            return_convergence_delta=True
+        )
+        # Sum across embedding dim to get per-token scalar
+        attr_scores = attributions.sum(dim=-1).squeeze(0)  # (seq_len,)
+
+        # Trim to valid tokens (exclude padding)
+        valid_length = attention_mask[0].sum().item()
+        tokens       = self.tokenizer.convert_ids_to_tokens(input_ids[0])[:valid_length]
+        scores       = attr_scores[:valid_length].detach().cpu().numpy()
+
+        # Normalise to [-1, 1] for readability
+        max_abs = np.abs(scores).max() + 1e-9
+        scores_norm = scores / max_abs
+
+        # ── Print results ─────────────────────────────────────────────────
+        print(f"\n{'='*70}")
+        print(f"Integrated Gradients Explanation")
+        print(f"{'='*70}")
+        print(f"Text:          {text}")
+        print(f"Aspect:        {aspect}")
+        print(f"Target class:  {target_label}")
+        print(f"Confidence:    {result['confidence']:.2%}")
+        print(f"Convergence delta (lower=better): {delta.item():.5f}")
+        print(f"{'='*70}\n")
+
+        token_scores = sorted(zip(tokens, scores_norm), key=lambda x: abs(x[1]), reverse=True)
+        print(f"Top {top_k} tokens by attribution:")
+        print("-" * 70)
+        for tok, sc in token_scores[:top_k]:
+            direction = "supports" if sc > 0 else "opposes"
+            bar = '█' * int(abs(sc) * 30)
+            sign = '+' if sc > 0 else '-'
+            print(f"  {tok:20s} [{sign}] {bar:<30s} {sc:+.3f}  ({direction} {target_label})")
+
+        # ── Visualise ─────────────────────────────────────────────────────
+        fig, ax = plt.subplots(figsize=(12, max(4, valid_length * 0.22)))
+        colors = ['#27ae60' if s > 0 else '#c0392b' for s in scores_norm]
+        y_pos  = np.arange(valid_length)
+        ax.barh(y_pos, scores_norm, color=colors, alpha=0.75, edgecolor='white')
+        ax.set_yticks(y_pos)
+        ax.set_yticklabels(tokens, fontsize=7)
+        ax.set_xlabel('Normalised Attribution Score', fontsize=11)
+        ax.set_title(
+            f'Integrated Gradients — Aspect: {aspect}  |  Class: {target_label}\n'
+            f'"{text[:60]}{"…" if len(text) > 60 else ""}"',
+            fontsize=11, fontweight='bold'
+        )
+        ax.axvline(x=0, color='black', linestyle='--', linewidth=0.8)
+        ax.grid(axis='x', alpha=0.3)
+        plt.tight_layout()
+        if save_path:
+            plt.savefig(save_path, dpi=300, bbox_inches='tight')
+            print(f"\nVisualization saved to: {save_path}")
+        else:
+            plt.show()
+        plt.close()
+
+        return {
+            'tokens':       tokens,
+            'attributions': scores_norm.tolist(),
+            'target_label': target_label,
+            'confidence':   result['confidence'],
+            'delta':        float(delta.item()),
+        }
+
+    # ─────────────────────────────────────────────────────────────────────
+    # MSR Delta — Mixed Sentiment Resolution Explainability
+    # ─────────────────────────────────────────────────────────────────────
+    def explain_msr_delta(self, text, focus_aspect, top_k=10, save_path=None):
+        """
+        MSR (Mixed Sentiment Resolution) Delta Explanation.
+
+        For a review that mentions MULTIPLE aspects (e.g. positive colour,
+        negative smell), this method shows HOW MUCH each OTHER aspect's
+        tokens shift the model's confidence for the focus_aspect prediction.
+
+        Method:
+          1. Get baseline prediction for focus_aspect on the full text.
+          2. For each token, mask it (replace with [MASK]) and re-predict.
+          3. The delta = baseline_confidence - masked_confidence.
+             - Large positive delta → token SUPPORTS the prediction
+             - Large negative delta → token OPPOSES the prediction
+          4. Group deltas by aspect-keyword overlap to show cross-aspect influence.
+
+        This directly demonstrates Mixed Sentiment Resolution: tokens from
+        aspect B (e.g. smell) should ideally have LOW delta on aspect A
+        (e.g. colour), proving the model separates aspects correctly.
+
+        Args:
+            text:         Input review text
+            focus_aspect: The aspect whose prediction we are examining
+            top_k:        Number of top delta tokens to display
+            save_path:    Optional path to save the output PNG
+
+        Returns:
+            dict with keys:
+                'tokens':           All tokens (no padding)
+                'deltas':           Per-token confidence delta (float, one per token)
+                'baseline':         Baseline prediction dict
+                'focus_aspect':     The aspect being explained
+        """
+        if focus_aspect not in self.aspect_to_id:
+            raise ValueError(f"Invalid aspect. Must be one of: {', '.join(self.aspect_names)}")
+
+        # Tokenise once
+        encoding = self.tokenizer(
+            text,
+            add_special_tokens=True,
+            max_length=self.config['data']['max_seq_length'],
+            padding='max_length',
+            truncation=True,
+            return_tensors='pt'
+        )
+        input_ids      = encoding['input_ids'].to(self.device)
+        attention_mask = encoding['attention_mask'].to(self.device)
+        aspect_id_t    = torch.tensor(
+            [self.aspect_to_id[focus_aspect]], dtype=torch.long
+        ).to(self.device)
+        empty_edge     = [torch.zeros(2, 0, dtype=torch.long).to(self.device)]
+
+        valid_length = attention_mask[0].sum().item()
+        tokens       = self.tokenizer.convert_ids_to_tokens(input_ids[0])[:valid_length]
+
+        # Baseline confidence for the focus aspect
+        with torch.no_grad():
+            logits   = self.model(input_ids, attention_mask, aspect_id_t, edge_index=empty_edge)
+            scaled   = (logits / self.temperature)
+            baseline_probs = torch.softmax(scaled, dim=1)[0].cpu().numpy()
+
+        baseline_pred_idx = int(np.argmax(baseline_probs))
+        baseline_conf     = float(baseline_probs[baseline_pred_idx])
+        baseline_label    = self.label_names[baseline_pred_idx]
+
+        # Per-token masking
+        mask_token_id = self.tokenizer.mask_token_id
+        deltas = np.zeros(valid_length)
+
+        for i in range(1, valid_length - 1):       # skip [CLS] and [SEP]
+            masked_ids = input_ids.clone()
+            masked_ids[0, i] = mask_token_id
+
+            with torch.no_grad():
+                logits_m = self.model(
+                    masked_ids, attention_mask, aspect_id_t, edge_index=empty_edge
+                )
+                probs_m  = torch.softmax(logits_m / self.temperature, dim=1)[0].cpu().numpy()
+
+            # Delta = drop in confidence for the baseline predicted class
+            deltas[i] = baseline_conf - float(probs_m[baseline_pred_idx])
+
+        # Normalise
+        max_abs    = np.abs(deltas).max() + 1e-9
+        deltas_norm = deltas / max_abs
+
+        # ── Print ─────────────────────────────────────────────────────────
+        print(f"\n{'='*70}")
+        print(f"MSR Delta Explanation  (Mixed Sentiment Resolution)")
+        print(f"{'='*70}")
+        print(f"Text:          {text}")
+        print(f"Focus aspect:  {focus_aspect}")
+        print(f"Baseline pred: {baseline_label}  (confidence {baseline_conf:.2%})")
+        print(f"{'='*70}")
+        print(f"\nToken influence on [{focus_aspect}] prediction (positive = supports, "
+              f"negative = contradicts):")
+        print("-" * 70)
+
+        ranked = sorted(
+            [(tok, d, dn) for tok, d, dn in zip(tokens, deltas, deltas_norm)
+             if tok not in ('<s>', '</s>', '<pad>', '<mask>')],
+            key=lambda x: abs(x[1]), reverse=True
+        )
+        for tok, d, dn in ranked[:top_k]:
+            influence = "supports" if d > 0 else "opposes"
+            bar = '█' * int(abs(dn) * 28)
+            sign = '+' if d > 0 else '-'
+            print(f"  {tok:20s} [{sign}] {bar:<28s} delta={d:+.4f}")
+
+        # Cross-aspect summary: which prediction for OTHER aspects correlates
+        # with the biggest deltas? This reveals mixed-sentiment behaviour.
+        print(f"\nCross-aspect influence summary (other predictions on this review):")
+        other_aspects = [a for a in self.aspect_names if a != focus_aspect]
+        for other in other_aspects:
+            other_result = self.predict(text, other)
+            print(f"  {other:15s} → {other_result['sentiment']:8s}  "
+                  f"(confidence {other_result['confidence']:.2%})")
+
+        # ── Visualise ─────────────────────────────────────────────────────
+        fig, ax = plt.subplots(figsize=(12, max(4, valid_length * 0.22)))
+        colors  = ['#27ae60' if d > 0 else '#c0392b' for d in deltas_norm]
+        y_pos   = np.arange(valid_length)
+        ax.barh(y_pos, deltas_norm, color=colors, alpha=0.75, edgecolor='white')
+        ax.set_yticks(y_pos)
+        ax.set_yticklabels(tokens, fontsize=7)
+        ax.set_xlabel('Normalised Confidence Delta (mask-out effect)', fontsize=11)
+        ax.set_title(
+            f'MSR Delta — Focus: [{focus_aspect}] — Baseline: {baseline_label}\n'
+            f'"{text[:60]}{"…" if len(text) > 60 else ""}"',
+            fontsize=11, fontweight='bold'
+        )
+        ax.axvline(x=0, color='black', linestyle='--', linewidth=0.8)
+        ax.grid(axis='x', alpha=0.3)
+        plt.tight_layout()
+        if save_path:
+            plt.savefig(save_path, dpi=300, bbox_inches='tight')
+            print(f"\nVisualization saved to: {save_path}")
+        else:
+            plt.show()
+        plt.close()
+
+        return {
+            'tokens':       tokens,
+            'deltas':       deltas.tolist(),
+            'deltas_norm':  deltas_norm.tolist(),
+            'baseline':     {'sentiment': baseline_label, 'confidence': baseline_conf},
+            'focus_aspect': focus_aspect,
+        }
+
 
 def main():
     """Interactive inference demo"""
@@ -570,9 +900,10 @@ def main():
                        help='Aspect to analyze')
     parser.add_argument('--device', type=str, default='cuda',
                        help='Device to use (cuda or cpu)')
-    parser.add_argument('--explain', type=str, choices=['attention', 'lime', 'shap', 'all'], 
-                       default='attention',
-                       help='Explainability method to use (attention, lime, shap, or all)')
+    parser.add_argument('--explain', type=str,
+                        choices=['attention', 'lime', 'shap', 'ig', 'msr', 'all'],
+                        default='attention',
+                        help='Explainability method: attention | lime | shap | ig | msr | all')
     parser.add_argument('--save-path', type=str, default=None,
                        help='Path to save explanation visualizations')
     
@@ -620,6 +951,22 @@ def main():
             if save_path and args.explain == 'all':
                 save_path = save_path.replace('.', '_shap.')
             predictor.explain_with_shap(args.text, args.aspect, plot=True, save_path=save_path)
+        
+        if args.explain in ['ig', 'all']:
+            save_path = args.save_path if args.save_path else None
+            if save_path and args.explain == 'all':
+                save_path = save_path.replace('.', '_ig.')
+            predictor.explain_with_integrated_gradients(
+                args.text, args.aspect, save_path=save_path
+            )
+        
+        if args.explain in ['msr', 'all']:
+            save_path = args.save_path if args.save_path else None
+            if save_path and args.explain == 'all':
+                save_path = save_path.replace('.', '_msr.')
+            predictor.explain_msr_delta(
+                args.text, args.aspect, save_path=save_path
+            )
     
     else:
         # Interactive mode
