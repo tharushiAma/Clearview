@@ -20,7 +20,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from models.model import create_model
 from models.losses import AspectSpecificLossManager
 from utils.data_utils import create_dataloaders, DependencyParser, compute_class_weights
-from utils.metrics import AspectSentimentEvaluator
+from utils.metrics import AspectSentimentEvaluator, MixedSentimentEvaluator
 
 
 class Trainer:
@@ -222,22 +222,14 @@ class Trainer:
                         'global_step': self.global_step
                     })
             
-            # Evaluate
-            if self.global_step % self.config['experiment']['eval_every'] == 0:
-                val_metrics = self.evaluate(self.val_loader, "Validation")
+            # Mid-epoch evaluation (logging only — early stopping is handled at epoch end)
+            if self.global_step % self.config['experiment']['eval_every'] == 0 and self.global_step > 0:
+                val_metrics = self.evaluate(self.val_loader, "Validation (mid-epoch)")
                 self.model.train()  # Back to training mode
                 
-                # Check for improvement
                 val_metric = val_metrics['overall']['macro_f1']
-                if val_metric > self.best_val_metric:
-                    self.best_val_metric = val_metric
-                    self.patience_counter = 0
-                    self.save_checkpoint(f'best_model.pt')
-                    print(f"New best model! Val Macro-F1: {val_metric:.4f}")
-                else:
-                    self.patience_counter += 1
                 
-                # Log to TensorBoard
+                # Log to TensorBoard (no patience update here)
                 if hasattr(self, 'writer'):
                     self.writer.add_scalar('val/macro_f1', val_metric, self.global_step)
                     self.writer.add_scalar('val/accuracy', val_metrics['overall']['accuracy'], self.global_step)
@@ -401,11 +393,58 @@ class Trainer:
         
         test_metrics = self.evaluate(self.test_loader, "Test")
         
+        # ── Mixed Sentiment Resolution Evaluation ────────────────────
+        # This evaluates the core research contribution: how well the
+        # model handles reviews with conflicting sentiments across aspects.
+        print(f"\n{'='*60}")
+        print("Evaluating Mixed Sentiment Resolution...")
+        print(f"{'='*60}\n")
+        
+        mixed_evaluator = MixedSentimentEvaluator(self.config['aspects']['names'])
+        
+        # Collect per-review predictions from test set
+        self.model.eval()
+        review_true = {}   # {review_idx: {aspect: label}}
+        review_pred = {}   # {review_idx: {aspect: label}}
+        
+        with torch.no_grad():
+            for batch in self.test_loader:
+                input_ids = batch['input_ids'].to(self.device)
+                attention_mask = batch['attention_mask'].to(self.device)
+                aspect_ids = batch['aspect_ids'].to(self.device)
+                
+                edge_indices = None
+                if self.config['model'].get('use_dependency_gcn', False):
+                    edge_indices = [e.to(self.device) if e is not None else None
+                                   for e in batch['edge_indices']]
+                
+                predictions = self.model(input_ids, attention_mask, aspect_ids, edge_indices)
+                pred_classes = torch.argmax(predictions, dim=1).cpu().numpy()
+                
+                for i in range(len(pred_classes)):
+                    review_idx = batch['review_ids'][i]
+                    aspect_name = batch['aspects'][i]
+                    true_label = batch['labels'][i].item()
+                    
+                    if review_idx not in review_true:
+                        review_true[review_idx] = {}
+                        review_pred[review_idx] = {}
+                    
+                    review_true[review_idx][aspect_name] = true_label
+                    review_pred[review_idx][aspect_name] = int(pred_classes[i])
+        
+        mixed_metrics = mixed_evaluator.evaluate_mixed_sentiment_resolution(
+            review_true, review_pred
+        )
+        mixed_evaluator.print_mixed_sentiment_results(mixed_metrics)
+        
+        # Add mixed sentiment results to test_metrics
+        test_metrics['mixed_sentiment'] = mixed_metrics
+        
         # Save test results
         import json
         results_path = self.save_dir / 'test_results.json'
         with open(results_path, 'w') as f:
-            # Convert numpy types to Python types for JSON serialization
             def convert_to_serializable(obj):
                 if isinstance(obj, np.ndarray):
                     return obj.tolist()

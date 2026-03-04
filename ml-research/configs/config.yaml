@@ -3,7 +3,7 @@
 # Model Configuration
 model:
   name: "multi_aspect_sentiment_roberta_gcn"
-  roberta_model: "roberta-base" # or "xlm-roberta-base" for multilingual
+  roberta_model: "roberta-base" 
   hidden_dim: 768
   num_aspects: 7
   num_classes: 3 # negative, neutral, positive
@@ -32,13 +32,13 @@ aspects:
   # Class distribution (from augmented training data with preprocessed synthetic)
   # Updated: 2026-02-11 - After synthetic data integration (87.8% retention)
   class_counts:
-    stayingpower: [721, 250, 1087] # neg, neu, pos
-    texture: [637, 426, 2565]
-    smell: [337, 271, 1672]
-    price: [205, 231, 2292] # Improved from 174:1 to 11:1 imbalance!
-    colour: [493, 427, 4496]
-    shipping: [1222, 267, 2415]
-    packing: [241, 179, 2070] # Improved from 185:1 to 12:1 imbalance!
+    stayingpower: [727, 244, 1076] # neg, neu, pos
+    texture: [639, 420, 2563]
+    smell: [335, 274, 1668]
+    price: [201, 218, 2295]
+    colour: [499, 428, 4483]
+    shipping: [1216, 267, 2406]
+    packing: [236, 177, 2068]
 
 # Training Configuration
 training:

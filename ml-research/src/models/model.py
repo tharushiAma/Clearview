@@ -13,48 +13,57 @@ class AspectAwareRoBERTa(nn.Module):
     RoBERTa with aspect-specific attention mechanism
     Improvement over MAFESA's LDA + GloVe approach
     """
-    def __init__(self, roberta_model='roberta-base', num_aspects=7, 
-                 num_classes=3, hidden_dim=768, dropout=0.1):
+    def __init__(self, roberta_model='roberta-base', num_aspects=7,
+                 num_classes=3, hidden_dim=768, dropout=0.1,
+                 use_aspect_attention=True, use_shared_classifier=False):
         super(AspectAwareRoBERTa, self).__init__()
         
+        self.use_aspect_attention  = use_aspect_attention
+        self.use_shared_classifier = use_shared_classifier
+
         # Load pre-trained RoBERTa
         self.roberta = RobertaModel.from_pretrained(roberta_model)
         
-        # Freeze some layers for faster training (optional)
-        # Uncomment to freeze bottom layers
-        # for param in self.roberta.encoder.layer[:6].parameters():
-        #     param.requires_grad = False
-        
-        # Aspect embeddings (learnable)
+        # Aspect embeddings (learnable) — always needed for GCN gating & loss routing
         self.aspect_embeddings = nn.Embedding(num_aspects, hidden_dim)
         nn.init.xavier_uniform_(self.aspect_embeddings.weight)
         
-        # Multi-head attention for aspect-text interaction
-        self.aspect_attention = nn.MultiheadAttention(
-            embed_dim=hidden_dim,
-            num_heads=8,
-            dropout=dropout,
-            batch_first=True
-        )
-        
+        if use_aspect_attention:
+            # Multi-head attention for aspect-text interaction
+            self.aspect_attention = nn.MultiheadAttention(
+                embed_dim=hidden_dim,
+                num_heads=8,
+                dropout=dropout,
+                batch_first=True
+            )
+
         # Layer normalization
         self.layer_norm = nn.LayerNorm(hidden_dim)
-        
         # Dropout
         self.dropout = nn.Dropout(dropout)
         
-        # Aspect-specific classifiers (separate head for each aspect)
-        self.aspect_classifiers = nn.ModuleList([
-            nn.Sequential(
+        # Ablation 5: shared vs aspect-specific classifiers
+        if use_shared_classifier:
+            # Single shared classification head for all aspects
+            self.shared_classifier = nn.Sequential(
                 nn.Linear(hidden_dim, hidden_dim // 2),
                 nn.ReLU(),
                 nn.Dropout(dropout),
                 nn.Linear(hidden_dim // 2, num_classes)
-            ) for _ in range(num_aspects)
-        ])
+            )
+        else:
+            # Aspect-specific classifiers (separate head for each aspect)
+            self.aspect_classifiers = nn.ModuleList([
+                nn.Sequential(
+                    nn.Linear(hidden_dim, hidden_dim // 2),
+                    nn.ReLU(),
+                    nn.Dropout(dropout),
+                    nn.Linear(hidden_dim // 2, num_classes)
+                ) for _ in range(num_aspects)
+            ])
         
         self.num_aspects = num_aspects
-        self.hidden_dim = hidden_dim
+        self.hidden_dim  = hidden_dim
         
     def forward(self, input_ids, attention_mask, aspect_id, return_token_embeddings=False):
         """
@@ -79,32 +88,41 @@ class AspectAwareRoBERTa(nn.Module):
         
         hidden_states = roberta_output.last_hidden_state  # (batch_size, seq_len, hidden_dim)
         
-        # Get aspect-specific query embeddings
-        aspect_query = self.aspect_embeddings(aspect_id)  # (batch_size, hidden_dim)
-        aspect_query = aspect_query.unsqueeze(1)  # (batch_size, 1, hidden_dim)
-        
-        # Apply aspect-guided attention
-        attended_output, attention_weights = self.aspect_attention(
-            query=aspect_query,
-            key=hidden_states,
-            value=hidden_states,
-            key_padding_mask=~attention_mask.bool()
-        )
-        # attended_output: (batch_size, 1, hidden_dim)
-        # attention_weights: (batch_size, 1, seq_len)
-        
-        # Extract aspect representation
-        aspect_representation = attended_output.squeeze(1)  # (batch_size, hidden_dim)
+        if self.use_aspect_attention:
+            # Aspect-guided MHA attention (standard path)
+            aspect_query = self.aspect_embeddings(aspect_id)   # (batch_size, hidden_dim)
+            aspect_query = aspect_query.unsqueeze(1)            # (batch_size, 1, hidden_dim)
+
+            attended_output, attention_weights = self.aspect_attention(
+                query=aspect_query,
+                key=hidden_states,
+                value=hidden_states,
+                key_padding_mask=~attention_mask.bool()
+            )
+            aspect_representation = attended_output.squeeze(1)  # (batch_size, hidden_dim)
+        else:
+            # Ablation 2: CLS pooling (no aspect awareness)
+            aspect_representation = hidden_states[:, 0, :]      # (batch_size, hidden_dim)
+            # Fake uniform attention weights for interface compatibility
+            seq_len = hidden_states.size(1)
+            attention_weights = torch.ones(
+                hidden_states.size(0), 1, seq_len,
+                device=hidden_states.device
+            ) / seq_len
+
         aspect_representation = self.layer_norm(aspect_representation)
         aspect_representation = self.dropout(aspect_representation)
         
-        # Get predictions for each aspect (aspect-specific classifiers)
+        # Classification
         batch_size = input_ids.size(0)
         predictions = []
         
         for i in range(batch_size):
-            asp_id = aspect_id[i].item()
-            pred = self.aspect_classifiers[asp_id](aspect_representation[i])
+            if self.use_shared_classifier:
+                pred = self.shared_classifier(aspect_representation[i])
+            else:
+                asp_id = aspect_id[i].item()
+                pred   = self.aspect_classifiers[asp_id](aspect_representation[i])
             predictions.append(pred)
         
         predictions = torch.stack(predictions)  # (batch_size, num_classes)
@@ -197,16 +215,22 @@ class MultiAspectSentimentModel(nn.Module):
         self.config = config
         model_config = config['model']
         
+        self.use_gcn = model_config.get('use_dependency_gcn', True)
+        
+        # Ablation flags
+        use_aspect_attention  = model_config.get('use_aspect_attention', True)
+        use_shared_classifier = model_config.get('use_shared_classifier', False)
+
         # Main components
         self.aspect_aware_roberta = AspectAwareRoBERTa(
             roberta_model=model_config['roberta_model'],
             num_aspects=model_config['num_aspects'],
             num_classes=model_config['num_classes'],
             hidden_dim=model_config['hidden_dim'],
-            dropout=model_config['dropout']
+            dropout=model_config['dropout'],
+            use_aspect_attention=use_aspect_attention,
+            use_shared_classifier=use_shared_classifier,
         )
-        
-        self.use_gcn = model_config.get('use_dependency_gcn', True)
         
         if self.use_gcn:
             self.dep_gcn = AspectOrientedDepGCN(
