@@ -340,27 +340,117 @@ def create_multi_label_target(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def perform_stratified_split(df: pd.DataFrame):
-    """Stratified train / val / test split."""
-    log.info("Performing stratified split (%.0f/%.0f/%.0f) …",
-             TRAIN_SPLIT * 100, VAL_SPLIT * 100, TEST_SPLIT * 100)
+    """
+    Stratified train / val / test split with **rare-class minimum guarantee**.
 
-    train_val_df, test_df = train_test_split(
-        df,
+    Problem: Pure proportional splitting (70/15/15) leaves classes like
+    price-negative (21 total) with only 3 samples in val and 3 in test —
+    too few for reliable F1 computation.
+
+    Solution — Two-phase split:
+      Phase 1: Identify rows with ANY rare aspect-class (< MIN_EVAL_SAMPLES
+               in a 15% slice). Reserve them and split so that val/test each
+               get at least MIN_EVAL_SAMPLES (or half the class, whichever
+               is smaller).
+      Phase 2: Do normal stratified split on the remaining majority rows.
+      Merge: Combine the reserved + majority splits.
+    """
+    MIN_EVAL_SAMPLES = 8   # minimum samples per class in val AND test
+
+    log.info("Performing stratified split (%.0f/%.0f/%.0f) with rare-class guarantee (min %d per eval set) …",
+             TRAIN_SPLIT * 100, VAL_SPLIT * 100, TEST_SPLIT * 100, MIN_EVAL_SAMPLES)
+
+    # ── Phase 1: Identify rows that belong to rare aspect-classes ─────────
+    # A class is "rare" if its total count would give < MIN_EVAL_SAMPLES
+    # under a proportional 15% allocation.
+    rare_threshold = int(MIN_EVAL_SAMPLES / (TEST_SPLIT))  # need this many total for 15% to yield MIN_EVAL_SAMPLES
+    log.info("  Rare-class threshold: aspect-class with < %d total samples gets reserved allocation", rare_threshold)
+
+    rare_indices = set()
+    rare_classes = {}  # {(aspect, label): [list of indices]}
+
+    for aspect in ASPECT_COLUMNS:
+        if aspect not in df.columns:
+            continue
+        vc = df[aspect].value_counts(dropna=True)
+        for label, count in vc.items():
+            if count < rare_threshold and count >= 3:  # need at least 3 to split
+                mask = df[aspect] == label
+                indices = df.index[mask].tolist()
+                rare_classes[(aspect, label)] = indices
+                rare_indices.update(indices)
+                log.info("    Rare class: %s=%s (%d samples) → reserved for balanced allocation",
+                         aspect, label, count)
+
+    # Split rare rows: give val and test each their fair share
+    rare_idx_list = sorted(rare_indices)
+    rare_df = df.loc[rare_idx_list].copy()
+    majority_df = df.drop(index=rare_idx_list).copy()
+
+    if len(rare_df) > 0:
+        log.info("  Reserving %d rows for rare-class guarantee, %d rows for normal split",
+                 len(rare_df), len(majority_df))
+
+        # For rare rows: allocate ~30% each to val and test, ~40% to train
+        # This over-represents rare classes in val/test intentionally
+        val_test_ratio = 0.30  # each of val & test gets 30% of rare rows
+        train_rare_ratio = 1.0 - 2 * val_test_ratio
+
+        # Shuffle rare rows before splitting
+        rare_df = rare_df.sample(frac=1, random_state=RANDOM_SEED).reset_index(drop=True)
+        n_rare = len(rare_df)
+        n_val_rare = max(1, int(n_rare * val_test_ratio))
+        n_test_rare = max(1, int(n_rare * val_test_ratio))
+        n_train_rare = n_rare - n_val_rare - n_test_rare
+
+        train_rare = rare_df.iloc[:n_train_rare]
+        val_rare = rare_df.iloc[n_train_rare:n_train_rare + n_val_rare]
+        test_rare = rare_df.iloc[n_train_rare + n_val_rare:]
+
+        log.info("  Rare rows split → Train: %d  Val: %d  Test: %d",
+                 len(train_rare), len(val_rare), len(test_rare))
+    else:
+        train_rare = pd.DataFrame(columns=df.columns)
+        val_rare = pd.DataFrame(columns=df.columns)
+        test_rare = pd.DataFrame(columns=df.columns)
+
+    # ── Phase 2: Normal stratified split on majority rows ──────────────────
+    # Re-create stratification keys for the majority subset
+    majority_df = create_multi_label_target(majority_df)
+
+    train_val_majority, test_majority = train_test_split(
+        majority_df,
         test_size=TEST_SPLIT,
-        stratify=df["_stratify_key"],
+        stratify=majority_df["_stratify_key"],
         random_state=RANDOM_SEED,
     )
 
     val_size_adj = VAL_SPLIT / (TRAIN_SPLIT + VAL_SPLIT)
-    train_df, val_df = train_test_split(
-        train_val_df,
+    train_majority, val_majority = train_test_split(
+        train_val_majority,
         test_size=val_size_adj,
-        stratify=train_val_df["_stratify_key"],
+        stratify=train_val_majority["_stratify_key"],
         random_state=RANDOM_SEED,
     )
 
+    # Drop stratification key from majority splits
+    for split_df in (train_majority, val_majority, test_majority):
+        split_df.drop("_stratify_key", axis=1, inplace=True, errors="ignore")
+
+    # ── Merge rare + majority ─────────────────────────────────────────────
+    train_df = pd.concat([train_majority, train_rare], ignore_index=True)
+    val_df = pd.concat([val_majority, val_rare], ignore_index=True)
+    test_df = pd.concat([test_majority, test_rare], ignore_index=True)
+
+    # Shuffle each split so rare rows aren't clustered at the end
+    train_df = train_df.sample(frac=1, random_state=RANDOM_SEED).reset_index(drop=True)
+    val_df = val_df.sample(frac=1, random_state=RANDOM_SEED).reset_index(drop=True)
+    test_df = test_df.sample(frac=1, random_state=RANDOM_SEED).reset_index(drop=True)
+
+    # Drop _stratify_key if it leaked through
     for split_df in (train_df, val_df, test_df):
-        split_df.drop("_stratify_key", axis=1, inplace=True)
+        if "_stratify_key" in split_df.columns:
+            split_df.drop("_stratify_key", axis=1, inplace=True)
 
     n = len(df)
     log.info(
@@ -369,6 +459,14 @@ def perform_stratified_split(df: pd.DataFrame):
         len(val_df),   len(val_df)   / n * 100,
         len(test_df),  len(test_df)  / n * 100,
     )
+
+    # Log rare-class counts in val/test for verification
+    log.info("Rare-class counts in eval sets:")
+    for (aspect, label), indices in rare_classes.items():
+        val_count = (val_df[aspect] == label).sum()
+        test_count = (test_df[aspect] == label).sum()
+        log.info("    %s=%s → Val: %d  Test: %d", aspect, label, val_count, test_count)
+
     return train_df, val_df, test_df
 
 
@@ -418,14 +516,7 @@ def identify_imbalanced_classes(train_df, val_df, test_df, threshold: float = 10
             log.warning("⚠  %s — rare classes: %s", aspect.upper(),
                         [r["label"] for r in rare])
 
-    if info["rare_classes"]:
-        info["recommendations"] = [
-            "Use class-balanced loss functions (Focal Loss or Weighted Cross-Entropy)",
-            "Consider oversampling rare classes (SMOTE on embeddings or text augmentation)",
-            "Apply label-smoothing during training to reduce over-confident predictions",
-            "Use ensemble methods / multi-exit architectures to boost minority class F1",
-            "Monitor per-class Precision / Recall / F1 — do NOT rely on macro accuracy alone",
-        ]
+
 
     return info
 

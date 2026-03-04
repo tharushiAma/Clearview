@@ -1,7 +1,7 @@
 # Class Imbalance Analysis
 
 **Project**: Class balanced aspect base mixed sentiment resolution with XAI  
-**Date**: 2026-03-03 22:39:52
+**Date**: 2026-03-04 09:10:19
 
 ## Cleaning Pipeline Applied
 
@@ -18,9 +18,9 @@
 
 | Set | Samples | % |
 |-----|---------|---|
-| Train | 9258 | 70% |
-| Validation | 1985 | 15% |
-| Test | 1985 | 15% |
+| Train | 9240 | 70% |
+| Validation | 1994 | 15% |
+| Test | 1994 | 15% |
 
 ## Aspect-wise Class Distribution
 
@@ -29,64 +29,64 @@
 
 | Class | Train Count (%) | Val Count (%) | Test Count (%) |
 |-------|----------------|---------------|----------------|
-| nan | 7299 (78.84%) | 1571 (79.14%) | 1586 (79.90%) |
-| negative | 664 (7.17%) | 138 (6.95%) | 138 (6.95%) |
-| neutral | 229 (2.47%) | 46 (2.32%) | 38 (1.91%) |
-| positive | 1066 (11.51%) | 230 (11.59%) | 223 (11.23%) |
+| nan | 7289 (78.89%) | 1585 (79.49%) | 1582 (79.34%) |
+| negative | 668 (7.23%) | 134 (6.72%) | 138 (6.92%) |
+| neutral | 224 (2.42%) | 43 (2.16%) | 46 (2.31%) |
+| positive | 1059 (11.46%) | 232 (11.63%) | 228 (11.43%) |
 
 ### TEXTURE
 
 | Class | Train Count (%) | Val Count (%) | Test Count (%) |
 |-------|----------------|---------------|----------------|
-| nan | 5830 (62.97%) | 1267 (63.83%) | 1257 (63.32%) |
-| negative | 561 (6.06%) | 118 (5.94%) | 116 (5.84%) |
-| neutral | 392 (4.23%) | 74 (3.73%) | 76 (3.83%) |
-| positive | 2475 (26.73%) | 526 (26.50%) | 536 (27.00%) |
+| nan | 5823 (63.02%) | 1269 (63.64%) | 1262 (63.29%) |
+| negative | 565 (6.11%) | 113 (5.67%) | 117 (5.87%) |
+| neutral | 385 (4.17%) | 81 (4.06%) | 76 (3.81%) |
+| positive | 2467 (26.70%) | 531 (26.63%) | 539 (27.03%) |
 
 ### SMELL
 
 | Class | Train Count (%) | Val Count (%) | Test Count (%) |
 |-------|----------------|---------------|----------------|
-| nan | 7221 (78.00%) | 1551 (78.14%) | 1553 (78.24%) |
-| negative | 307 (3.32%) | 67 (3.38%) | 65 (3.27%) |
-| neutral | 93 (1.00%) | 18 (0.91%) | 19 (0.96%) |
-| positive | 1637 (17.68%) | 349 (17.58%) | 348 (17.53%) |
+| nan | 7206 (77.99%) | 1556 (78.03%) | 1563 (78.39%) |
+| negative | 305 (3.30%) | 71 (3.56%) | 63 (3.16%) |
+| neutral | 95 (1.03%) | 21 (1.05%) | 14 (0.70%) |
+| positive | 1634 (17.68%) | 346 (17.35%) | 354 (17.75%) |
 
 ### PRICE
 
 | Class | Train Count (%) | Val Count (%) | Test Count (%) |
 |-------|----------------|---------------|----------------|
-| nan | 6965 (75.23%) | 1493 (75.21%) | 1500 (75.57%) |
-| negative | 15 (0.16%) | 3 (0.15%) | 3 (0.15%) |
-| neutral | 22 (0.24%) | 2 (0.10%) | 2 (0.10%) |
-| positive | 2256 (24.37%) | 487 (24.53%) | 480 (24.18%) |
+| nan | 6955 (75.27%) | 1500 (75.23%) | 1503 (75.38%) |
+| negative | 9 (0.10%) | 7 (0.35%) | 5 (0.25%) |
+| neutral | 9 (0.10%) | 6 (0.30%) | 11 (0.55%) |
+| positive | 2267 (24.53%) | 481 (24.12%) | 475 (23.82%) |
 
 ### COLOUR
 
 | Class | Train Count (%) | Val Count (%) | Test Count (%) |
 |-------|----------------|---------------|----------------|
-| nan | 4016 (43.38%) | 854 (43.02%) | 864 (43.53%) |
-| negative | 458 (4.95%) | 103 (5.19%) | 101 (5.09%) |
-| neutral | 387 (4.18%) | 78 (3.93%) | 77 (3.88%) |
-| positive | 4397 (47.49%) | 950 (47.86%) | 943 (47.51%) |
+| nan | 3999 (43.28%) | 871 (43.68%) | 864 (43.33%) |
+| negative | 463 (5.01%) | 101 (5.07%) | 98 (4.91%) |
+| neutral | 390 (4.22%) | 73 (3.66%) | 79 (3.96%) |
+| positive | 4388 (47.49%) | 949 (47.59%) | 953 (47.79%) |
 
 ### SHIPPING
 
 | Class | Train Count (%) | Val Count (%) | Test Count (%) |
 |-------|----------------|---------------|----------------|
-| nan | 5459 (58.97%) | 1174 (59.14%) | 1173 (59.09%) |
-| negative | 1182 (12.77%) | 256 (12.90%) | 250 (12.59%) |
-| neutral | 244 (2.64%) | 50 (2.52%) | 48 (2.42%) |
-| positive | 2373 (25.63%) | 505 (25.44%) | 514 (25.89%) |
+| nan | 5454 (59.03%) | 1174 (58.88%) | 1178 (59.08%) |
+| negative | 1176 (12.73%) | 259 (12.99%) | 253 (12.69%) |
+| neutral | 245 (2.65%) | 49 (2.46%) | 48 (2.41%) |
+| positive | 2365 (25.60%) | 512 (25.68%) | 515 (25.83%) |
 
 ### PACKING
 
 | Class | Train Count (%) | Val Count (%) | Test Count (%) |
 |-------|----------------|---------------|----------------|
-| nan | 7139 (77.11%) | 1545 (77.83%) | 1538 (77.48%) |
-| negative | 70 (0.76%) | 11 (0.55%) | 20 (1.01%) |
-| neutral | 11 (0.12%) | 1 (0.05%) | 6 (0.30%) |
-| positive | 2038 (22.01%) | 428 (21.56%) | 421 (21.21%) |
+| nan | 7132 (77.19%) | 1549 (77.68%) | 1541 (77.28%) |
+| negative | 65 (0.70%) | 15 (0.75%) | 21 (1.05%) |
+| neutral | 9 (0.10%) | 6 (0.30%) | 3 (0.15%) |
+| positive | 2034 (22.01%) | 424 (21.26%) | 429 (21.51%) |
 
 ## Imbalanced Classes Identified
 
@@ -94,49 +94,36 @@
 
 ### STAYINGPOWER
 
-- **negative**: 664 samples (7.17%)
-- **neutral**: 229 samples (2.47%)
+- **negative**: 668 samples (7.23%)
+- **neutral**: 224 samples (2.42%)
 
 ### TEXTURE
 
-- **negative**: 561 samples (6.06%)
-- **neutral**: 392 samples (4.23%)
+- **negative**: 565 samples (6.11%)
+- **neutral**: 385 samples (4.17%)
 
 ### SMELL
 
-- **negative**: 307 samples (3.32%)
-- **neutral**: 93 samples (1.00%)
+- **negative**: 305 samples (3.30%)
+- **neutral**: 95 samples (1.03%)
 
 ### PRICE
 
-- **neutral**: 22 samples (0.24%)
-- **negative**: 15 samples (0.16%)
+- **neutral**: 9 samples (0.10%)
+- **negative**: 9 samples (0.10%)
 
 ### COLOUR
 
-- **negative**: 458 samples (4.95%)
-- **neutral**: 387 samples (4.18%)
+- **negative**: 463 samples (5.01%)
+- **neutral**: 390 samples (4.22%)
 
 ### SHIPPING
 
-- **neutral**: 244 samples (2.64%)
+- **neutral**: 245 samples (2.65%)
 
 ### PACKING
 
-- **negative**: 70 samples (0.76%)
-- **neutral**: 11 samples (0.12%)
+- **negative**: 65 samples (0.70%)
+- **neutral**: 9 samples (0.10%)
 
-## Recommendations
 
-1. Use class-balanced loss functions (Focal Loss or Weighted Cross-Entropy)
-2. Consider oversampling rare classes (SMOTE on embeddings or text augmentation)
-3. Apply label-smoothing during training to reduce over-confident predictions
-4. Use ensemble methods / multi-exit architectures to boost minority class F1
-5. Monitor per-class Precision / Recall / F1 — do NOT rely on macro accuracy alone
-
-## Stratification Strategy
-
-Dataset split with **stratified sampling** over multi-label aspect-sentiment keys to ensure:
-- Proportional representation of all aspect-sentiment combinations across every split
-- Rare classes maintain the same percentage in train / val / test
-- Garbled / empty rows are excluded before splitting so they do not dilute any split

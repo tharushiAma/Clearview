@@ -131,21 +131,7 @@ def build_report(before: dict, after: dict,
                 pct_change = (delta / bc * 100) if bc > 0 else float('inf')
                 pct_str = f"+{pct_change:.1f}%" if pct_change != float('inf') else "new"
                 md += f"| {aspect} | {lbl} | {bc:,} | {ac:,} | +{delta:,} | {pct_str} |\n"
-
-    md += """
----
-
-## Recommendations
-
-> [!NOTE]
-> Data augmentation addresses imbalance at the **data level**. The training pipeline
-> also uses **Focal Loss** (model-level) to further down-weight easy/majority examples
-> and up-weight hard/minority examples. Both techniques work together.
-
-1. **Monitor per-class F1** during training — not just overall accuracy
-2. If rare classes still underperform, consider generating more targeted synthetic data
-3. The stratified split in `preprocess_and_split.py` ensures the val/test sets reflect the original (non-augmented) distribution for honest evaluation
-"""
+                
 
     return md
 
