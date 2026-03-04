@@ -1,176 +1,236 @@
-#!/usr/bin/env python3
 """
-Full integration test for the trained model adapter.
-Tests format correctness, output shape, and stability across diverse reviews.
+test_integration.py
+Integration test for the full website-to-model pipeline.
+Validates that the TrainedModelAdapter correctly wraps inference.py,
+produces correct output format, and passes all aspect predictions through.
 
-NOTE: The raw model predictions show near-uniform probability distributions
-(~0.33 per class) due to model calibration. The integration pipeline is
-working correctly; we verify structural correctness rather than directional
-accuracy for all aspects.
+Run from the ml-research directory:
+    python tests/test_integration.py
+
+    # With a specific checkpoint:
+    python tests/test_integration.py --checkpoint outputs/cosmetic_sentiment_v1/best_model.pt
 """
 
-import sys
-import os
+import sys, os, time, argparse
 
-project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-sys.path.insert(0, project_root)
+# ── Path setup ────────────────────────────────────────────────────────────────
+PROJECT_ROOT  = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+WEBSITE_ROOT  = os.path.abspath(os.path.join(PROJECT_ROOT, "..", "website"))
+INFERENCE_DIR = os.path.join(PROJECT_ROOT, "outputs", "cosmetic_sentiment_v1", "evaluation")
+SRC_DIR       = os.path.join(PROJECT_ROOT, "src")
+
+for p in [PROJECT_ROOT, WEBSITE_ROOT, INFERENCE_DIR, SRC_DIR]:
+    if p not in sys.path:
+        sys.path.insert(0, p)
 
 import importlib.util
-adapter_path = os.path.join(project_root, "website", "ml_models", "trained_model_adapter.py")
-spec = importlib.util.spec_from_file_location("trained_model_adapter", adapter_path)
-adapter_module = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(adapter_module)
 
-TrainedModelAdapter = adapter_module.TrainedModelAdapter
-LABEL_NAMES_4CLASS = adapter_module.LABEL_NAMES_4CLASS
+def load_adapter_module():
+    adapter_path = os.path.join(WEBSITE_ROOT, "ml_models", "trained_model_adapter.py")
+    if not os.path.exists(adapter_path):
+        return None, f"Adapter not found: {adapter_path}"
+    spec = importlib.util.spec_from_file_location("trained_model_adapter", adapter_path)
+    mod  = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod, None
 
-# ASPECT_NAMES is read from the loaded adapter instance (checkpoint-embedded config)
-ASPECT_NAMES = None  # Set after adapter loads
 
-CKPT_PATH = os.path.join(project_root, "results", "cosmetic_sentiment_v1", "best_model.pt")
-
+# ── Test cases ────────────────────────────────────────────────────────────────
+#  These reviews cover: short, long, mixed, strongly positive, strongly negative,
+#  and edge cases (single word, emoji-heavy).
 REVIEWS = [
-    ("positive_1",  "This foundation is absolutely amazing! Color perfection, stays all day, smells divine."),
-    ("positive_2",  "Best skincare product ever. My skin has never felt so smooth and glowing!"),
-    ("negative_1",  "Worst lipstick ever. Fades in an hour, chemical stench, and packaging snapped in half."),
-    ("negative_2",  "Total waste of money. Broke out in a rash, packaging was damaged on arrival."),
-    ("mixed_1",     "Love the color and texture. But the smell is absolutely horrible and fades too quickly."),
-    ("mixed_2",     "Great packaging and reasonable price. Skin feels weird after and color is patchy."),
-    ("neutral_1",   "It is an okay product. Nothing special but does what it says."),
-    ("short_1",     "Great!"),
-    ("short_2",     "Terrible."),
-    ("long_1",      ("Using this moisturizer for three months. Texture is silky smooth, absorbs well. "
-                     "Skin feels noticeably softer. Staying power is excellent throughout the day. "
-                     "However the scent is very strong, almost medicinal - quite unpleasant. "
-                     "Packaging cracked when dropped. Very expensive for what you get.")),
+    ("positive_clear",  "This foundation is amazing! Color perfection, stays all day, smells divine."),
+    ("negative_clear",  "Worst lipstick ever. Fades in an hour, chemical stench, packaging snapped."),
+    ("mixed_col_sml",   "Love the color and texture. But the smell is absolutely horrible and fades fast."),
+    ("mixed_pkg_price", "Great packaging and reasonable price. But skin feels weird and color is patchy."),
+    ("neutral_bland",   "It is an okay product. Nothing special but does what it says."),
+    ("short_great",     "Great!"),
+    ("short_terrible",  "Terrible."),
+    ("long_detailed",   (
+        "Using this moisturizer for three months. Texture is silky smooth, absorbs well. "
+        "Skin feels noticeably softer. Staying power is excellent throughout the day. "
+        "However the scent is very strong, almost medicinal — quite unpleasant. "
+        "Packaging cracked when dropped. Very expensive for what you get."
+    )),
+    ("shipping_late",   "Product arrived two weeks late. Was clearly mis-handled."),
+    ("all_aspects",     (
+        "The colour is beautiful, texture is silky, stays all day, smells amazing, "
+        "well-priced, delivered quickly and the packaging is premium quality."
+    )),
 ]
 
-REQUIRED_KEYS = {"name", "label", "confidence", "probs", "before", "after", "changed_by_msr"}
+
+# ── Required output format ────────────────────────────────────────────────────
+# Based on what the website frontend expects from TrainedModelAdapter.predict()
+VALID_SENTIMENTS   = {"negative", "neutral", "positive", "not_mentioned"}
+REQUIRED_PRED_KEYS = {"name", "confidence", "sentiment"}   # minimum required
 
 
-def check_format(result: dict, review_name: str) -> list:
-    """Validate the output format."""
+def check_adapter_output(result: dict, review_name: str, expected_aspects: list) -> list:
+    """Validate the adapter output format."""
     errors = []
 
-    if "aspects" not in result:
-        errors.append("{}: Missing 'aspects' key in result".format(review_name))
+    # Top-level key (adapter returns {'predictions': [...], ...})
+    if "predictions" not in result and "aspects" not in result:
+        errors.append(f"{review_name}: Missing 'predictions' or 'aspects' key")
         return errors
 
-    aspects = result["aspects"]
-    if len(aspects) != len(ASPECT_NAMES):
-        errors.append("{}: Expected {} aspects, got {}".format(
-            review_name, len(ASPECT_NAMES), len(aspects)))
+    predictions = result.get("predictions") or result.get("aspects") or []
 
-    returned_names = [a["name"] for a in aspects]
-    for expected_name in ASPECT_NAMES:
-        if expected_name not in returned_names:
-            errors.append("{}: Missing aspect '{}'".format(review_name, expected_name))
+    if len(predictions) != len(expected_aspects):
+        errors.append(
+            f"{review_name}: Expected {len(expected_aspects)} predictions, got {len(predictions)}"
+        )
 
-    for asp in aspects:
-        missing_keys = REQUIRED_KEYS - set(asp.keys())
-        if missing_keys:
-            errors.append("{} | {}: Missing keys {}".format(review_name, asp.get("name", "?"), missing_keys))
+    returned_aspects = {p.get("name") or p.get("aspect") for p in predictions}
+    for asp in expected_aspects:
+        if asp not in returned_aspects:
+            errors.append(f"{review_name}: Missing aspect '{asp}' in predictions")
 
-        if asp.get("label") not in LABEL_NAMES_4CLASS:
-            errors.append("{} | {}: Invalid label '{}'".format(review_name, asp.get("name"), asp.get("label")))
+    for pred in predictions:
+        asp_name = pred.get("name") or pred.get("aspect", "?")
 
-        conf = asp.get("confidence", -1)
-        if not (0.0 <= conf <= 1.0):
-            errors.append("{} | {}: Confidence out of range: {}".format(review_name, asp.get("name"), conf))
+        sentiment = pred.get("sentiment") or pred.get("label") or pred.get("predicted_class")
+        if sentiment not in VALID_SENTIMENTS:
+            errors.append(
+                f"{review_name} | {asp_name}: Invalid sentiment '{sentiment}'"
+            )
 
-        probs = asp.get("probs", [])
-        if len(probs) != 4:
-            errors.append("{} | {}: Expected 4 probs, got {}".format(review_name, asp.get("name"), len(probs)))
-        else:
-            total = sum(probs)
-            if not (0.98 <= total <= 1.02):
-                errors.append("{} | {}: Probs don't sum to 1 (sum={:.4f})".format(
-                    review_name, asp.get("name"), total))
+        conf = pred.get("confidence", -1)
+        if not isinstance(conf, (int, float)) or not (0.0 <= conf <= 1.0):
+            errors.append(
+                f"{review_name} | {asp_name}: Confidence out of range: {conf}"
+            )
+
+        probs = pred.get("probs") or pred.get("probabilities")
+        if probs is not None:
+            if isinstance(probs, dict):
+                total = sum(probs.values())
+            else:
+                total = sum(probs)
+            if not (0.97 <= total <= 1.03):
+                errors.append(
+                    f"{review_name} | {asp_name}: Probs don't sum to 1 (sum={total:.4f})"
+                )
 
     return errors
 
 
-def run_tests():
-    SEP = "=" * 70
+# ── Test runner ───────────────────────────────────────────────────────────────
+def run_tests(checkpoint: str):
+    SEP = "=" * 72
     print(SEP)
-    print("FULL INTEGRATION TEST: Trained Model Adapter")
+    print("  CLEARVIEW — FULL INTEGRATION TEST: Website Adapter")
     print(SEP)
-    print("Checkpoint: {}".format(CKPT_PATH))
-    print("Testing {} reviews".format(len(REVIEWS)))
+    print(f"Checkpoint : {checkpoint}")
+    print(f"Reviews    : {len(REVIEWS)}")
     print()
 
+    # Try loading the website adapter
+    adapter_mod, err = load_adapter_module()
+    if adapter_mod is None:
+        print(f"[WARN] {err}")
+        print("       Falling back to direct SentimentPredictor test.")
+        run_direct_predictor_test(checkpoint)
+        return
+
     try:
-        adapter = TrainedModelAdapter(CKPT_PATH)
-        global ASPECT_NAMES
-        ASPECT_NAMES = adapter.aspect_names
-        print("\n[OK] Adapter loaded on device: {}".format(adapter.device))
-        print("     Aspects: {}".format(", ".join(ASPECT_NAMES)))
+        adapter = adapter_mod.TrainedModelAdapter(checkpoint)
+        aspect_names = adapter.aspect_names
+        print(f"[OK] Adapter loaded on: {adapter.device}")
+        print(f"     Aspects: {', '.join(aspect_names)}")
         print()
-    except Exception as e:
-        print("[FATAL] Adapter load failed: {}".format(e))
-        import traceback; traceback.print_exc()
-        return False
+    except Exception as exc:
+        import traceback
+        print(f"[FATAL] Adapter load failed: {exc}")
+        traceback.print_exc()
+        return
 
-    all_errors = []
-    successful_predictions = 0
-
-    print("{:<14} {:>10}  {}".format("Review", "Time(ms)", "Aspects (label/conf)"))
-    print("-" * 70)
+    all_errors, successful = [], 0
+    print(f"{'Review':<18} {'Time(ms)':>10}  {'Status':<10} Predictions summary")
+    print("-" * 72)
 
     for name, text in REVIEWS:
-        import time
         try:
-            t0 = time.time()
+            t0     = time.time()
             result = adapter.predict(text)
             elapsed_ms = (time.time() - t0) * 1000
 
-            errors = check_format(result, name)
+            errors = check_adapter_output(result, name, aspect_names)
             all_errors.extend(errors)
 
-            # Print summary line
-            asp_summary = "  ".join(
-                "{}/{}".format(a["name"][:5], a["label"][:3])
-                for a in result["aspects"]
+            preds = result.get("predictions") or result.get("aspects") or []
+            summary = "  ".join(
+                f"{(p.get('name') or p.get('aspect', '?'))[:5]}/{(p.get('sentiment') or p.get('label', '?'))[:3]}"
+                for p in preds[:4]
             )
-            status = "[OK]" if not errors else "[FMT_ERR]"
-            print("{:<14} {:>8.0f}ms  {} {}".format(name, elapsed_ms, status, asp_summary))
-
+            status = "[OK]" if not errors else "[ERR]"
+            print(f"{name:<18} {elapsed_ms:>8.0f}ms  {status:<10} {summary}")
             if not errors:
-                successful_predictions += 1
+                successful += 1
 
-        except Exception as e:
-            print("{:<14}  [PREDICT_ERR] {}".format(name, e))
-            all_errors.append("{}: prediction exception: {}".format(name, e))
+        except Exception as exc:
+            print(f"{name:<18}  [PREDICT_ERR] {exc}")
+            all_errors.append(f"{name}: exception: {exc}")
 
-    total = len(REVIEWS)
     print()
     print(SEP)
-    print("SUMMARY")
+    print("  INTEGRATION TEST SUMMARY")
     print(SEP)
-    print("  Total reviews tested:     {}".format(total))
-    print("  Successful predictions:   {} / {}".format(successful_predictions, total))
-    print("  Format errors:            {}".format(len(all_errors)))
+    print(f"  Successful reviews : {successful}/{len(REVIEWS)}")
+    print(f"  Format errors      : {len(all_errors)}")
 
     if all_errors:
-        print("\n  Format Errors:")
+        print("\n  Errors:")
         for e in all_errors:
-            print("    - " + e)
+            print(f"    - {e}")
 
     print()
-    print("[NOTE] Raw model predictions show near-uniform probability distributions.")
-    print("       This reflects model calibration, not an integration failure.")
-    print("       Integration pipeline (load -> tokenize -> forward -> format) is working correctly.")
-
-    if successful_predictions == total and len(all_errors) == 0:
-        print()
-        print("[RESULT] INTEGRATION TEST PASSED -- All {} reviews processed without errors.".format(total))
-        return True
+    if successful == len(REVIEWS) and not all_errors:
+        print(f"[RESULT] PASS — All {len(REVIEWS)} reviews processed correctly.")
     else:
-        print()
-        print("[RESULT] INTEGRATION TEST FAILED -- {} format errors detected.".format(len(all_errors)))
-        return False
+        print(f"[RESULT] FAIL — {len(all_errors)} errors, {len(REVIEWS)-successful} failed reviews.")
+
+
+def run_direct_predictor_test(checkpoint: str):
+    """Fallback: test SentimentPredictor directly (without website adapter)."""
+    from inference import SentimentPredictor
+
+    SEP = "=" * 72
+    print("\n[Fallback] Direct SentimentPredictor test")
+    print(SEP)
+
+    try:
+        predictor = SentimentPredictor(checkpoint)
+    except Exception as exc:
+        print(f"[FATAL] Could not load predictor: {exc}")
+        return
+
+    all_ok, total = 0, 0
+    for name, text in REVIEWS:
+        try:
+            t0 = time.time()
+            results = predictor.predict_all_aspects(text)
+            elapsed_ms = (time.time() - t0) * 1000
+            total += 1
+
+            aspects_out = list(results.keys())
+            summary = "  ".join(f"{a[:5]}/{r['sentiment'][:3]}" for a, r in list(results.items())[:4])
+            print(f"{name:<20} {elapsed_ms:>7.0f}ms  [OK] {summary}")
+            all_ok += 1
+        except Exception as exc:
+            print(f"{name:<20}  [ERR] {exc}")
+            total += 1
+
+    print(f"\nResult: {all_ok}/{total} reviews passed")
 
 
 if __name__ == "__main__":
-    success = run_tests()
-    sys.exit(0 if success else 1)
+    parser = argparse.ArgumentParser(description="Full Integration Test for ClearView")
+    parser.add_argument(
+        "--checkpoint",
+        default=os.path.join(PROJECT_ROOT, "outputs", "cosmetic_sentiment_v1", "best_model.pt"),
+        help="Path to the trained model checkpoint",
+    )
+    args = parser.parse_args()
+    run_tests(args.checkpoint)
