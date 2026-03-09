@@ -36,3 +36,4 @@ website/.next/
 website/out/
 website/dist/
 website/.vercel/
+.claude/
