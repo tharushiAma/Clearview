@@ -33,19 +33,16 @@ export default function DemoPage() {
   const [text, setText] = useState(
     "This lipstick has amazing staying power and the color is beautiful, but the smell is too strong and the packaging feels cheap."
   );
-  const [msrEnabled, setMsrEnabled] = useState(false);
-  const [msrStrength, setMsrStrength] = useState([0.3]);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<PredictionResult | null>(null);
-  const [compareMode, setCompareMode] = useState(false);
 
   const handlePredict = async () => {
     setLoading(true);
     try {
       const response = await predict({
         text,
-        msrEnabled,
-        msrStrength: msrStrength[0],
+        msrEnabled: true,
+        msrStrength: 0.5,
       });
       setResult(response);
     } finally {
@@ -81,37 +78,6 @@ export default function DemoPage() {
               />
             </div>
 
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label htmlFor="msr-toggle">Enable MSR</Label>
-                <p className="text-xs text-muted-foreground">
-                  Multi-Sentiment Regularization
-                </p>
-              </div>
-              <Switch
-                id="msr-toggle"
-                checked={msrEnabled}
-                onCheckedChange={setMsrEnabled}
-              />
-            </div>
-
-            {msrEnabled && (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label>MSR Strength (λ)</Label>
-                  <span className="text-sm text-muted-foreground">
-                    {msrStrength[0].toFixed(2)}
-                  </span>
-                </div>
-                <Slider
-                  value={msrStrength}
-                  onValueChange={setMsrStrength}
-                  min={0}
-                  max={1}
-                  step={0.05}
-                />
-              </div>
-            )}
 
             <Button
               onClick={handlePredict}
@@ -166,19 +132,6 @@ export default function DemoPage() {
                     </span>
                   </div>
                 )}
-
-                {msrEnabled && result.before && result.after && (
-                  <div className="flex items-center gap-2">
-                    <Switch
-                      id="compare-toggle"
-                      checked={compareMode}
-                      onCheckedChange={setCompareMode}
-                    />
-                    <Label htmlFor="compare-toggle" className="text-sm">
-                      Compare BEFORE vs AFTER MSR
-                    </Label>
-                  </div>
-                )}
               </div>
             ) : (
               <div className="h-32 flex items-center justify-center text-muted-foreground text-sm">
@@ -196,29 +149,10 @@ export default function DemoPage() {
             <CardTitle className="text-base">Predictions</CardTitle>
           </CardHeader>
           <CardContent>
-            {compareMode && result.before && result.after ? (
-              <Tabs defaultValue="comparison" className="w-full">
-                <TabsList>
-                  <TabsTrigger value="comparison">Side-by-Side</TabsTrigger>
-                  <TabsTrigger value="before">Before MSR</TabsTrigger>
-                  <TabsTrigger value="after">After MSR</TabsTrigger>
-                </TabsList>
-                <TabsContent value="comparison">
-                  <ComparisonTable before={result.before} after={result.after} />
-                </TabsContent>
-                <TabsContent value="before">
-                  <PredictionTable predictions={result.before} />
-                </TabsContent>
-                <TabsContent value="after">
-                  <PredictionTable predictions={result.after} showMsrBadge />
-                </TabsContent>
-              </Tabs>
-            ) : (
-              <PredictionTable
-                predictions={result.predictions}
-                showMsrBadge={msrEnabled}
-              />
-            )}
+            <PredictionTable
+              predictions={result.predictions}
+              showMsrBadge={true}
+            />
           </CardContent>
         </Card>
       )}
@@ -246,7 +180,7 @@ function PredictionTable({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {predictions.map((pred) => (
+          {(predictions || []).map((pred) => (
             <TableRow key={pred.aspect}>
               <TableCell className="font-medium capitalize">
                 {pred.aspect}
@@ -259,9 +193,9 @@ function PredictionTable({
                   {pred.label}
                 </Badge>
               </TableCell>
-              <TableCell>{(pred.confidence * 100).toFixed(1)}%</TableCell>
+              <TableCell>{((pred.confidence || 0) * 100).toFixed(1)}%</TableCell>
               <TableCell className="text-muted-foreground text-sm">
-                {pred.topTokens.join(", ")}
+                {(pred.topTokens || []).join(", ")}
               </TableCell>
               {showMsrBadge && (
                 <TableCell>
@@ -280,82 +214,4 @@ function PredictionTable({
   );
 }
 
-function ComparisonTable({
-  before,
-  after,
-}: {
-  before: AspectPrediction[];
-  after: AspectPrediction[];
-}) {
-  return (
-    <div className="overflow-x-auto">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Aspect</TableHead>
-            <TableHead>Before</TableHead>
-            <TableHead className="w-8"></TableHead>
-            <TableHead>After</TableHead>
-            <TableHead>Conf. Change</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {before.map((b, i) => {
-            const a = after[i];
-            if (!a) return null;
-            const confDiff = a.confidence - b.confidence;
-            const labelChanged = b.label !== a.label;
-            return (
-              <TableRow key={b.aspect}>
-                <TableCell className="font-medium capitalize">
-                  {b.aspect}
-                </TableCell>
-                <TableCell>
-                  <Badge
-                    variant="secondary"
-                    className={SENTIMENT_COLORS[b.label]}
-                  >
-                    {b.label}
-                  </Badge>
-                  <span className="ml-2 text-sm text-muted-foreground">
-                    {(b.confidence * 100).toFixed(0)}%
-                  </span>
-                </TableCell>
-                <TableCell>
-                  <ArrowRight
-                    className={`h-4 w-4 ${labelChanged ? "text-amber-500" : "text-muted-foreground"}`}
-                  />
-                </TableCell>
-                <TableCell>
-                  <Badge
-                    variant="secondary"
-                    className={SENTIMENT_COLORS[a.label]}
-                  >
-                    {a.label}
-                  </Badge>
-                  <span className="ml-2 text-sm text-muted-foreground">
-                    {(a.confidence * 100).toFixed(0)}%
-                  </span>
-                </TableCell>
-                <TableCell>
-                  <span
-                    className={`text-sm font-medium ${
-                      confDiff > 0
-                        ? "text-green-600 dark:text-green-400"
-                        : confDiff < 0
-                          ? "text-red-600 dark:text-red-400"
-                          : "text-muted-foreground"
-                    }`}
-                  >
-                    {confDiff > 0 ? "+" : ""}
-                    {(confDiff * 100).toFixed(1)}%
-                  </span>
-                </TableCell>
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
-    </div>
-  );
-}
+

@@ -1,8 +1,0 @@
-aspect,cm,labels_order
-stayingpower,"[[85, 1, 3, 5], [3, 6, 17, 0], [4, 2, 132, 6], [27, 206, 19, 808]]","[""negative"", ""neutral"", ""positive"", ""null""]"
-texture,"[[65, 4, 6, 1], [7, 29, 19, 1], [7, 10, 319, 5], [192, 11, 106, 542]]","[""negative"", ""neutral"", ""positive"", ""null""]"
-smell,"[[35, 1, 1, 0], [8, 3, 5, 0], [5, 3, 232, 8], [2, 0, 265, 756]]","[""negative"", ""neutral"", ""positive"", ""null""]"
-price,"[[0, 0, 2, 0], [0, 0, 7, 0], [1, 7, 306, 1], [10, 590, 80, 320]]","[""negative"", ""neutral"", ""positive"", ""null""]"
-colour,"[[48, 1, 9, 0], [20, 12, 33, 0], [4, 3, 627, 4], [8, 103, 101, 351]]","[""negative"", ""neutral"", ""positive"", ""null""]"
-shipping,"[[168, 1, 6, 3], [11, 10, 7, 0], [2, 8, 342, 0], [6, 172, 282, 306]]","[""negative"", ""neutral"", ""positive"", ""null""]"
-packing,"[[8, 0, 3, 0], [0, 0, 1, 0], [0, 0, 287, 0], [3, 0, 690, 332]]","[""negative"", ""neutral"", ""positive"", ""null""]"

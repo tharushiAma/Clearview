@@ -36,23 +36,11 @@ export default function LogsPage() {
   }, []);
 
   const handleExportCSV = () => {
-    const csv = exportLogsAsCSV(logs);
-    downloadFile(csv, "clearview-logs.csv", "text/csv");
+    exportLogsAsCSV(logs);
   };
 
   const handleExportJSON = () => {
-    const json = exportLogsAsJSON(logs);
-    downloadFile(json, "clearview-logs.json", "application/json");
-  };
-
-  const downloadFile = (content: string, filename: string, type: string) => {
-    const blob = new Blob([content], { type });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(url);
+    exportLogsAsJSON(logs);
   };
 
   const formatDate = (iso: string) => {

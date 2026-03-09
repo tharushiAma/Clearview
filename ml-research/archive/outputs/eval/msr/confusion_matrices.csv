@@ -1,8 +1,0 @@
-aspect,cm,labels_order
-stayingpower,"[[71, 4, 19], [3, 18, 5], [2, 4, 138]]","[""negative"", ""neutral"", ""positive""]"
-texture,"[[65, 6, 5], [5, 35, 16], [7, 20, 314]]","[""negative"", ""neutral"", ""positive""]"
-smell,"[[32, 2, 3], [4, 5, 7], [3, 2, 243]]","[""negative"", ""neutral"", ""positive""]"
-price,"[[1, 0, 1], [1, 1, 5], [3, 3, 309]]","[""negative"", ""neutral"", ""positive""]"
-colour,"[[49, 3, 6], [14, 33, 18], [6, 19, 613]]","[""negative"", ""neutral"", ""positive""]"
-shipping,"[[150, 26, 2], [5, 19, 4], [0, 21, 331]]","[""negative"", ""neutral"", ""positive""]"
-packing,"[[7, 1, 3], [0, 1, 0], [2, 1, 284]]","[""negative"", ""neutral"", ""positive""]"

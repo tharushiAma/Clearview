@@ -1,248 +1,224 @@
-import {
-  ASPECTS,
-  type Aspect,
-  type AspectPrediction,
-  type PredictionResult,
-  type PredictRequest,
-  type ExplanationBundle,
-  type ExplainRequest,
-  type EvaluationMetrics,
-  type LogEntry,
-  type SentimentLabel,
-  type ExplanationMethod,
-} from "./types";
+const API_BASE = "/api";
 
-function randomChoice(arr: readonly string[]): string {
-  return arr[Math.floor(Math.random() * arr.length)];
-}
+export async function predict(req: { text: string; msrEnabled: boolean; msrStrength: number }) {
+  const res = await fetch(`${API_BASE}/predict`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text: req.text, msr_strength: req.msrStrength, msr_enabled: req.msrEnabled }),
+  });
+  if (!res.ok) throw new Error("Prediction failed");
+  const data = await res.json();
 
-function randomFloat(min: number, max: number): number {
-  return Math.random() * (max - min) + min;
-}
+  // Map backend lowercase labels to frontend uppercase SentimentLabel
+  const toLabel = (l: string) =>
+    ({ positive: "POS", negative: "NEG", neutral: "NEU", not_mentioned: "NULL" } as Record<string, string>)[l] ?? "NULL";
 
-function randomInt(min: number, max: number): number {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
-}
+  // Transform backend response to frontend types
+  const predictions = (data.aspects || []).map((a: any) => ({
+    aspect: a.name,
+    label: toLabel(a.label),
+    confidence: a.confidence,
+    topTokens: a.top_tokens || [],
+    msrChanged: a.changed_by_msr || false,
+    before: a.before ? { label: toLabel(a.before.label), confidence: a.before.confidence } : undefined,
+    after: a.after ? { label: toLabel(a.after.label), confidence: a.after.confidence } : undefined
+  }));
 
-const SAMPLE_TOKENS = [
-  "love", "hate", "great", "terrible", "amazing", "awful",
-  "good", "bad", "nice", "poor", "excellent", "disappointing",
-  "perfect", "horrible", "smooth", "sticky", "fresh", "stale",
-  "expensive", "cheap", "fast", "slow", "beautiful", "ugly"
-];
+  const result = {
+    predictions,
+    conflictProbability: data.conflict_prob || 0,
+    mixedSentimentDetected: (data.conflict_prob || 0) > 0.5,
+  } as any;
 
-const LABELS: SentimentLabel[] = ["NEG", "NEU", "POS", "NULL"];
-
-function generateMockPrediction(aspect: Aspect, msrEnabled: boolean): AspectPrediction {
-  const tokens: string[] = [];
-  for (let i = 0; i < 3; i++) {
-    tokens.push(SAMPLE_TOKENS[randomInt(0, SAMPLE_TOKENS.length - 1)]);
-  }
-  return {
-    aspect: aspect,
-    label: LABELS[randomInt(0, 3)],
-    confidence: randomFloat(0.6, 0.98),
-    topTokens: tokens,
-    msrChanged: msrEnabled && Math.random() > 0.7
-  };
-}
-
-export async function predict(request: PredictRequest): Promise<PredictionResult> {
-  await new Promise(function(resolve) { setTimeout(resolve, 500); });
-
-  const predictions: AspectPrediction[] = [];
-  for (const aspect of ASPECTS) {
-    predictions.push(generateMockPrediction(aspect, request.msrEnabled));
+  // Add before/after if present in the first aspect (indicates MSR comparison)
+  if (data.aspects?.[0]?.before && data.aspects?.[0]?.after) {
+    result.before = data.aspects.map((a: any) => ({
+      aspect: a.name,
+      label: toLabel(a.before.label),
+      confidence: a.before.confidence,
+      topTokens: [],
+      msrChanged: false
+    }));
+    result.after = data.aspects.map((a: any) => ({
+      aspect: a.name,
+      label: toLabel(a.after.label),
+      confidence: a.after.confidence,
+      topTokens: [],
+      msrChanged: a.changed_by_msr
+    }));
   }
 
-  let before: AspectPrediction[] | undefined = undefined;
-  if (request.msrEnabled) {
-    before = [];
-    for (const aspect of ASPECTS) {
-      before.push(generateMockPrediction(aspect, false));
-    }
-  }
-
-  return {
-    predictions: predictions,
-    conflictProbability: randomFloat(0.05, 0.4),
-    mixedSentimentDetected: Math.random() > 0.6,
-    before: before,
-    after: request.msrEnabled ? predictions : undefined
-  };
+  return result;
 }
 
-export async function explain(request: ExplainRequest): Promise<ExplanationBundle> {
-  await new Promise(function(resolve) { setTimeout(resolve, 800); });
+export async function fetchPrediction(
+  text: string,
+  msr_strength: number,
+  msr_enabled: boolean,
+) {
+  return predict({ text, msrEnabled: msr_enabled, msrStrength: msr_strength });
+}
 
-  const aspectList: Aspect[] = request.aspect === "all" ? [...ASPECTS] : [request.aspect];
-  
-  const explanations: Array<{
-    aspect: Aspect;
-    method: ExplanationMethod;
-    tokens: Array<{ token: string; attribution: number; msrDelta?: number }>;
-  }> = [];
+export async function explain(req: { text: string; aspect: string; methods: string[]; msrEnabled: boolean; msrStrength: number; signal?: AbortSignal }) {
+  const res = await fetch(`${API_BASE}/explain`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      text: req.text,
+      aspect: req.aspect,
+      methods: req.methods,
+      msr_strength: req.msrStrength,
+      msr_enabled: req.msrEnabled,
+    }),
+    signal: req.signal,
+  });
+  if (!res.ok) throw new Error("Explanation failed");
+  const data = await res.json();
 
-  for (const aspect of aspectList) {
-    for (const method of request.methods) {
-      const tokenCount = randomInt(5, 12);
-      const tokenList: Array<{ token: string; attribution: number; msrDelta?: number }> = [];
-      for (let i = 0; i < tokenCount; i++) {
-        tokenList.push({
-          token: SAMPLE_TOKENS[i % SAMPLE_TOKENS.length],
-          attribution: randomFloat(-1, 1),
-          msrDelta: request.msrEnabled ? randomFloat(-0.3, 0.3) : undefined
-        });
-      }
+  // Transform backend response into ExplanationBundle
+  const explanations: any[] = [];
+  const aspects = data.aspects || {};
+
+  Object.keys(aspects).forEach((aspName) => {
+    const aspData = aspects[aspName];
+    
+    // Handle IG
+    if (aspData.ig_aspect) {
       explanations.push({
-        aspect: aspect,
-        method: method as ExplanationMethod,
-        tokens: tokenList
+        aspect: aspName,
+        method: "ig",
+        tokens: (aspData.ig_aspect.top_tokens || []).map((t: any) => ({
+          token: t[0],
+          attribution: t[1],
+          msrDelta: (aspData.msr_delta?.top_tokens || []).find((m: any) => m[0] === t[0])?.[1] || 0
+        }))
       });
     }
-  }
 
-  const explanationsWithMeta = explanations.map(function(e) {
-    return {
-      aspect: e.aspect,
-      method: e.method,
-      tokens: e.tokens,
-      metadata: { computeTimeMs: randomInt(50, 200) }
-    };
+    // Handle LIME/SHAP if they were added (placeholder for future expansion)
+    if (aspData.lime_aspect) {
+      explanations.push({
+        aspect: aspName,
+        method: "lime",
+        tokens: (aspData.lime_aspect.top_tokens || []).map((t: any) => ({
+          token: t[0],
+          attribution: t[1]
+        }))
+      });
+    }
   });
 
   return {
-    text: request.text,
-    explanations: explanations,
-    rawJson: {
-      model: "clearview-absa-v1",
-      timestamp: new Date().toISOString(),
-      config: {
-        msrEnabled: request.msrEnabled,
-        msrStrength: request.msrStrength
-      },
-      explanations: explanationsWithMeta
-    }
+    text: data.text || req.text,
+    explanations,
+    rawJson: data
   };
 }
 
-export async function getMetrics(): Promise<EvaluationMetrics> {
-  await new Promise(function(resolve) { setTimeout(resolve, 300); });
-
-  const aspectMetrics: Array<{ aspect: Aspect; precision: number; recall: number; f1: number }> = [];
-  for (const aspect of ASPECTS) {
-    aspectMetrics.push({
-      aspect: aspect,
-      precision: randomFloat(0.7, 0.95),
-      recall: randomFloat(0.65, 0.92),
-      f1: randomFloat(0.68, 0.9)
-    });
-  }
-
-  const confusionMatrices: Array<{ aspect: Aspect; matrix: number[][]; labels: SentimentLabel[] }> = [];
-  for (const aspect of ASPECTS) {
-    const matrix: number[][] = [];
-    for (let i = 0; i < 4; i++) {
-      const row: number[] = [];
-      for (let j = 0; j < 4; j++) {
-        row.push(randomInt(5, 100));
-      }
-      matrix.push(row);
-    }
-    confusionMatrices.push({
-      aspect: aspect,
-      matrix: matrix,
-      labels: LABELS
-    });
-  }
-
-  const conflictScoreDistribution = [
-    { bin: "0.0-0.1", count: randomInt(100, 300) },
-    { bin: "0.1-0.2", count: randomInt(80, 200) },
-    { bin: "0.2-0.3", count: randomInt(60, 150) },
-    { bin: "0.3-0.4", count: randomInt(40, 100) },
-    { bin: "0.4-0.5", count: randomInt(30, 80) },
-    { bin: "0.5-0.6", count: randomInt(20, 60) },
-    { bin: "0.6-0.7", count: randomInt(15, 40) },
-    { bin: "0.7-0.8", count: randomInt(10, 30) },
-    { bin: "0.8-0.9", count: randomInt(5, 20) },
-    { bin: "0.9-1.0", count: randomInt(2, 10) }
-  ];
-
-  return {
-    overallMacroF1: randomFloat(0.75, 0.88),
-    perAspectMacroF1Avg: randomFloat(0.72, 0.85),
-    conflictAUC: randomFloat(0.8, 0.92),
-    avgLatencyMs: randomFloat(45, 120),
-    throughputReqPerSec: randomFloat(50, 150),
-    aspectMetrics: aspectMetrics,
-    confusionMatrices: confusionMatrices,
-    conflictScoreDistribution: conflictScoreDistribution,
-    balancedAccuracy: randomFloat(0.7, 0.85),
-    brierScore: randomFloat(0.1, 0.25),
-    msrErrorReduction: randomFloat(0.05, 0.15),
-    p95LatencyMs: randomFloat(150, 300),
-    memoryUsageMB: randomFloat(512, 2048)
-  };
+export async function fetchExplanation(
+  text: string,
+  aspect: string,
+  msr_strength: number,
+  signal?: AbortSignal,
+) {
+  return explain({ text, aspect, methods: ["ig"], msrEnabled: true, msrStrength: msr_strength, signal });
 }
 
-export async function getLogs(): Promise<LogEntry[]> {
-  await new Promise(function(resolve) { setTimeout(resolve, 200); });
-
-  const sampleTexts = [
-    "This lipstick has amazing staying power but the smell is too strong.",
-    "Great texture and color, but shipping took forever.",
-    "Love the price point, packaging could be better though.",
-    "The color is beautiful but it feels sticky on my lips.",
-    "Fast shipping, nice packaging, but the smell is off-putting.",
-    "Perfect for the price! Stays on all day.",
-    "Disappointed with the texture, feels too heavy.",
-    "Amazing product, worth every penny!"
-  ];
-
-  const outcomes = ["Mostly Positive", "Mixed Sentiment", "Mostly Negative", "Neutral"];
-
-  const logs: LogEntry[] = [];
-  const now = Date.now();
-  
-  for (let i = 0; i < 20; i++) {
-    const text = sampleTexts[randomInt(0, sampleTexts.length - 1)];
-    logs.push({
-      id: "log-" + now + "-" + i,
-      timestamp: new Date(now - randomInt(0, 7 * 24 * 60 * 60 * 1000)).toISOString(),
-      textPreview: text.slice(0, 50) + "...",
-      msrEnabled: Math.random() > 0.5,
-      conflictProbability: randomFloat(0.05, 0.6),
-      overallOutcome: outcomes[randomInt(0, outcomes.length - 1)]
-    });
-  }
-
-  logs.sort(function(a, b) {
-    return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
+export async function predictBulk(reviews: string[], msrEnabled = true) {
+  const res = await fetch(`${API_BASE}/predict-bulk`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ reviews, msr_enabled: msrEnabled }),
   });
-
-  return logs;
-}
-
-export function exportLogsAsCSV(logs: LogEntry[]): string {
-  const headers = ["ID", "Timestamp", "Text Preview", "MSR Enabled", "Conflict Probability", "Overall Outcome"];
-  const rows: string[] = [];
-  
-  for (const log of logs) {
-    const row = [
-      log.id,
-      log.timestamp,
-      '"' + log.textPreview + '"',
-      String(log.msrEnabled),
-      log.conflictProbability.toFixed(3),
-      log.overallOutcome
-    ];
-    rows.push(row.join(","));
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: "Bulk prediction failed" }));
+    throw new Error(err.error || "Bulk prediction failed");
   }
-  
-  return headers.join(",") + "\n" + rows.join("\n");
+  const data = await res.json();
+
+  // Normalize lowercase labels from backend to uppercase SentimentLabel
+  const labelUp = (l: string) =>
+    ({ positive: "POS", negative: "NEG", neutral: "NEU", not_mentioned: "NULL" } as Record<string, string>)[l] ?? l.toUpperCase().slice(0, 3);
+
+  const normalizeCounts = (counts: Record<string, number>) => {
+    const normalized: Record<string, number> = { POS: 0, NEG: 0, NEU: 0, NULL: 0 };
+    Object.entries(counts).forEach(([k, v]) => {
+      const key = labelUp(k);
+      normalized[key] = (normalized[key] || 0) + v;
+    });
+    return normalized;
+  };
+
+  if (data.aspect_summary) {
+    Object.keys(data.aspect_summary).forEach((asp) => {
+      data.aspect_summary[asp] = normalizeCounts(data.aspect_summary[asp]);
+    });
+  }
+  if (data.overall_counts) {
+    data.overall_counts = normalizeCounts(data.overall_counts);
+  }
+  if (data.rows) {
+    data.rows = data.rows.map((row: any) => ({
+      ...row,
+      aspects: (row.aspects || []).map((a: any) => ({
+        ...a,
+        label: labelUp(a.label ?? "NULL"),
+      })),
+    }));
+  }
+
+  return data;
 }
 
-export function exportLogsAsJSON(logs: LogEntry[]): string {
-  return JSON.stringify(logs, null, 2);
+export async function fetchMetrics() {
+  const res = await fetch(`${API_BASE}/metrics`);
+  if (!res.ok) throw new Error("Failed to fetch metrics");
+  return res.json();
+}
+
+// Alias used by overview page
+export const getMetrics = fetchMetrics;
+
+export async function fetchLogs() {
+  const res = await fetch(`${API_BASE}/logs`);
+  if (!res.ok) return [];
+  const data = await res.json();
+  // Backend returns {logs: [...]} or plain array
+  return Array.isArray(data) ? data : (data.logs || []);
+}
+
+export const getLogs = fetchLogs;
+
+/**
+ * Helper to export log data as CSV
+ */
+export function exportLogsAsCSV(logs: any[]) {
+  if (logs.length === 0) return;
+
+  const headers = Object.keys(logs[0]).join(",");
+  const rows = logs.map(log =>
+    Object.values(log).map(val =>
+      typeof val === 'string' ? `"${val.replace(/"/g, '""')}"` : val
+    ).join(",")
+  ).join("\n");
+
+  const csv = `${headers}\n${rows}`;
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `clearview_logs_${new Date().toISOString()}.csv`;
+  link.click();
+}
+
+/**
+ * Helper to export log data as JSON
+ */
+export function exportLogsAsJSON(logs: any[]) {
+  const blob = new Blob([JSON.stringify(logs, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `clearview_logs_${new Date().toISOString()}.json`;
+  link.click();
 }
