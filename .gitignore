@@ -30,6 +30,11 @@ ml-research/outputs/logs/
 !ml-research/outputs/eval/*.md
 !ml-research/outputs/ablations_4class/*.md
 
+# Environment variables
+.env
+.env.*
+.env.local
+
 # Website
 website/node_modules/
 website/.next/
