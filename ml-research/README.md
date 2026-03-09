@@ -1,390 +1,281 @@
-# Multi-Aspect Sentiment Analysis with Explainability for Cosmetic Domain
+# ClearView — Multi-Aspect Mixed Sentiment Analysis with Explainability
 
-A research implementation of multi-aspect sentiment analysis combining RoBERTa, Dependency GCN, and comprehensive class imbalance handling techniques.
+> **Final Year Project** | BEng Software Engineering
+> *Class Imbalance Handled Multi-Aspect Mixed Sentiment Resolution with Explainability in the Cosmetic Domain*
+
+A research implementation combining **RoBERTa**, **Aspect-Aware Attention**, **Dependency GCN**, and advanced class-imbalance handling (Hybrid Loss + LLM-based synthetic augmentation) to analyze sentiment across 7 aspects of cosmetic product reviews — with full multi-level explainability.
+
+---
 
 ## 🎯 Research Objectives
 
-1. **Multi-Aspect Sentiment Analysis**: Analyze sentiment for 7 aspects (stayingpower, texture, smell, price, colour, shipping, packing)
-2. **Handle Severe Class Imbalance**: Address extreme imbalance using hybrid loss functions and data augmentation
-3. **Explainability**: Provide interpretable predictions using attention mechanisms, LIME, and dependency path visualization
-4. **Mixed Sentiment Resolution**: Use Dependency GCN to capture syntactic relationships for conflicting sentiments
+1. **Multi-Aspect Sentiment Analysis** — Classify sentiment (Positive / Neutral / Negative) for 7 aspects: *stayingpower, texture, smell, price, colour, shipping, packing*
+2. **Mixed Sentiment Resolution** — Correctly separate conflicting sentiments in the same review (e.g. *"Love the colour but hate the smell"*)
+3. **Severe Class Imbalance Handling** — Hybrid loss (Focal + Class-Balanced + Dice) combined with LLM synthetic augmentation
+4. **Multi-Level Explainability** — Attention visualization, LIME, SHAP, **Integrated Gradients**, and **MSR Delta** analysis
 
-## 📊 Dataset Statistics
+---
 
-### Training Data (9,268 reviews)
-- **Severely Imbalanced Aspects**:
-  - Price: pos:neg:neu = 132:1:0.9
-  - Packing: pos:neg:neu = 145:1:0.2
-- **Moderately Imbalanced**:
-  - Smell: pos:neg:neu = 17:3:1
-  - Staying Power: pos:neg:neu = 5:3:1
-- **Balanced Aspects**:
-  - Colour, Texture, Shipping
+## 📊 Dataset
+
+| Split | Source | Samples |
+|-------|--------|---------|
+| Train (augmented) | Original + LLM synthetic | 10,050 |
+| Validation | Original stratified | ~810 |
+| Test | Original stratified | ~810 |
+
+**Augmentation impact** (post-synthetic integration):
+
+| Aspect | Before (neg ratio) | After (neg ratio) |
+|--------|--------------------|-------------------|
+| Price | 174:1 | ~11:1 |
+| Packing | 185:1 | ~12:1 |
+| Smell | 17:1 | ~6:1 |
+
+Data pipeline: `data/data_layer/preprocess_and_split.py` → `data/data_layer/create_train_aug.py`
+
+---
 
 ## 🏗️ Architecture
 
 ```
-Input Text → RoBERTa Encoder → Aspect-Aware Attention → Dependency GCN → Sentiment Classification
-                 ↓
-           Explainability Module (Attention + LIME + Integrated Gradients)
+Input Review
+    │
+    ▼
+RoBERTa-base Encoder  (768-dim contextual embeddings)
+    │
+    ▼
+Aspect-Aware Attention  (learnable aspect embeddings × 8-head MHA)
+    │              ↑ ablation: use_aspect_attention flag
+    ▼
+Aspect-Oriented Dependency GCN  (2-layer, aspect-gated message passing)
+    │              ↑ ablation: use_dependency_gcn flag
+    ▼
+7 Aspect-Specific Classifiers  (768→384→3)
+    │              ↑ ablation: use_shared_classifier flag
+    ▼
+Sentiment: Negative / Neutral / Positive
 ```
 
-### Key Components
+**Total parameters: ~132M** (RoBERTa-base + GCN + heads)
 
-1. **RoBERTa Base**: Pre-trained contextual embeddings (768-dim)
-2. **Aspect-Aware Attention**: Learnable aspect embeddings with multi-head attention
-3. **Dependency GCN**: Aspect-oriented graph convolution for syntactic relationships
-4. **Hybrid Loss**: Combination of Focal Loss + Class-Balanced Loss + Dice Loss
-5. **Multi-Level Explainability**: Attention weights, LIME explanations, dependency paths
+---
 
 ## 📁 Project Structure
 
 ```
-cosmetic_sentiment_project/
+ml-research/
 ├── configs/
-│   └── config.yaml              # Main configuration file
-├── data/                        # Place your CSV files here
-│   ├── train.csv
-│   ├── val.csv
-│   └── test.csv
-├── models/
-│   ├── model.py                 # Main model architecture
-│   └── losses.py                # Loss functions for imbalance
+│   └── config.yaml                 # All hyperparameters, loss config, paths
+│
+├── data/
+│   ├── raw/                        # Original annotated CSV
+│   ├── augmented/                  # LLM-generated synthetic samples
+│   ├── splits/                     # train_augmented.csv, val.csv, test.csv
+│   └── data_layer/
+│       ├── preprocess_and_split.py # Cleaning + stratified splitting
+│       └── create_train_aug.py     # Merge synthetic data, generate augmentation_impact.md
+│
+├── src/
+│   ├── models/
+│   │   ├── model.py                # AspectAwareRoBERTa + DepGCN + MultiAspectSentimentModel
+│   │   ├── losses.py               # FocalLoss + ClassBalancedLoss + DiceLoss + HybridLoss
+│   │   └── train.py                # Trainer with early stopping, mixed precision, MixedSentimentEvaluator
+│   └── experiments/
+│       ├── baseline_models.py      # PlainRoBERTa, BERT-base, TF-IDF+SVM baselines
+│       ├── ablation_configs.py     # 6 ablation config generators
+│       ├── experiment_runner.py    # Unified CLI for all experiments
+│       └── results_analyzer.py    # Generates Markdown + LaTeX + bar charts
+│
 ├── utils/
-│   ├── data_utils.py           # Data loading and preprocessing
-│   ├── metrics.py              # Evaluation metrics
-│   └── augmentation.py         # Data augmentation (optional)
-├── notebooks/                   # Jupyter notebooks for analysis
-├── experiments/                 # Experiment scripts
-├── results/                     # Training outputs
-├── train.py                    # Main training script
-├── evaluate.py                 # Evaluation script
-├── requirements.txt            # Dependencies
-└── README.md                   # This file
+│   ├── data_utils.py               # CosmeticReviewDataset, dependency parsing, DataLoaders
+│   └── metrics.py                  # AspectSentimentEvaluator, MixedSentimentEvaluator, ErrorAnalyzer
+│
+├── outputs/
+│   └── cosmetic_sentiment_v1/
+│       └── evaluation/
+│           └── inference.py        # SentimentPredictor with LIME, SHAP, IG, MSR Delta
+│
+├── website/
+│   └── ml_models/
+│       └── trained_model_adapter.py  # Bridge: website ↔ SentimentPredictor
+│
+└── tests/
+    ├── comprehensive_test.py        # Full prediction + XAI tests (needs checkpoint)
+    ├── test_integration.py          # Website adapter integration test
+    └── test_model_components.py    # Unit tests — no checkpoint required
 ```
+
+---
 
 ## 🚀 Quick Start
 
-### 1. Installation
+### 1. Install Dependencies
 
 ```bash
-# Clone or download the project
-cd cosmetic_sentiment_project
-
-# Create virtual environment (recommended)
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# Install dependencies
 pip install -r requirements.txt
-
-# Download spaCy model for dependency parsing
-python -m spacy download xx_ent_wiki_sm
+python -m spacy download en_core_web_sm
 ```
 
 ### 2. Prepare Data
 
-Place your CSV files in the `data/` directory:
-- `train.csv`
-- `val.csv`
-- `test.csv`
-
-Required columns:
-- `text_clean`: Review text
-- `stayingpower`, `texture`, `smell`, `price`, `colour`, `shipping`, `packing`: Aspect labels (positive/negative/neutral)
-
-### 3. Configure
-
-Edit `configs/config.yaml` to adjust:
-- Model architecture (RoBERTa variant, hidden dimensions, GCN layers)
-- Training parameters (batch size, learning rate, epochs)
-- Loss function parameters (focal gamma, class-balanced beta)
-- Explainability methods
-
-### 4. Train Model
-
 ```bash
-# Basic training
-python train.py --config configs/config.yaml
+# Step 1: Clean and split original data
+python data/data_layer/preprocess_and_split.py
 
-# Resume from checkpoint
-python train.py --config configs/config.yaml --resume results/experiment_name/best_model.pt
+# Step 2: Merge synthetic augmentation into training set
+python data/data_layer/create_train_aug.py
 ```
 
-### 5. Evaluate
+### 3. Verify Architecture (no checkpoint needed)
 
 ```bash
-# Evaluate best model on test set
-python evaluate.py --checkpoint results/experiment_name/best_model.pt --data data/test.csv
+python tests/test_model_components.py
 ```
 
-### 6. Monitor Training (Optional)
+### 4. Train
 
 ```bash
-# Enable wandb in config.yaml
-use_wandb: true
-wandb_project: "cosmetic-sentiment-analysis"
-
-# Or use tensorboard
-tensorboard --logdir results/
+python src/models/train.py --config configs/config.yaml
 ```
 
-## 📈 Expected Results
+### 5. Run Inference
 
-Based on the data distribution:
+```bash
+# Single prediction
+python outputs/cosmetic_sentiment_v1/evaluation/inference.py \
+    --checkpoint outputs/cosmetic_sentiment_v1/best_model.pt \
+    --text "I love the colour but the smell is terrible" \
+    --aspect colour
 
-| Aspect | Coverage | Imbalance | Expected Macro-F1 |
-|--------|----------|-----------|-------------------|
-| Colour | 57% | Low | 0.78-0.85 |
-| Texture | 37% | Low | 0.78-0.85 |
-| Shipping | 41% | Moderate | 0.75-0.82 |
-| Staying Power | 21% | Moderate | 0.68-0.75 |
-| Smell | 22% | High | 0.68-0.75 |
-| Price | 25% | Extreme | 0.50-0.65 |
-| Packing | 23% | Extreme | 0.50-0.65 |
+# All XAI methods
+python outputs/cosmetic_sentiment_v1/evaluation/inference.py \
+    --checkpoint outputs/cosmetic_sentiment_v1/best_model.pt \
+    --text "Great texture but overpriced" \
+    --aspect texture --explain all --save-path results/xai_output.png
+```
 
-**Note**: For severely imbalanced aspects (Price, Packing), focus on minority class recall rather than overall accuracy.
+### 6. Run Ablation / Baseline Experiments
 
-## 🔧 Configuration Guide
+```bash
+# List all 19 experiments
+python src/experiments/experiment_runner.py --list
 
-### Model Configuration
+# Run all baseline comparisons
+python src/experiments/experiment_runner.py --group baselines
+
+# Run all ablation studies
+python src/experiments/experiment_runner.py --group ablations
+
+# Analyze results → generates Markdown + LaTeX + charts
+python src/experiments/results_analyzer.py
+```
+
+---
+
+## 📈 Performance Results (Trained Model)
+
+| Metric | Score |
+|--------|-------|
+| Overall Accuracy | **92.14%** |
+| Overall Macro-F1 | **0.7981** |
+| Weighted F1 | **0.9242** |
+| MCC | **0.7842** |
+
+**Per-Aspect Macro-F1:**
+
+| Aspect | Macro-F1 |
+|--------|----------|
+| Shipping | 0.8507 |
+| Stayingpower | 0.7920 |
+| Colour | 0.7791 |
+| Texture | 0.7726 |
+| Smell | 0.7381 |
+| Packing | 0.5989 |
+| Price | 0.4944 |
+
+---
+
+## 🔬 Explainability Methods
+
+All four methods are available in `inference.py` via `SentimentPredictor`:
+
+| Method | Flag | Description |
+|--------|------|-------------|
+| Attention Visualization | `--explain attention` | MHA weights over tokens |
+| LIME | `--explain lime` | Local perturbation-based word contributions |
+| SHAP | `--explain shap` | Shapley value attributions |
+| Integrated Gradients | `--explain ig` | Meets completeness axiom; most rigorous for transformers |
+| MSR Delta | `--explain msr` | Proves mixed sentiment separation per aspect |
+
+---
+
+## 🧪 Ablation Studies (19 Experiments)
+
+| ID | Study | Variants |
+|----|-------|---------|
+| A1 | Dependency GCN | With / Without GCN |
+| A2 | Aspect Attention | MHA attention / CLS pooling |
+| A3 | Loss Function | Hybrid / Focal / CB / Dice / CE |
+| A4 | Data Augmentation | With / Without LLM synthetic data |
+| A5 | Classifier Head | 7 aspect-specific / 1 shared head |
+| A6 | Text Preprocessing | With / Without cleaning pipeline |
+| B1-B4 | Baselines | PlainRoBERTa / RoBERTa+CE / BERT-base / TF-IDF+SVM |
+
+---
+
+## ⚙️ Key Configuration (configs/config.yaml)
 
 ```yaml
 model:
-  roberta_model: "roberta-base"      # or "xlm-roberta-base" for multilingual
+  roberta_model: "roberta-base"
   hidden_dim: 768
   num_aspects: 7
   num_classes: 3
-  gcn_layers: 2                       # Dependency GCN layers
+  gcn_layers: 2
   dropout: 0.1
-  use_dependency_gcn: true            # Enable/disable GCN
-  use_aspect_attention: true
-```
+  use_dependency_gcn: true
+  use_aspect_attention: true      # ablation A2
+  use_shared_classifier: false    # ablation A5
 
-### Loss Configuration for Severe Imbalance
-
-```yaml
 training:
+  batch_size: 16
+  learning_rate: 2.0e-5
+  num_epochs: 30
+  early_stopping_patience: 5
+  early_stopping_metric: macro_f1
   loss_weights:
     focal: 1.0
     class_balanced: 0.5
     dice: 0.3
-  
-  # Aspect-specific focal gamma (higher = more focus on hard examples)
   focal_gamma:
     default: 2.0
-    price: 3.0      # Extreme imbalance
+    price: 3.0
     packing: 3.0
     smell: 2.5
-  
-  # Class-balanced beta (higher = stronger reweighting)
-  class_balanced_beta:
-    default: 0.999
-    price: 0.9999   # Extreme imbalance
-    packing: 0.9999
 ```
-
-### Data Augmentation
-
-```yaml
-data:
-  augmentation:
-    enabled: true
-    techniques: ["back_translation", "synonym_replacement", "mixup"]
-    augment_minority_only: true
-    augmentation_ratio:
-      negative: 3.0  # Generate 3x samples for negative class
-      neutral: 2.0
-      positive: 1.0
-```
-
-## 📊 Evaluation Metrics
-
-The system reports:
-
-1. **Overall Metrics**:
-   - Accuracy
-   - Macro F1-Score (equal weight to all classes)
-   - Weighted F1-Score (weighted by class frequency)
-   - Matthews Correlation Coefficient (MCC)
-
-2. **Per-Class Metrics**:
-   - Precision, Recall, F1 for each sentiment class
-   - Support (number of samples)
-
-3. **Confusion Matrices**: Visual representation of predictions vs ground truth
-
-4. **Error Analysis**: Detailed breakdown of misclassifications
-
-## 🔬 Explainability Features
-
-### 1. Attention Visualization
-```python
-# Visualize which words the model focuses on for each aspect
-predictions, attention_weights, _, _ = model(
-    input_ids, attention_mask, aspect_id, 
-    return_attention=True
-)
-```
-
-### 2. LIME Explanations
-```python
-from explainability.lime_explainer import LIMEExplainer
-
-explainer = LIMEExplainer(model, tokenizer)
-explanation = explainer.explain(text, aspect="smell")
-explainer.visualize(explanation)
-```
-
-### 3. Dependency Path Analysis
-```python
-# Show how sentiment flows through syntactic dependencies
-from explainability.dependency_viz import visualize_dependency_paths
-
-visualize_dependency_paths(
-    text="beautiful color but terrible smell",
-    aspect="smell",
-    model=model
-)
-```
-
-## 🎓 Research Contributions
-
-1. **Novel Architecture**: RoBERTa + Aspect-Oriented Dependency GCN
-2. **Comprehensive Imbalance Handling**: Hybrid loss + targeted augmentation
-3. **Multi-Level Explainability**: Attention + LIME + Dependency paths
-4. **Domain-Specific**: Vietnamese cosmetics reviews
-
-## 📝 Key Improvements Over MAFESA
-
-| Component | MAFESA | Our Approach |
-|-----------|--------|--------------|
-| Base Encoder | GloVe (static) | RoBERTa (contextualized) |
-| Aspect Extraction | LDA (unsupervised) | Aspect-aware attention (supervised) |
-| Sentiment Model | Hierarchical NN | Dependency GCN |
-| Class Imbalance | Not addressed | Hybrid loss + augmentation |
-| Explainability | LIME only | Multi-level (Attention + LIME + IG) |
-
-## ⚙️ Advanced Usage
-
-### Custom Loss Functions
-
-```python
-# Define custom loss for specific aspects
-from models.losses import HybridLoss
-
-custom_loss = HybridLoss(
-    samples_per_class=[17, 15, 2244],  # neg, neu, pos
-    focal_gamma=3.5,                   # Higher for extreme imbalance
-    cb_beta=0.99999,
-    weights={'focal': 1.5, 'cb': 0.5, 'dice': 0.3}
-)
-```
-
-### Ablation Studies
-
-```bash
-# Train without GCN
-python train.py --config configs/config_no_gcn.yaml
-
-# Train with different loss functions
-python train.py --config configs/config_focal_only.yaml
-
-# Train without augmentation
-python train.py --config configs/config_no_aug.yaml
-```
-
-### Hyperparameter Tuning
-
-```python
-# Use Optuna for hyperparameter search
-python experiments/hyperparameter_search.py \
-    --config configs/config.yaml \
-    --n-trials 50 \
-    --study-name cosmetic-sentiment-hpo
-```
-
-## 📚 Citation
-
-If you use this code in your research, please cite:
-
-```bibtex
-@article{yourname2024multiaspect,
-  title={Class Imbalance Handled Multi-Aspect Mixed Sentiment Resolution with Explainability in Cosmetic Domain},
-  author={Your Name},
-  journal={Your Conference/Journal},
-  year={2024}
-}
-```
-
-## 🐛 Troubleshooting
-
-### Out of Memory (OOM)
-
-```yaml
-# Reduce batch size
-training:
-  batch_size: 8  # or 4
-
-# Or use gradient accumulation
-training:
-  batch_size: 4
-  gradient_accumulation_steps: 4  # effective batch size = 16
-```
-
-### Slow Training
-
-```yaml
-# Enable mixed precision training
-hardware:
-  mixed_precision: true
-
-# Freeze lower RoBERTa layers (in model.py)
-for param in self.roberta.encoder.layer[:6].parameters():
-    param.requires_grad = False
-```
-
-### Poor Performance on Minority Classes
-
-```yaml
-# Increase focal gamma for that aspect
-training:
-  focal_gamma:
-    aspect_name: 4.0  # Very high focusing
-
-# Increase augmentation for minority class
-data:
-  augmentation:
-    augmentation_ratio:
-      negative: 5.0  # Generate 5x samples
-```
-
-## 📧 Support
-
-For questions and issues:
-- Open an issue on GitHub
-- Contact: [your-email@example.com]
-
-## 📄 License
-
-This project is licensed under the MIT License - see LICENSE file for details.
-
-## 🙏 Acknowledgments
-
-- MAFESA paper for inspiration
-- Hugging Face Transformers library
-- PyTorch Geometric for GCN implementation
-- Vietnamese NLP community for tools and resources
-
-## 🔮 Future Work
-
-1. Integrate larger language models (RoBERTa-large, XLM-RoBERTa)
-2. Implement curriculum learning for gradual difficulty increase
-3. Add contrastive learning for better representation
-4. Extend to other domains (e-commerce, healthcare)
-5. Deploy as REST API for real-time inference
-6. Build interactive demo with Gradio/Streamlit
 
 ---
 
-**Good luck with your research! Remember to report results honestly, acknowledge limitations, and contribute back to the community.** 🚀
+## � Troubleshooting
+
+| Issue | Fix |
+|-------|-----|
+| CUDA OOM | Reduce `batch_size` to 8 or 4, enable `mixed_precision: true` |
+| Low minority class recall | Increase `focal_gamma` for that aspect |
+| Import errors | Run from `ml-research/` directory; check `sys.path` |
+| Checkpoint not found | Run `train.py` first |
+| captum not installed | `pip install captum` (needed for Integrated Gradients) |
+
+---
+
+## 📄 Citation
+
+```bibtex
+@article{clearview2025,
+  title={Class Imbalance Handled Multi-Aspect Mixed Sentiment Resolution
+         with Explainability in the Cosmetic Domain},
+  author={Tharushi Amasha},
+  year={2025}
+}
+```

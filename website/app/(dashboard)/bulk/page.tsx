@@ -150,7 +150,6 @@ export default function BulkReviewsPage() {
     const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
     const [csvRows, setCsvRows] = useState<string[][]>([]);
     const [selectedColumn, setSelectedColumn] = useState<string>("");
-    const [msrEnabled, setMsrEnabled] = useState(true);
     const [loading, setLoading] = useState(false);
     const [progress, setProgress] = useState(0);
     const [result, setResult] = useState<BulkPredictResult | null>(null);
@@ -209,7 +208,7 @@ export default function BulkReviewsPage() {
         }, 500);
 
         try {
-            const data = await predictBulk(reviews, msrEnabled);
+            const data = await predictBulk(reviews, true);
             setResult(data);
             setProgress(100);
         } catch (err) {
@@ -374,19 +373,7 @@ export default function BulkReviewsPage() {
                         <CardTitle className="text-base">Processing Settings</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-5">
-                        <div className="flex items-center justify-between">
-                            <div className="space-y-0.5">
-                                <Label htmlFor="bulk-msr">Enable MSR</Label>
-                                <p className="text-xs text-muted-foreground">
-                                    Mixed-Sentiment Regularization
-                                </p>
-                            </div>
-                            <Switch
-                                id="bulk-msr"
-                                checked={msrEnabled}
-                                onCheckedChange={setMsrEnabled}
-                            />
-                        </div>
+
 
                         <div className="space-y-1 p-3 rounded-lg bg-muted/50 text-sm">
                             <p className="font-medium">What will be analysed?</p>

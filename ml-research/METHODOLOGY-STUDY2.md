@@ -1,578 +1,372 @@
-# Methodology: Multi-Aspect Sentiment Analysis with Class Imbalance Handling and Explainability
+# Methodology: Multi-Aspect Mixed Sentiment Resolution with Class Imbalance Handling and Explainability
+
+> *ClearView Final Year Project — Academic Methodology Reference*
 
 ## Table of Contents
-1. [Research Overview](#research-overview)
-2. [Problem Statement](#problem-statement)
-3. [Proposed Methodology](#proposed-methodology)
-4. [Model Architecture](#model-architecture)
-5. [Class Imbalance Handling](#class-imbalance-handling)
-6. [Explainability Integration](#explainability-integration)
-7. [Training Strategy](#training-strategy)
-8. [Evaluation Metrics](#evaluation-metrics)
-9. [Implementation Details](#implementation-details)
-10. [How to Run the Project](#how-to-run-the-project)
-11. [Experimental Setup](#experimental-setup)
+1. [Research Overview](#1-research-overview)
+2. [Problem Statement](#2-problem-statement)
+3. [Data Pipeline](#3-data-pipeline)
+4. [Model Architecture](#4-model-architecture)
+5. [Class Imbalance Handling](#5-class-imbalance-handling)
+6. [Explainability Integration](#6-explainability-integration)
+7. [Training Strategy](#7-training-strategy)
+8. [Evaluation Metrics](#8-evaluation-metrics)
+9. [Ablation Studies & Baselines](#9-ablation-studies--baselines)
+10. [How to Run](#10-how-to-run)
+11. [References](#11-references)
 
 ---
 
-## Research Overview
+## 1. Research Overview
 
-This project implements a **Multi-Aspect Sentiment Analysis (MASA)** system for the cosmetic domain, specifically designed to handle:
+This project implements a **Multi-Aspect Mixed Sentiment Resolution (MAMSR)** system for the cosmetic domain. It is specifically designed to handle:
 
-- **Multi-aspect sentiment classification** across 7 aspects: stayingpower, texture, smell, price, colour, shipping, and packing
-- **Severe class imbalance** with imbalance ratios ranging from 5:1 to 174:1
-- **Mixed sentiment resolution** using dependency-based graph convolutions
-- **Explainability** through multiple interpretation methods
+- **Multi-aspect sentiment classification** across 7 aspects: *stayingpower, texture, smell, price, colour, shipping, packing*
+- **Severe class imbalance** with pre-augmentation ratios up to 185:1 (positive:negative)
+- **Mixed sentiment resolution** — correctly separating conflicting sentiments for different aspects within the same review
+- **Multi-level explainability** through attention visualization, LIME, SHAP, Integrated Gradients, and MSR Delta analysis
 
-The system combines state-of-the-art pre-trained language models (RoBERTa) with syntactic dependency structures (GCN) and advanced loss functions to achieve robust performance on imbalanced data.
+The system combines RoBERTa-base (contextualized embeddings) with Aspect-Aware Multi-Head Attention, an Aspect-Oriented Dependency GCN, and a Hybrid Loss function (Focal + Class-Balanced + Dice), with LLM-based synthetic data augmentation for minority class enrichment.
 
 ---
 
-## Problem Statement
+## 2. Problem Statement
 
 ### Challenges Addressed
 
 1. **Multi-Aspect Sentiment Analysis**
-   - Reviews often contain sentiments about multiple aspects
-   - Each aspect may have different sentiment polarities
-   - Example: "Beautiful color but terrible smell" → colour: positive, smell: negative
+   - Reviews contain sentiments about multiple aspects simultaneously
+   - Each aspect may have a different polarity
+   - Example: *"Beautiful colour but terrible smell"* → colour: positive, smell: negative
 
-2. **Extreme Class Imbalance**
-   - Training data shows severe imbalance across aspects:
-     - **Price**: pos:neg:neu = 132:1:0.9 (extreme)
-     - **Packing**: pos:neg:neu = 145:1:0.2 (extreme)
-     - **Smell**: pos:neg:neu = 17:3:1 (high)
-     - Other aspects: moderate imbalance
-   - Traditional loss functions fail on minority classes
+2. **Extreme Class Imbalance** (before augmentation)
+
+   | Aspect | Negative | Neutral | Positive | Pos:Neg Ratio |
+   |--------|----------|---------|----------|---------------|
+   | Price | 17 | 15 | 2,244 | 132:1 |
+   | Packing | 29 | 6 | 2,070 | 71:1 |
+   | Smell | 51 | 17 | 872 | 17:1 |
+   | Colour | 131 | 113 | 1,506 | 11:1 |
+
+   Traditional cross-entropy loss leads to high overall accuracy but near-zero minority class recall.
 
 3. **Mixed Sentiment Resolution**
-   - Sentences with contradictory sentiments for different aspects
-   - Requires understanding syntactic relationships
-   - Example: "Great texture for the price" → texture: positive, price: neutral/context
+   - Sentences with contradictory sentiments for different aspects require separating which opinion words attach to which aspect
+   - Syntactic dependency structure provides the key signal
 
 4. **Explainability Requirements**
-   - Need to understand model decisions
-   - Important for trust and debugging
-   - Required for production deployment
+   - Model decisions must be interpretable for trust, debugging, and academic credibility
+   - Multiple explanation methods provide complementary views
 
 ---
 
-## Proposed Methodology
+## 3. Data Pipeline
 
-Our approach introduces a novel architecture that combines:
+### 3.1 Text Cleaning (`data/data_layer/preprocess_and_split.py`)
 
-### Core Components
+Applied to all splits at preprocessing time and also replicated at inference time (`inference.py: clean_text_for_inference`) to ensure train-inference parity:
 
-1. **Contextualized Embeddings**: RoBERTa-base for rich semantic representations
-2. **Aspect-Aware Attention**: Learnable aspect embeddings with multi-head attention
-3. **Dependency Graph Convolution**: Aspect-oriented GCN for syntactic relationships
-4. **Hybrid Loss Functions**: Combination of Focal, Class-Balanced, and Dice losses
-5. **Multi-Level Explainability**: Attention weights, LIME, and Integrated Gradients
+1. Unicode normalization (NFC)
+2. HTML entity and tag removal
+3. URL and email removal
+4. Repeated punctuation normalization (`!!!` → `!`)
+5. Garbled token detection (high consonant ratio or character repetition)
+6. Invisible/zero-width character removal
 
-### Key Novelties
+### 3.2 Stratified Split — Two-Phase Rare-Class Guarantee
 
-- **Aspect-oriented dependency gating** in GCN layers
-- **Aspect-specific loss configuration** based on class distribution analysis
-- **Hybrid loss weighting** adapted per aspect
-- **Integrated explainability** at multiple abstraction levels
+Standard `train_test_split` with stratification over a composite label fails for aspects with very few minority samples (e.g. price-negative: 17 samples total). The solution is a two-phase split:
+
+**Phase 1**: Identify rare-class rows (below `min_val_test_samples` threshold). Split them proportionally into val/test first.
+
+**Phase 2**: Perform standard stratified split on the remaining majority-class rows.
+
+This guarantees a minimum number of minority-class samples in val/test for reliable evaluation.
+
+**Output**: `data/splits/train.csv`, `val.csv`, `test.csv`
+
+### 3.3 Synthetic Augmentation (`data/data_layer/create_train_aug.py`)
+
+LLM-generated reviews target the most imbalanced minority classes:
+
+| Aspect | Before ratio | After ratio |
+|--------|-------------|-------------|
+| Price | 132:1 | ~11:1 |
+| Packing | 71:1 | ~12:1 |
+| Smell | 17:1 | ~6:1 |
+
+**Output**: `data/splits/train_augmented.csv` (10,050 samples total) + `augmentation_impact.md` (before/after distribution report)
 
 ---
 
-## Model Architecture
+## 4. Model Architecture
 
-### Overall Architecture Flow
+### 4.1 Overview
 
 ```
 Input Text
-    ↓
-RoBERTa Encoder (Contextualized Embeddings)
-    ↓
+    │
+    ▼
+RoBERTa-base Encoder
+(12 layers, 768-dim, 125M params)
+    │  last_hidden_state: (batch, seq_len, 768)
+    ▼
 Aspect-Aware Attention Module
-    ↓
-Dependency GCN (Optional)
-    ↓
-Aspect-Specific Classification Heads
-    ↓
-Sentiment Predictions (Negative/Neutral/Positive)
+─ learnable aspect embeddings (7 × 768, xavier init)
+─ aspect embedding is query, token states are K/V
+─ 8-head Multi-Head Attention
+→ aspect_representation: (batch, 768)
+    │
+    ▼
+Aspect-Oriented Dependency GCN   [optional; use_dependency_gcn flag]
+─ 2-layer GCN on spaCy dependency parse trees
+─ Aspect-oriented gate: σ(W_g × aspect_emb)
+─ Message passing: gated aggregation along dependency edges
+─ Residual connections
+→ gcn_output: (batch, 768)
+    │
+    ▼
+Fusion: aspect_repr + gcn_output (residual if GCN enabled)
+    │
+    ▼
+7 Aspect-Specific Classifiers   [or 1 shared; use_shared_classifier flag]
+─ Linear(768 → 384) → ReLU → Dropout(0.1) → Linear(384 → 3)
+    │
+    ▼
+Logits → Sentiment {Negative, Neutral, Positive}
 ```
 
-### 1. RoBERTa Encoder
+**Total trainable parameters**: ~132M (with GCN), ~129M (without GCN)
 
-**Purpose**: Generate contextualized token embeddings
+### 4.2 RoBERTa Encoder
 
-**Components**:
-- Pre-trained RoBERTa-base (125M parameters)
-- 12 transformer layers
-- 768-dimensional hidden representations
-- Byte-pair encoding tokenizer
+- Pre-trained `roberta-base` (HuggingFace)
+- Full fine-tuning (all 12 layers updated)
+- Input: BPE tokenized text, max 128 tokens
+- Output: `last_hidden_state` of shape `(batch, seq_len, 768)`
 
-**Implementation** (`models/model.py: AspectAwareRoBERTa`):
+**Why RoBERTa over BERT?**
+- Trained longer on more data (160GB vs 16GB)
+- No Next Sentence Prediction objective (less noise)
+- Consistently outperforms BERT on sentiment tasks
+
+### 4.3 Aspect-Aware Attention Module (`AspectAwareRoBERTa`)
+
+**Key innovation**: Instead of using [CLS] token for classification, we use a learnable aspect embedding as the **query** in Multi-Head Attention. This forces the model to retrieve only the information relevant to the queried aspect.
+
 ```python
-self.roberta = RobertaModel.from_pretrained('roberta-base')
-roberta_output = self.roberta(input_ids, attention_mask)
-encoder_output = roberta_output.last_hidden_state  # (batch, seq_len, 768)
-```
+aspect_query = self.aspect_embeddings(aspect_id)   # (batch, 768)
+aspect_query = aspect_query.unsqueeze(1)            # (batch, 1, 768)
 
-**Why RoBERTa?**
-- Superior to static embeddings (GloVe, Word2Vec)
-- Handles context-dependent meanings
-- Pre-trained on massive corpora
-- Better than BERT for sentiment tasks
-
----
-
-### 2. Aspect-Aware Attention Module
-
-**Purpose**: Focus on aspect-relevant parts of the text
-
-**Components**:
-- Learnable aspect embeddings (7 aspects × 768 dimensions)
-- Multi-head attention (8 heads)
-- Aspect-text interaction layer
-
-**Implementation**:
-```python
-# Aspect embeddings (learnable)
-self.aspect_embeddings = nn.Embedding(num_aspects, hidden_dim)
-
-# Multi-head attention
-self.aspect_attention = nn.MultiheadAttention(
-    embed_dim=hidden_dim,
-    num_heads=8,
-    dropout=dropout,
-    batch_first=True
-)
-
-# Forward pass
-aspect_emb = self.aspect_embeddings(aspect_id)  # (batch, 768)
-aspect_emb = aspect_emb.unsqueeze(1)  # (batch, 1, 768)
-
-# Attention: aspect as query, tokens as key/value
-aspect_context, attention_weights = self.aspect_attention(
-    query=aspect_emb,
-    key=encoder_output,
-    value=encoder_output,
+attended, attn_weights = self.aspect_attention(
+    query=aspect_query,
+    key=hidden_states,
+    value=hidden_states,
     key_padding_mask=~attention_mask.bool()
 )
+aspect_repr = attended.squeeze(1)  # (batch, 768)
 ```
 
 **Benefits**:
-- Learns aspect-specific feature importance
-- Reduces noise from irrelevant text parts
-- Interpretable attention weights for explainability
+- Learns aspect-specific token importance
+- Outputs interpretable attention weights for attention-based XAI
+- Reduces noise from irrelevant parts of the review
+
+**Ablation A2**: Replacing this with simple [CLS] pooling (`use_aspect_attention=False`) measures this component's isolated contribution.
+
+### 4.4 Aspect-Oriented Dependency GCN (`AspectOrientedDepGCN`)
+
+**Purpose**: Capture syntactic relationships to resolve mixed sentiments.
+
+**Dependency parsing**: spaCy `en_core_web_sm` extracts dependency edges at dataset creation time (`utils/data_utils.py: DependencyParser`). Edge indices are stored per sample and batched by `collate_fn_with_dependencies`.
+
+**GCN message passing** (2 layers):
+```
+gate = σ(W_gate × aspect_embedding)       # aspect-specific filter
+for each edge (src → dst):
+    messages[dst] += gate ⊙ H[src]        # gated message
+H_new = ReLU(messages) + H               # residual update
+```
+
+The gate controls how much each other token's representation is allowed to flow based on its relevance to the target aspect.
+
+**Why GCN?**
+- Long-range syntactic signals that attention can miss
+- "cheap price but awful smell" — "awful" is syntactically linked to "smell" not "price"
+- Aspect-oriented gate prevents cross-aspect interference
+
+**Ablation A1**: Training without GCN (`use_dependency_gcn=False`) isolates this component's contribution.
+
+### 4.5 Classifier Heads
+
+Default: 7 separate per-aspect heads, each `Linear(768→384) → ReLU → Dropout → Linear(384→3)`.
+
+**Rationale**: Different aspects may have different linguistic patterns. A shared head would force the same decision boundary for "smells amazing" (smell) and "delivers fast" (shipping).
+
+**Ablation A5**: Using a single shared head (`use_shared_classifier=True`) tests this assumption.
 
 ---
 
-### 3. Aspect-Oriented Dependency GCN
+## 5. Class Imbalance Handling
 
-**Purpose**: Capture syntactic relationships for mixed sentiment resolution
+### 5.1 Three-Pronged Strategy
 
-**Architecture**:
-- 2-layer Graph Convolutional Network
-- Message passing on dependency parse trees
-- Aspect-oriented gating mechanism
-
-**Dependency Parsing** (`utils/data_utils.py: DependencyParser`):
-```python
-# Extract dependency tree using spaCy
-doc = nlp(text)
-dependencies = [(token.head.i, token.i) for token in doc]
-edge_index = torch.tensor(dependencies).T  # (2, num_edges)
+```
+Synthetic Augmentation → reduces ratio before training
+         +
+Hybrid Loss Function → corrects remaining imbalance during training
+         +
+Two-Phase Stratified Split → ensures minority classes in val/test
 ```
 
-**GCN Layer** (`models/model.py: AspectOrientedDepGCN`):
-```python
-# Aspect-oriented gate
-gate = torch.sigmoid(
-    self.gate_linear(aspect_embedding).unsqueeze(0)
-)
+### 5.2 Focal Loss
 
-# GCN message passing
-for edge in edge_index.T:
-    src, dst = edge
-    messages[dst] += gate * node_features[src]
+**Paper**: Lin et al., ICCV 2017
 
-# Update with residual connection
-node_features = F.relu(messages) + node_features
-```
+**Formula**: `FL(p_t) = -α_t · (1 − p_t)^γ · log(p_t)`
 
-**Why Dependency GCN?**
-- Captures long-range syntactic dependencies
-- Resolves mixed sentiments (e.g., "cheap but good quality")
-- Aspect-oriented gating focuses on relevant paths
-- Complementary to attention (syntax vs. semantics)
+- `(1 − p_t)^γ`: down-weights easy examples already predicted correctly
+- `α_t`: per-class weight (set from class counts by `AspectSpecificLossManager`)
+- `γ`: focusing parameter — higher γ = more emphasis on hard examples
 
----
-
-### 4. Classification Heads
-
-**Purpose**: Final sentiment prediction per aspect
-
-**Implementation**:
-```python
-# Aspect-specific classification heads
-self.classifiers = nn.ModuleList([
-    nn.Sequential(
-        nn.Linear(hidden_dim, hidden_dim // 2),
-        nn.ReLU(),
-        nn.Dropout(dropout),
-        nn.Linear(hidden_dim // 2, num_classes)
-    )
-    for _ in range(num_aspects)
-])
-
-# Prediction
-logits = self.classifiers[aspect_id](combined_representation)
-predictions = F.softmax(logits, dim=-1)
-```
-
----
-
-## Class Imbalance Handling
-
-### Challenge
-
-Severe class imbalance in cosmetic reviews:
-
-| Aspect | Negative | Neutral | Positive | Imbalance Ratio |
-|--------|----------|---------|----------|-----------------|
-| Price | 17 | 15 | 2244 | 132:1 (pos:neg) |
-| Packing | 29 | 6 | 2070 | 185:1 (pos:neg) |
-| Smell | 51 | 17 | 872 | 17:1 (pos:neg) |
-| Colour | 131 | 113 | 1506 | 11:1 (pos:neg) |
-
-**Problem**: Traditional cross-entropy loss leads to:
-- High accuracy but poor minority class recall
-- Model bias toward majority class (positive)
-- Misleading evaluation metrics
-
----
-
-### Solution: Hybrid Loss Function
-
-We implement a **combination of three specialized loss functions**, each addressing different aspects of imbalance:
-
-#### 1. Focal Loss
-
-**Paper**: "Focal Loss for Dense Object Detection" (ICCV 2017)
-
-**Purpose**: Focus learning on hard-to-classify examples
-
-**Formula**:
-```
-FL(p_t) = -α_t * (1 - p_t)^γ * log(p_t)
-```
-where:
-- `p_t`: predicted probability for the true class
-- `γ` (gamma): focusing parameter (default: 2.0, severe imbalance: 3.0-4.0)
-- `α_t`: class weight
-
-**Implementation** (`models/losses.py: FocalLoss`):
-```python
-# Compute focal weight
-p = F.softmax(inputs, dim=1)
-ce_loss = F.cross_entropy(inputs, targets, reduction='none')
-p_t = p.gather(1, targets.unsqueeze(1)).squeeze(1)
-focal_weight = (1 - p_t) ** self.gamma
-
-# Apply focal loss
-loss = focal_weight * ce_loss
-```
-
-**Effect**:
-- Down-weights easy examples (well-classified)
-- Up-weights hard examples (misclassified or uncertain)
-- Higher γ → more aggressive focusing
-
-**Configuration** (per aspect):
+**Per-aspect γ configuration**:
 ```yaml
 focal_gamma:
   default: 2.0
-  price: 3.0      # Extreme imbalance
+  smell: 2.5
+  price: 3.0
   packing: 3.0
-  smell: 2.5      # High imbalance
 ```
 
----
+### 5.3 Class-Balanced Loss
 
-#### 2. Class-Balanced Loss
+**Paper**: Cui et al., CVPR 2019
 
-**Paper**: "Class-Balanced Loss Based on Effective Number of Samples" (CVPR 2019)
+**Formula**: `w_c = (1 − β) / (1 − β^{n_c})`
 
-**Purpose**: Re-weight classes based on effective number of samples
+- `n_c`: sample count for class c  
+- `β`: smoothing parameter (0.999 → moderate; 0.9999 → extreme)
 
-**Formula**:
-```
-Weight_c = (1 - β) / (1 - β^n_c)
-```
-where:
-- `n_c`: number of samples in class c
-- `β`: balancing parameter (0.999 to 0.9999)
+The effective number of samples diminishes marginally with additional samples, making this more principled than inverse-frequency weighting.
 
-**Implementation** (`models/losses.py: ClassBalancedLoss`):
-```python
-# Compute effective number of samples
-effective_num = 1.0 - np.power(self.beta, samples_per_class)
-weights = (1.0 - self.beta) / effective_num
-weights = weights / weights.sum() * len(weights)
-
-# Apply weights
-loss = F.cross_entropy(inputs, targets, weight=weights)
-```
-
-**Effect**:
-- Minority classes receive higher weights
-- Based on diminishing marginal benefit of additional samples
-- More principled than inverse frequency weighting
-
-**Configuration**:
+**Per-aspect β**:
 ```yaml
 class_balanced_beta:
   default: 0.999
-  price: 0.9999   # Extreme imbalance
+  price: 0.9999
   packing: 0.9999
 ```
 
----
+### 5.4 Dice Loss
 
-#### 3. Dice Loss
+**Paper**: Li et al., ACL 2020
 
-**Paper**: "Dice Loss for Data-imbalanced NLP Tasks" (ACL 2020)
+**Formula**: `DL = 1 − (2 · |P ∩ T| + ε) / (|P| + |T| + ε)`
 
-**Purpose**: Directly optimize F1-score (Dice coefficient)
+Directly optimizes the Dice coefficient (equivalent to F1-score). Complements cross-entropy-based losses by targeting the evaluation metric directly.
 
-**Formula**:
-```
-Dice Loss = 1 - (2 * |P ∩ T| + smooth) / (|P| + |T| + smooth)
-```
+### 5.5 Hybrid Loss
 
-**Implementation** (`models/losses.py: DiceLoss`):
 ```python
-# One-hot encode targets
-targets_one_hot = F.one_hot(targets, num_classes)
-probs = F.softmax(inputs, dim=1)
-
-# Compute Dice coefficient per class
-intersection = (probs * targets_one_hot).sum(dim=0)
-cardinality = probs.sum(dim=0) + targets_one_hot.sum(dim=0)
-dice_score = (2 * intersection + smooth) / (cardinality + smooth)
-
-# Dice loss
-loss = 1 - dice_score.mean()
+total_loss = (1.0 × focal_loss) + (0.5 × cb_loss) + (0.3 × dice_loss)
 ```
 
-**Effect**:
-- Directly optimizes the target metric (F1)
-- Handles imbalance through intersection over union
-- Complements cross-entropy-based losses
+Each aspect gets its own `HybridLoss` instance auto-configured from `config.yaml: training.class_counts` by `AspectSpecificLossManager`.
+
+**Ablation A3** tests: Hybrid vs. Focal-only vs. CB-only vs. Dice-only vs. plain CE.
 
 ---
 
-#### 4. Hybrid Loss Combination
+## 6. Explainability Integration
 
-**Implementation** (`models/losses.py: HybridLoss`):
+### 6.1 Motivation
+
+Mixed sentiment resolution is a novel claim. Explainability provides:
+1. **Evidence** that the model separates aspects correctly
+2. **Trust** for end users of the website
+3. **Interpretability** required for academic credibility
+
+### 6.2 Attention Visualization
+
+**Method**: Extract MHA attention weights from `AspectAwareRoBERTa.aspect_attention`.
+
+**Key property**: The query is the aspect embedding, so attention weights directly show which tokens the model uses to form its aspect-specific sentiment.
+
 ```python
-class HybridLoss(nn.Module):
-    def forward(self, inputs, targets):
-        focal = self.focal_loss(inputs, targets)
-        cb = self.cb_loss(inputs, targets)
-        dice = self.dice_loss(inputs, targets)
-        
-        total = (self.weights['focal'] * focal +
-                 self.weights['cb'] * cb +
-                 self.weights['dice'] * dice)
-        
-        return total, {'focal': focal, 'cb': cb, 'dice': dice}
+result = predictor.predict(text, aspect, return_attention=True)
+tokens  = result['attention']['tokens']
+weights = result['attention']['weights']  # (seq_len,)
 ```
 
-**Default Weights**:
-```yaml
-loss_weights:
-  focal: 1.0
-  class_balanced: 0.5
-  dice: 0.3
-```
+**Limitation**: Attention ≠ feature importance. Use IG for rigorous attribution.
 
-**Rationale**:
-- Focal loss: Primary learning signal
-- CB loss: Class re-weighting
-- Dice loss: F1 optimization
-- Combination provides complementary benefits
+### 6.3 LIME
 
----
+**Paper**: Ribeiro et al., KDD 2016
 
-### Aspect-Specific Loss Configuration
+**Method**: Randomly mask words and observe prediction change → fit local linear model → report feature importances.
 
-**Key Innovation**: Different aspects use different loss parameters
+**Implementation** (`inference.py: explain_with_lime`):
+- Perturbs text by removing words
+- Calls `SentimentPredictor.predict()` on each perturb (same code path as normal prediction)
+- LIME `LimeTextExplainer` fits a linear model locally
 
-**Implementation** (`models/losses.py: AspectSpecificLossManager`):
-```python
-def __init__(self, aspect_class_counts, config):
-    self.losses = {}
-    for aspect, counts in aspect_class_counts.items():
-        # Compute imbalance ratio
-        imbalance = max(counts) / (min(counts) + 1e-6)
-        
-        # Select parameters based on imbalance
-        gamma = config['focal_gamma'].get(aspect, 2.0)
-        beta = config['class_balanced_beta'].get(aspect, 0.999)
-        
-        # Create aspect-specific loss
-        self.losses[aspect] = HybridLoss(
-            samples_per_class=counts,
-            focal_gamma=gamma,
-            cb_beta=beta,
-            weights=config['loss_weights']
-        )
-```
+### 6.4 SHAP
 
-**Benefits**:
-- Tailored to each aspect's class distribution
-- Prevents over-/under-fitting on specific aspects
-- Automatic configuration based on data statistics
+**Method**: Shapley values from cooperative game theory. Each token's contribution is its average marginal contribution across all possible coalitions.
 
----
+**Implementation** (`inference.py: explain_with_shap`):
+- Uses `shap.Explainer` with Partition algorithm
+- Baseline: randomly masked versions of the input
+- Reports per-token SHAP values for the predicted class
 
-## Explainability Integration
+### 6.5 Integrated Gradients *(Most Theoretically Rigorous)*
 
-### Why Explainability?
+**Paper**: Sundararajan et al., ICML 2017
 
-1. **Trust**: Users need to understand model decisions
-2. **Debugging**: Identify systematic errors
-3. **Compliance**: Required for some applications
-4. **Research**: Understand what features matter
+**Formula**: `IG(x) = (x − x') · ∫₀¹ ∂F(x' + α(x − x'))/∂x dα`
 
----
+- `x'`: baseline (all-PAD embedding)
+- Satisfies **completeness axiom**: attribution scores sum exactly to the output change
+- Implemented via **Captum's `LayerIntegratedGradients`** on RoBERTa's embedding layer
+- n_steps=50 interpolation steps by default
 
-### Multi-Level Explainability
+**Why IG > attention weights for a research paper**:
+- Theoretically grounded with formal axioms (completeness, sensitivity, implementation invariance)
+- Attributions are verified by convergence delta (should be near 0)
+- Works on the actual forward pass, not a proxy
 
-We provide **three complementary explanation methods**:
+**Implementation** (`inference.py: explain_with_integrated_gradients`):
+- Hooks into `roberta.embeddings` layer
+- Forward function routes through aspect attention + classifier
+- Sums per-token attributions across embedding dimensions
+- Normalizes to [-1, 1] for visualization
 
-#### 1. Attention Visualization
+### 6.6 MSR Delta *(Unique Research Contribution)*
 
-**Level**: Token-level importance
-
-**Method**: Extract attention weights from aspect-aware attention layer
-
-**Implementation** (`models/model.py`):
-```python
-# During forward pass
-aspect_context, attention_weights = self.aspect_attention(
-    query=aspect_emb,
-    key=encoder_output,
-    value=encoder_output,
-    return_attention=True
-)
-
-# attention_weights: (batch, 1, seq_len)
-# Shows which tokens the model focuses on for each aspect
-```
-
-**Usage** (`inference.py`):
-```python
-predictions, attention, _, _ = model(
-    input_ids, attention_mask, aspect_id,
-    return_attention=True
-)
-
-# Visualize attention weights over input tokens
-visualize_attention(tokens, attention[0])
-```
-
-**Output**: Heatmap showing token importance
-
----
-
-#### 2. LIME (Local Interpretable Model-agnostic Explanations)
-
-**Level**: Word/phrase-level contribution
-
-**Method**: Perturb input and observe output changes
-
-**Configuration**:
-```yaml
-explainability:
-  methods: ["lime"]
-  lime_num_features: 10
-  lime_num_samples: 1000
-```
-
-**Process**:
-1. Generate perturbed samples (remove words randomly)
-2. Get model predictions on perturbed samples
-3. Fit linear model to approximate local behavior
-4. Extract feature importances from linear model
-
-**Output**: 
-- Most important words for prediction
-- Positive/negative contribution scores
-- Visualization with color-coded words
-
----
-
-#### 3. Integrated Gradients
-
-**Level**: Input attribution
-
-**Method**: Integrate gradients along path from baseline to input
-
-**Formula**:
-```
-IG(x) = (x - x') ∫₀¹ ∂F(x' + α(x - x'))/∂x dα
-```
-
-**Process**:
-1. Define baseline (zero embeddings or neutral text)
-2. Interpolate between baseline and input
-3. Compute gradients at each interpolation step
-4. Integrate gradients to get attributions
-
-**Benefits**:
-- Theoretically grounded (satisfies axioms)
-- More stable than simple gradients
-- Works with any differentiable model
-
----
-
-### Dependency Path Visualization
-
-**Purpose**: Show how sentiment flows through syntactic structure
+**Purpose**: Directly prove that the model performs Mixed Sentiment Resolution — i.e., it separates aspect-specific signals from a review containing conflicting sentiments.
 
 **Method**:
-1. Extract dependency parse tree
-2. Identify aspect mention in tree
-3. Highlight paths from aspect to opinion words
-4. Overlay GCN attention scores
+1. Predict baseline confidence for `focus_aspect` on the full review
+2. For each token, replace it with `[MASK]` and re-predict
+3. `delta[i] = baseline_conf − masked_conf`
+   - Large positive delta → token actively supports the `focus_aspect` prediction
+   - Near-zero delta → token is irrelevant to `focus_aspect` (even if it expresses opinion about another aspect)
 
-**Example**:
-```
-"Beautiful color but terrible smell"
+**Research significance**: For a review like *"Great colour but the smell is awful"*:
+- When `focus_aspect = colour`: tokens "great" and "colour" should have high +delta; "awful" and "smell" should have ~0 delta
+- This proves the model is NOT conflating aspects — it is resolving them separately
 
-Dependency tree:
-    beautiful ← color → but → terrible ← smell
-       ↓                          ↓
-    (aspect: colour)         (aspect: smell)
-```
-
-**Visualization**: Graph with annotated edges showing sentiment flow
+**Cross-aspect summary** is printed automatically: shows the model's prediction for all OTHER aspects simultaneously, demonstrating it understands the multi-aspect nature of the review.
 
 ---
 
-## Training Strategy
+## 7. Training Strategy
 
-### Optimization Configuration
+### 7.1 Optimizer and Schedule
 
-**Optimizer**: AdamW (Adam with weight decay)
 ```python
-optimizer = torch.optim.AdamW(
-    model.parameters(),
-    lr=2e-5,
-    weight_decay=0.01
-)
-```
-
-**Learning Rate Schedule**: Linear warmup + linear decay
-```python
+optimizer = AdamW(model.parameters(), lr=2e-5, weight_decay=0.01)
 scheduler = get_linear_schedule_with_warmup(
     optimizer,
     num_warmup_steps=500,
@@ -580,732 +374,213 @@ scheduler = get_linear_schedule_with_warmup(
 )
 ```
 
-**Why this configuration?**
-- AdamW: Better generalization than Adam
-- Low LR (2e-5): Required for fine-tuning pre-trained models
-- Warmup: Prevents early divergence
-- Weight decay: Regularization to prevent overfitting
+- Low LR (2e-5) required for fine-tuning pre-trained RoBERTa without catastrophic forgetting
+- Warmup prevents early divergence of the LM head
+- Weight decay provides L2 regularization
 
----
-
-### Training Loop
-
-**Implementation** (`train.py: Trainer.train_epoch`):
+### 7.2 Mixed Precision (AMP)
 
 ```python
-for batch in dataloader:
-    # 1. Forward pass
-    predictions = model(input_ids, attention_mask, aspect_ids, edge_indices)
-    
-    # 2. Compute aspect-specific losses
-    loss, loss_details = loss_manager.compute_loss(
-        predictions, labels, aspect_ids, aspect_names
-    )
-    
-    # 3. Backward pass
-    loss.backward()
-    
-    # 4. Gradient clipping (prevent exploding gradients)
-    torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
-    
-    # 5. Optimizer step
-    optimizer.step()
-    scheduler.step()
-    optimizer.zero_grad()
-```
+with torch.cuda.amp.autocast():
+    logits = model(input_ids, attention_mask, aspect_id, edge_index=edge_idx)
+    loss, _ = loss_manager.compute_loss(logits, labels, aspect_ids, aspect_names)
 
----
-
-### Mixed Precision Training
-
-**Purpose**: Faster training with lower memory usage
-
-**Implementation**:
-```python
-from torch.cuda.amp import autocast, GradScaler
-
-scaler = GradScaler()
-
-# Forward pass in FP16
-with autocast():
-    predictions = model(...)
-    loss = compute_loss(...)
-
-# Backward pass with gradient scaling
 scaler.scale(loss).backward()
 scaler.unscale_(optimizer)
-torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
 scaler.step(optimizer)
 scaler.update()
 ```
 
-**Benefits**:
-- 2-3x faster on modern GPUs (Volta, Turing, Ampere)
-- Reduces memory usage by ~40%
-- Minimal accuracy loss
+- ~2× speedup on RTX 4060
+- Gradient clipping at 1.0 prevents exploding gradients
 
-**Configuration**:
-```yaml
-hardware:
-  mixed_precision: true
-```
+### 7.3 Early Stopping (Bug-Fixed)
+
+**Important fix**: Early stopping is evaluated only at **epoch end**. Mid-epoch evaluations log metrics only and do NOT update `patience_counter` or `best_val_metric`. This prevents premature stopping due to noisy mid-epoch checkpoints.
+
+- **Metric**: Validation Macro-F1 (imbalance-robust)
+- **Patience**: 5 epochs
+- Best model saved as `outputs/cosmetic_sentiment_v1/best_model.pt`
+
+### 7.4 MixedSentimentEvaluator
+
+Integrated into the test phase (`train.py`). After standard per-aspect metrics, the evaluator:
+1. Groups test predictions by `review_id`
+2. Identifies reviews where ≥2 aspects have conflicting predicted sentiments
+3. Measures whether the conflicts were resolved correctly vs. ground truth
+4. Reports a Mixed Sentiment Resolution Accuracy score
+
+### 7.5 Training Configuration Summary
+
+| Parameter | Value |
+|-----------|-------|
+| Device | NVIDIA RTX 4060 Laptop GPU |
+| Batch Size | 16 |
+| Learning Rate | 2.0e-5 |
+| Optimizer | AdamW (weight_decay=0.01) |
+| Warmup Steps | 500 |
+| Scheduler | Linear warmup + linear decay |
+| Epochs | 30 (early stopping, patience=5) |
+| Mixed Precision | Yes (torch AMP) |
+| Gradient Clipping | max_norm=1.0 |
+| Early Stopping Metric | Validation Macro-F1 |
 
 ---
 
-### Early Stopping
+## 8. Evaluation Metrics
 
-**Metric**: Validation Macro-F1 Score
+### 8.1 Primary Metric: Macro-F1
 
-**Implementation**:
+Treats all classes equally regardless of support. Critical for imbalanced datasets where accuracy is misleading.
+
+`Macro-F1 = mean(F1_negative, F1_neutral, F1_positive)`
+
+### 8.2 Complementary Metrics
+
+| Metric | Purpose |
+|--------|---------|
+| Per-class F1 | Shows performance on each minority class separately |
+| Weighted F1 | F1 weighted by class support; shows aggregate performance |
+| MCC | Matthews Correlation Coefficient: balanced even for extreme imbalance; range [-1, 1] |
+| Accuracy | Reported but secondary given class imbalance |
+| Confusion Matrix | Visual breakdown of prediction errors per aspect |
+
+### 8.3 Mixed Sentiment Resolution Accuracy
+
+Computed by `MixedSentimentEvaluator` — percentage of "conflicting reviews" where the model correctly identifies the different sentiments for each aspect.
+
+### 8.4 Implementation
+
 ```python
-if val_macro_f1 > best_val_metric:
-    best_val_metric = val_macro_f1
-    patience_counter = 0
-    save_checkpoint('best_model.pt')
-else:
-    patience_counter += 1
+from utils.metrics import AspectSentimentEvaluator, MixedSentimentEvaluator
 
-if patience_counter >= early_stopping_patience:
-    print("Early stopping triggered")
-    break
-```
-
-**Why Macro-F1?**
-- Balanced metric for imbalanced data
-- Treats all classes equally
-- Prevents overfitting to majority class
-
-**Configuration**:
-```yaml
-training:
-  early_stopping_patience: 5
-  early_stopping_metric: "macro_f1"
+evaluator = AspectSentimentEvaluator()
+evaluator.add_batch(y_pred, y_true, aspect_names)
+results = evaluator.compute()  # {accuracy, macro_f1, weighted_f1, mcc, per_class, confusion_matrix}
 ```
 
 ---
 
-**Configuration**:
-```yaml
-data:
-  augmentation:
-    enabled: true
-    augment_minority_only: true
-    augmentation_ratio:
-      negative: 3.0  # Generate 3x samples
-      neutral: 2.0
-      positive: 1.0
-```
+## 9. Ablation Studies & Baselines
 
-**Implementation**:
-- Applied during dataset creation
-- Only to minority classes
-- Preserves label distribution patterns
+### 9.1 Ablation Studies (6 studies, 15 variants)
 
----
+| ID | Component | Conditions |
+|----|-----------|-----------|
+| A1 | Dependency GCN | Full model vs. No GCN |
+| A2 | Aspect Attention | MHA attention vs. [CLS] pooling |
+| A3 | Loss Function | Hybrid / Focal-only / CB-only / Dice-only / plain CE |
+| A4 | Data Augmentation | With synthetic data vs. original only |
+| A5 | Classifier Head | 7 aspect-specific heads vs. 1 shared head |
+| A6 | Text Preprocessing | With cleaning pipeline vs. raw text |
 
-## Evaluation Metrics
+### 9.2 Baseline Comparisons (4 models)
 
-### Primary Metrics
+| ID | Model | Description |
+|----|-------|-------------|
+| B1 | PlainRoBERTa | RoBERTa + [CLS] head, no aspect awareness, CE loss |
+| B2 | RoBERTa+CE | Full architecture but CrossEntropy only (no hybrid loss) |
+| B3 | BERTBaseline | BERT-base-uncased + [CLS] head, CE loss |
+| B4 | TF-IDF+SVM | Classical: TF-IDF features + LinearSVC per aspect |
 
-#### 1. Macro-F1 Score
+### 9.3 Running Experiments
 
-**Formula**: Average of per-class F1 scores
+```bash
+# See all 19 experiments
+python src/experiments/experiment_runner.py --list
 
-**Why use it?**
-- Treats all classes equally
-- Not biased by class imbalance
-- Primary metric for imbalanced classification
+# Run all baselines
+python src/experiments/experiment_runner.py --group baselines
 
-**Computation**:
-```python
-from sklearn.metrics import f1_score
+# Run one ablation
+python src/experiments/experiment_runner.py --experiment A3_focal_only
 
-macro_f1 = f1_score(y_true, y_pred, average='macro')
-```
-
----
-
-#### 2. Per-Class Metrics
-
-For each class (negative, neutral, positive):
-- **Precision**: `TP / (TP + FP)`
-- **Recall**: `TP / (TP + FN)`
-- **F1-Score**: `2 * (Precision * Recall) / (Precision + Recall)`
-
-**Why important?**
-- Shows performance on minority classes
-- Identifies systematic biases
-
----
-
-#### 3. Matthews Correlation Coefficient (MCC)
-
-**Formula**:
-```
-MCC = (TP×TN - FP×FN) / √((TP+FP)(TP+FN)(TN+FP)(TN+FN))
-```
-
-**Why use it?**
-- Balanced metric even for severe imbalance
-- Returns value in [-1, 1]
-- 0 = random prediction
-
----
-
-### Secondary Metrics
-
-- **Accuracy**: Overall correctness (can be misleading on imbalanced data)
-- **Weighted F1**: F1 weighted by class support
-- **Confusion Matrix**: Visual representation of predictions vs. ground truth
-
----
-
-### Implementation
-
-**Evaluator** (`utils/metrics.py: AspectSentimentEvaluator`):
-```python
-def evaluate_aspect(self, y_true, y_pred, aspect_name):
-    return {
-        'accuracy': accuracy_score(y_true, y_pred),
-        'macro_f1': f1_score(y_true, y_pred, average='macro'),
-        'weighted_f1': f1_score(y_true, y_pred, average='weighted'),
-        'mcc': matthews_corrcoef(y_true, y_pred),
-        'per_class': classification_report(y_true, y_pred, output_dict=True),
-        'confusion_matrix': confusion_matrix(y_true, y_pred)
-    }
+# Analyze results → Markdown + LaTeX + charts
+python src/experiments/results_analyzer.py
 ```
 
 ---
 
-## Implementation Details
+## 10. How to Run
 
-### Technology Stack
-
-**Deep Learning Framework**:
-- PyTorch 2.0+
-- Transformers (Hugging Face)
-- PyTorch Geometric (for GCN)
-
-**NLP Tools**:
-- spaCy (dependency parsing)
-- RoBERTa tokenizer (Byte-Pair Encoding)
-
-**Utilities**:
-- NumPy, Pandas (data processing)
-- scikit-learn (metrics)
-- matplotlib, seaborn (visualization)
-- YAML (configuration)
-- Weights & Biases (experiment tracking)
-
----
-
-### File Structure
-
-```
-cosmetic_sentiment_project/
-├── configs/
-│   └── config.yaml              # Configuration file
-├── data/
-│   ├── splits/
-│   │   ├── train_augmented.csv
-│   │   ├── val.csv
-│   │   └── test.csv
-├── models/
-│   ├── model.py                 # Model architecture
-│   └── losses.py                # Loss functions
-├── utils/
-│   ├── data_utils.py            # Data loading
-│   └── metrics.py               # Evaluation
-├── train.py                     # Training script
-├── evaluate.py                  # Evaluation script
-├── inference.py                 # Inference script
-└── results/                     # Saved models and logs
-```
-
----
-
-### Model Parameters
-
-**RoBERTa-base**:
-- Layers: 12
-- Hidden size: 768
-- Attention heads: 12
-- Total parameters: ~125M
-
-**Aspect-Aware Attention**:
-- Aspect embeddings: 7 × 768
-- Multi-head attention: 8 heads
-
-**Dependency GCN**:
-- Layers: 2
-- Hidden size: 768
-- Gate mechanism: Learnable
-
-**Classification Heads**:
-- Per aspect: 7 separate heads
-- Architecture: Linear(768→384) → ReLU → Dropout → Linear(384→3)
-
-**Total Trainable Parameters**: ~125.2M
-
----
-
-## How to Run the Project
-
-### Prerequisites
-
-**System Requirements**:
-- Python 3.8+
-- CUDA-capable NVIDIA GPU (recommended: RTX 3060 or better)
-- 8GB+ GPU VRAM
-- 16GB+ System RAM
-
-**Software Requirements**:
-- NVIDIA CUDA Toolkit 11.8+
-- cuDNN 8.6+
-
----
-
-### Step 1: Environment Setup
-
-#### Windows
+### Environment Setup
 
 ```powershell
-# Navigate to project directory
-cd "c:\Users\lucif\Desktop\cosmetic_sentiment_project 1\cosmetic_sentiment_project"
-
-# Create virtual environment
-python -m venv venv
-
-# Activate virtual environment
-.\venv\Scripts\activate
-
-# Install dependencies
+cd "c:\Users\TharushiAmasha\OneDrive - inivosglobal.com\FYP\Clearview\ml-research"
 pip install -r requirements.txt
-
-# Download spaCy model
 python -m spacy download en_core_web_sm
 ```
 
-#### Linux/Mac
-
-```bash
-cd /path/to/cosmetic_sentiment_project
-
-# Run setup script
-chmod +x setup.sh
-./setup.sh
-
-# Activate environment
-source venv/bin/activate
-```
-
----
-
-### Step 2: Verify GPU Availability
+### Verify GPU
 
 ```python
-# Run Python and check CUDA
-python -c "import torch; print(f'CUDA Available: {torch.cuda.is_available()}'); print(f'GPU: {torch.cuda.get_device_name(0) if torch.cuda.is_available() else \"None\"}')"
+python -c "import torch; print(torch.cuda.is_available(), torch.cuda.get_device_name(0))"
 ```
 
-**Expected Output**:
-```
-CUDA Available: True
-GPU: NVIDIA GeForce RTX 3060
-```
-
----
-
-### Step 3: Data Preparation
-
-**Verify data files exist**:
-```powershell
-# Check data directory
-dir data\splits\
-```
-
-**Expected files**:
-- `train_augmented.csv` (augmented training data)
-- `val.csv` (validation set)
-- `test.csv` (test set)
-
-**Data format** (CSV columns):
-- `text_clean`: Review text
-- `stayingpower`, `texture`, `smell`, `price`, `colour`, `shipping`, `packing`: Sentiment labels (positive/negative/neutral or empty)
-
----
-
-### Step 4: Configure Training
-
-**Edit** `configs/config.yaml` if needed:
-
-```yaml
-# For GPU training (default)
-hardware:
-  device: "cuda"
-  mixed_precision: true
-
-# Training settings
-training:
-  batch_size: 16      # Adjust based on GPU memory
-  num_epochs: 30
-  learning_rate: 2.0e-5
-
-# Model settings
-model:
-  use_dependency_gcn: true
-  roberta_model: "roberta-base"
-```
-
-**Quick Test Configuration** (faster training for testing):
-```yaml
-training:
-  batch_size: 8
-  num_epochs: 5
-
-model:
-  use_dependency_gcn: false
-```
-
----
-
-### Step 5: Start Training
-
-#### Basic Training (Default Configuration)
+### Data Preparation
 
 ```powershell
-python train.py --config configs/config.yaml
+python data/data_layer/preprocess_and_split.py   # clean + split
+python data/data_layer/create_train_aug.py        # add synthetic data
 ```
 
-#### Training with Weights & Biases Logging
+### Test Architecture (no checkpoint)
 
 ```powershell
-# First time: login to W&B
-wandb login
-
-# Enable in config.yaml
-# use_wandb: true
-
-# Train
-python train.py --config configs/config.yaml
+python tests/test_model_components.py
 ```
 
-#### Resume from Checkpoint
+### Train
 
 ```powershell
-python train.py --config configs/config.yaml --resume results/cosmetic_sentiment_v1/best_model.pt
+python src/models/train.py --config configs/config.yaml
+
+# Resume
+python src/models/train.py --config configs/config.yaml `
+    --resume outputs/cosmetic_sentiment_v1/best_model.pt
 ```
 
----
-
-### Step 5.1: Pausing and Resuming Training
-
-**Why Pause?**
-Large models like RoBERTa-GCN may take 12-24 hours to reach full convergence. You can safely stop training and resume it later without losing progress.
-
-
-#### How to Pause
-1. Click on the terminal window where `train.py` is running.
-2. Press `Ctrl + C` (Control + C).
-3. The script will safely terminate. Your latest progress is already saved in `results/cosmetic_sentiment_v1/best_model.pt`.
-
-#### How to Resume
-
-Run the training command with the `--resume` flag pointing to your best checkpoint:
-```powershell
-python train.py --config configs/config.yaml --resume results/cosmetic_sentiment_v1/best_model.pt
-```
-
-**What happens during Resume?**
-
-- **Weights**: Loaded from the checkpoint.
-- **Optimizer**: State (momentum, etc.) is restored.
-- **Learning Rate**: Resumes from the correct point in the schedule.
-- **Progress**: The `global_step` continues from where it left off.
-
----
-
-### Step 6: Monitor Training
-
-**Console Output**:
-```
-Using device: cuda
-Creating dataloaders...
-Loaded 9268 samples from data/splits/train_augmented.csv
-Loaded 1324 samples from data/splits/val.csv
-
-Creating model...
-Created model with 125,236,227 trainable parameters
-
-Starting training for 30 epochs
-========================================
-
-Epoch 1/30:  15%|████▏                 | 87/580 [02:31<13:29,  1.64s/it, loss=1.234]
-```
-
-**Weights & Biases Dashboard** (if enabled):
-- Training/validation loss curves
-- Per-aspect metrics
-- Confusion matrices
-- Learning rate schedule
-
----
-
-### Step 7: Evaluate Model
-
-After training completes:
+### Inference and XAI
 
 ```powershell
-python evaluate.py --checkpoint results/cosmetic_sentiment_v1/best_model.pt --data data/splits/test.csv --output-dir results/cosmetic_sentiment_v1/evaluation
+# Interactive mode
+python outputs/cosmetic_sentiment_v1/evaluation/inference.py `
+    --checkpoint outputs/cosmetic_sentiment_v1/best_model.pt
+
+# All XAI methods
+python outputs/cosmetic_sentiment_v1/evaluation/inference.py `
+    --checkpoint outputs/cosmetic_sentiment_v1/best_model.pt `
+    --text "Love the colour but smell is awful" `
+    --aspect colour --explain all --save-path results/xai.png
+
+# MSR Delta (demonstrates mixed sentiment resolution)
+python outputs/cosmetic_sentiment_v1/evaluation/inference.py `
+    --checkpoint outputs/cosmetic_sentiment_v1/best_model.pt `
+    --text "Love the colour but smell is awful" `
+    --aspect colour --explain msr
 ```
 
-**Output Files**:
-- `metrics.json`: All numerical metrics
-- `confusion_matrices.png`: Confusion matrices for each aspect
-- `predictions.csv`: Detailed predictions
-- `error_analysis.csv`: Misclassification analysis
-- `latex_table.tex`: LaTeX table for thesis
+### Monitoring Training
+
+The console shows per-batch loss and per-epoch metrics. Results saved to `outputs/cosmetic_sentiment_v1/`:
+- `best_model.pt` — best checkpoint by val Macro-F1
+- `training_log.json` — per-epoch metrics
+- `evaluation/` — test set metrics, confusion matrices, LaTeX tables
 
 ---
 
-### Step 8: Run Inference
+## 11. References
 
-#### Interactive Mode
-
-```powershell
-python inference.py --checkpoint results/cosmetic_sentiment_v1/best_model.pt
-```
-
-#### Single Prediction
-
-```powershell
-python inference.py --checkpoint results/cosmetic_sentiment_v1/best_model.pt --text "The lipstick color is beautiful but smells bad" --aspect "smell"
-```
-
-**Output**:
-```
-Text: The lipstick color is beautiful but smells bad
-Aspect: smell
-Prediction: negative (confidence: 0.89)
-
-Attention weights:
-  The         : 0.02
-  lipstick    : 0.15
-  color       : 0.05
-  is          : 0.01
-  beautiful   : 0.08
-  but         : 0.12
-  smells      : 0.35  ← highest attention
-  bad         : 0.22
-```
+1. **RoBERTa**: Liu et al., "RoBERTa: A Robustly Optimized BERT Pretraining Approach", 2019
+2. **Focal Loss**: Lin et al., "Focal Loss for Dense Object Detection", ICCV 2017
+3. **Class-Balanced Loss**: Cui et al., "Class-Balanced Loss Based on Effective Number of Samples", CVPR 2019
+4. **Dice Loss for NLP**: Li et al., "Dice Loss for Data-imbalanced NLP Tasks", ACL 2020
+5. **LIME**: Ribeiro et al., "Why Should I Trust You? Explaining the Predictions of Any Classifier", KDD 2016
+6. **Integrated Gradients**: Sundararajan et al., "Axiomatic Attribution for Deep Networks", ICML 2017
+7. **SHAP**: Lundberg & Lee, "A Unified Approach to Interpreting Model Predictions", NeurIPS 2017
+8. **Captum**: Kokhlikyan et al., "Captum: A unified and generic model interpretability library for PyTorch", 2020
 
 ---
 
-### Complete Training Command Summary
-
-```powershell
-# 1. Activate environment
-.\venv\Scripts\activate
-
-# 2. Verify GPU
-python -c "import torch; print(torch.cuda.is_available())"
-
-# 3. Train model
-python train.py --config configs/config.yaml
-
-# 4. Evaluate
-python evaluate.py --checkpoint results/cosmetic_sentiment_v1/best_model.pt --data data/splits/test.csv
-
-# 5. Inference
-python inference.py --checkpoint results/cosmetic_sentiment_v1/best_model.pt
-```
-
----
-
-## Experimental Setup
-
-### Hardware Specifications
-
-**Recommended**:
-- GPU: NVIDIA RTX 3060 / 3070 / 3080 (8GB+ VRAM)
-- CPU: Intel i7 / AMD Ryzen 7
-- RAM: 16GB+
-- Storage: 50GB+ free space
-
-**Minimum**:
-- GPU: NVIDIA GTX 1660 (6GB VRAM)
-- CPU: Intel i5 / AMD Ryzen 5
-- RAM: 8GB
-- Storage: 20GB free space
-
----
-
-### Training Time Estimates
-
-| Configuration | GPU | Time per Epoch | Total (30 epochs) |
-|--------------|-----|----------------|-------------------|
-| Full (with GCN) | RTX 3060 | 6-8 min | 3-4 hours |
-| Full (with GCN) | RTX 3080 | 3-4 min | 1.5-2 hours |
-| No GCN | RTX 3060 | 3-4 min | 1.5-2 hours |
-| No GCN | RTX 3080 | 2-3 min | 1-1.5 hours |
-| CPU only | - | 60-90 min | 30-45 hours |
-
----
-
-### Hyperparameter Settings
-
-**Model**:
-```yaml
-roberta_model: "roberta-base"
-gcn_layers: 2
-dropout: 0.1
-hidden_dim: 768
-```
-
-**Training**:
-```yaml
-batch_size: 16
-learning_rate: 2.0e-5
-num_epochs: 30
-warmup_steps: 500
-weight_decay: 0.01
-max_grad_norm: 1.0
-```
-
-**Loss Functions**:
-```yaml
-focal_gamma:
-  default: 2.0
-  price: 3.0
-  packing: 3.0
-
-class_balanced_beta:
-  default: 0.999
-  price: 0.9999
-  packing: 0.9999
-
-loss_weights:
-  focal: 1.0
-  class_balanced: 0.5
-  dice: 0.3
-```
-
----
-
-### Expected Results
-
-**Overall Performance**:
-- Overall Macro-F1: **0.75+**
-- Overall Accuracy: **0.80+**
-
-**Per-Aspect Macro-F1**:
-- Colour: 0.78-0.85
-- Texture: 0.78-0.85
-- Shipping: 0.75-0.82
-- Staying Power: 0.68-0.75
-- Smell: 0.68-0.75
-- Price: 0.55-0.65 (challenging due to imbalance)
-- Packing: 0.55-0.65 (challenging due to imbalance)
-
-**Minority Class Performance**:
-- Negative class recall: **>0.50** (all aspects)
-- Neutral class recall: **>0.45** (all aspects)
-
----
-
-## Troubleshooting
-
-### Out of Memory (OOM) Errors
-
-**Solution 1**: Reduce batch size
-```yaml
-training:
-  batch_size: 8  # or 4
-```
-
-**Solution 2**: Disable dependency GCN
-```yaml
-model:
-  use_dependency_gcn: false
-```
-
-**Solution 3**: Use gradient accumulation
-```python
-# Modify train.py
-gradient_accumulation_steps = 4
-```
-
----
-
-### Training Too Slow
-
-**Solution 1**: Enable mixed precision
-```yaml
-hardware:
-  mixed_precision: true
-```
-
-**Solution 2**: Reduce workers
-```yaml
-hardware:
-  num_workers: 2
-```
-
-**Solution 3**: Use a smaller model
-```yaml
-model:
-  roberta_model: "distilroberta-base"
-```
-
----
-
-### Poor Minority Class Performance
-
-**Solution 1**: Increase focal gamma
-```yaml
-training:
-  focal_gamma:
-    aspect_name: 4.0
-```
-
-**Solution 2**: Increase augmentation
-```yaml
-data:
-  augmentation:
-    augmentation_ratio:
-      negative: 5.0
-```
-
----
-
-## References
-
-### Key Papers
-
-1. **RoBERTa**: "RoBERTa: A Robustly Optimized BERT Pretraining Approach" (Liu et al., 2019)
-2. **Focal Loss**: "Focal Loss for Dense Object Detection" (Lin et al., ICCV 2017)
-3. **Class-Balanced Loss**: "Class-Balanced Loss Based on Effective Number of Samples" (Cui et al., CVPR 2019)
-4. **Dice Loss**: "Dice Loss for Data-imbalanced NLP Tasks" (Li et al., ACL 2020)
-5. **LIME**: "Why Should I Trust You? Explaining the Predictions of Any Classifier" (Ribeiro et al., KDD 2016)
-6. **Integrated Gradients**: "Axiomatic Attribution for Deep Networks" (Sundararajan et al., ICML 2017)
-
-### Libraries
-
-- PyTorch: https://pytorch.org
-- Transformers: https://huggingface.co/transformers
-- spaCy: https://spacy.io
-- scikit-learn: https://scikit-learn.org
-
----
-
-## Conclusion
-
-This methodology combines state-of-the-art techniques to address the challenges of multi-aspect sentiment analysis in the presence of severe class imbalance:
-
-✅ **RoBERTa + Dependency GCN**: Rich representations with syntactic structure  
-✅ **Hybrid Loss Functions**: Robust learning on imbalanced data  
-✅ **Aspect-Specific Configuration**: Tailored to each aspect's distribution  
-✅ **Multi-Level Explainability**: Interpretable predictions  
-✅ **Production-Ready**: Complete training, evaluation, and inference pipeline
-
-The system achieves strong performance across all aspects while maintaining good minority class recall, making it suitable for real-world deployment in cosmetic review analysis.
+*ClearView FYP — Tharushi Amasha — 2025*

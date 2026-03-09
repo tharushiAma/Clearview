@@ -30,8 +30,6 @@ export default function XAIPage() {
     "This lipstick has amazing staying power and the color is beautiful, but the smell is too strong."
   );
   const [selectedAspect, setSelectedAspect] = useState<Aspect | "all">("all");
-  const [msrEnabled, setMsrEnabled] = useState(false);
-  const [msrStrength, setMsrStrength] = useState([0.3]);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ExplanationBundle | null>(null);
   const [jsonOpen, setJsonOpen] = useState(false);
@@ -43,8 +41,8 @@ export default function XAIPage() {
         text,
         aspect: selectedAspect,
         methods: ["ig", "lime", "shap"],
-        msrEnabled,
-        msrStrength: msrStrength[0],
+        msrEnabled: true,
+        msrStrength: 0.5,
       });
       setResult(response);
     } finally {
@@ -106,32 +104,7 @@ export default function XAIPage() {
               </Select>
             </div>
 
-            <div className="flex items-center justify-between">
-              <Label htmlFor="xai-msr">Enable MSR</Label>
-              <Switch
-                id="xai-msr"
-                checked={msrEnabled}
-                onCheckedChange={setMsrEnabled}
-              />
-            </div>
 
-            {msrEnabled && (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label>MSR Strength (λ)</Label>
-                  <span className="text-sm text-muted-foreground">
-                    {msrStrength[0].toFixed(2)}
-                  </span>
-                </div>
-                <Slider
-                  value={msrStrength}
-                  onValueChange={setMsrStrength}
-                  min={0}
-                  max={1}
-                  step={0.05}
-                />
-              </div>
-            )}
 
             <Button
               onClick={handleExplain}
@@ -175,7 +148,7 @@ export default function XAIPage() {
                         </h4>
                         <TokenHighlightViewer
                           tokens={exp.tokens}
-                          showMsrDelta={msrEnabled}
+                          showMsrDelta={true}
                         />
                       </div>
                     ))}
@@ -192,7 +165,7 @@ export default function XAIPage() {
       </div>
 
       {/* MSR Delta Section */}
-      {result && msrEnabled && (
+      {result && (
         <Card>
           <CardHeader>
             <CardTitle className="text-base">MSR Delta</CardTitle>

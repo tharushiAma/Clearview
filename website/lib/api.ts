@@ -9,15 +9,19 @@ export async function predict(req: { text: string; msrEnabled: boolean; msrStren
   if (!res.ok) throw new Error("Prediction failed");
   const data = await res.json();
 
+  // Map backend lowercase labels to frontend uppercase SentimentLabel
+  const toLabel = (l: string) =>
+    ({ positive: "POS", negative: "NEG", neutral: "NEU", not_mentioned: "NULL" } as Record<string, string>)[l] ?? "NULL";
+
   // Transform backend response to frontend types
   const predictions = (data.aspects || []).map((a: any) => ({
     aspect: a.name,
-    label: a.label,
+    label: toLabel(a.label),
     confidence: a.confidence,
     topTokens: a.top_tokens || [],
     msrChanged: a.changed_by_msr || false,
-    before: a.before ? { label: a.before.label, confidence: a.before.confidence } : undefined,
-    after: a.after ? { label: a.after.label, confidence: a.after.confidence } : undefined
+    before: a.before ? { label: toLabel(a.before.label), confidence: a.before.confidence } : undefined,
+    after: a.after ? { label: toLabel(a.after.label), confidence: a.after.confidence } : undefined
   }));
 
   const result = {
@@ -30,14 +34,14 @@ export async function predict(req: { text: string; msrEnabled: boolean; msrStren
   if (data.aspects?.[0]?.before && data.aspects?.[0]?.after) {
     result.before = data.aspects.map((a: any) => ({
       aspect: a.name,
-      label: a.before.label,
+      label: toLabel(a.before.label),
       confidence: a.before.confidence,
       topTokens: [],
       msrChanged: false
     }));
     result.after = data.aspects.map((a: any) => ({
       aspect: a.name,
-      label: a.after.label,
+      label: toLabel(a.after.label),
       confidence: a.after.confidence,
       topTokens: [],
       msrChanged: a.changed_by_msr
@@ -130,7 +134,40 @@ export async function predictBulk(reviews: string[], msrEnabled = true) {
     const err = await res.json().catch(() => ({ error: "Bulk prediction failed" }));
     throw new Error(err.error || "Bulk prediction failed");
   }
-  return res.json();
+  const data = await res.json();
+
+  // Normalize lowercase labels from backend to uppercase SentimentLabel
+  const labelUp = (l: string) =>
+    ({ positive: "POS", negative: "NEG", neutral: "NEU", not_mentioned: "NULL" } as Record<string, string>)[l] ?? l.toUpperCase().slice(0, 3);
+
+  const normalizeCounts = (counts: Record<string, number>) => {
+    const normalized: Record<string, number> = { POS: 0, NEG: 0, NEU: 0, NULL: 0 };
+    Object.entries(counts).forEach(([k, v]) => {
+      const key = labelUp(k);
+      normalized[key] = (normalized[key] || 0) + v;
+    });
+    return normalized;
+  };
+
+  if (data.aspect_summary) {
+    Object.keys(data.aspect_summary).forEach((asp) => {
+      data.aspect_summary[asp] = normalizeCounts(data.aspect_summary[asp]);
+    });
+  }
+  if (data.overall_counts) {
+    data.overall_counts = normalizeCounts(data.overall_counts);
+  }
+  if (data.rows) {
+    data.rows = data.rows.map((row: any) => ({
+      ...row,
+      aspects: (row.aspects || []).map((a: any) => ({
+        ...a,
+        label: labelUp(a.label ?? "NULL"),
+      })),
+    }));
+  }
+
+  return data;
 }
 
 export async function fetchMetrics() {
@@ -145,7 +182,9 @@ export const getMetrics = fetchMetrics;
 export async function fetchLogs() {
   const res = await fetch(`${API_BASE}/logs`);
   if (!res.ok) return [];
-  return res.json();
+  const data = await res.json();
+  // Backend returns {logs: [...]} or plain array
+  return Array.isArray(data) ? data : (data.logs || []);
 }
 
 export const getLogs = fetchLogs;

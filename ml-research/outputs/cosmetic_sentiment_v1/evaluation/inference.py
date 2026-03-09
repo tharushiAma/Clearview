@@ -218,7 +218,27 @@ class SentimentPredictor:
                 'tokens': tokens,
                 'weights': attention.tolist()
             }
-        
+            
+            # Extract Top 5 tokens (excluding special tokens)
+            import numpy as np
+            valid_tokens_idx = [i for i, t in enumerate(tokens) if t not in ['<s>', '</s>', '<pad>'] and not t.startswith('Ġ')]
+            if valid_tokens_idx:
+                valid_weights = attention[valid_tokens_idx]
+                top_idx_relative = np.argsort(valid_weights)[-5:][::-1] # indices within valid
+                top_idx_absolute = [valid_tokens_idx[i] for i in top_idx_relative]
+                
+                # Try to clean token strings
+                top_tokens = [tokens[i].replace('Ġ', '').strip() for i in top_idx_absolute]
+                # Filter out pure punctuation or empty
+                top_tokens = [t for t in top_tokens if t.isalnum() and len(t) > 1]
+                
+                result['top_tokens'] = top_tokens[:3] # Keep top 3 most relevant words
+            else:
+                result['top_tokens'] = []
+                
+        else:
+            result['top_tokens'] = []
+            
         return result
     
     def predict_all_aspects(self, text):

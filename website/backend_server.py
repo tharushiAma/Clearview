@@ -372,6 +372,9 @@ def predict_bulk(request: BulkPredictRequest):
         mixed_count = 0  # reviews with >= 2 non-NULL sentiments that differ
         total_processed = 0
 
+        # Normalise lowercase adapter labels to uppercase frontend labels
+        _LABEL_NORM = {"positive": "POS", "negative": "NEG", "neutral": "NEU", "not_mentioned": "NULL"}
+
         for row in rows:
             if row.get("error") or not row.get("aspects"):
                 continue
@@ -379,7 +382,8 @@ def predict_bulk(request: BulkPredictRequest):
             labels_for_row = []
             for asp_data in row["aspects"]:
                 asp_name = asp_data.get("name", "")
-                label = asp_data.get("label", "NULL")
+                raw_label = asp_data.get("label", "NULL")
+                label = _LABEL_NORM.get(raw_label, raw_label)
                 conf = asp_data.get("confidence", 0.0)
                 if asp_name in aspect_summary:
                     aspect_summary[asp_name][label] = aspect_summary[asp_name].get(label, 0) + 1

@@ -20,10 +20,6 @@ export default function ClearViewDemo() {
 
   // Predict State
   const [text, setText] = useState("Lipstick color is amazing, I don't like the smell and the price is bit high.");
-  const [msrEnabled, setMsrEnabled] = useState(true);
-  // Conflict Sensitivity: probability threshold above which we call a review "High Conflict".
-  // Lower = more sensitive (flags mild disagreements), Higher = only flags strong conflicts.
-  const [conflictThreshold, setConflictThreshold] = useState(0.5);
   const [isPredicting, setIsPredicting] = useState(false);
   const [prediction, setPrediction] = useState<PredictResponse | null>(null);
   const [predictError, setPredictError] = useState<string | null>(null);
@@ -60,7 +56,7 @@ export default function ClearViewDemo() {
     }, 30000); // 30 second timeout
 
     try {
-      const data = await fetchPrediction(text, conflictThreshold, msrEnabled);
+      const data = await fetchPrediction(text, 0.5, true);
       clearTimeout(timeout);
       setPrediction(data);
     } catch (e: unknown) {
@@ -132,7 +128,7 @@ export default function ClearViewDemo() {
     });
 
     try {
-      const data = await fetchExplanation(text, explainAspect, conflictThreshold, controller.signal);
+      const data = await fetchExplanation(text, explainAspect, 0.5, controller.signal);
       clearInterval(stepInterval);
       clearTimeout(timeout);
 
@@ -209,35 +205,7 @@ export default function ClearViewDemo() {
                 />
               </div>
 
-              <div className="flex items-center justify-between gap-8 p-4 border rounded-lg bg-slate-50">
-                <div className="flex items-center gap-4">
-                  <div className="space-y-0.5">
-                    <Label>Enable MSR</Label>
-                    <p className="text-xs text-muted-foreground">Detect mixed-sentiment conflicts</p>
-                  </div>
-                  <Switch checked={msrEnabled} onCheckedChange={setMsrEnabled} />
-                </div>
-
-                <div className="flex-1 space-y-2">
-                  <div className="flex justify-between">
-                    <Label>Conflict Sensitivity: {Math.round(conflictThreshold * 100)}%</Label>
-                    <span className="text-xs text-muted-foreground">
-                      {conflictThreshold <= 0.3 ? '🔴 Very sensitive' :
-                        conflictThreshold <= 0.5 ? '🟡 Balanced' :
-                          conflictThreshold <= 0.7 ? '🟠 Conservative' : '⚪ Strict'}
-                    </span>
-                  </div>
-                  <Slider
-                    value={[conflictThreshold]}
-                    min={0.1} max={0.9} step={0.1}
-                    onValueChange={(v) => setConflictThreshold(v[0])}
-                    disabled={!msrEnabled}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Aspect conflict flagged as &quot;High Conflict&quot; above this threshold
-                  </p>
-                </div>
-
+              <div className="flex justify-end pt-2">
                 <Button onClick={handlePredict} disabled={isPredicting} size="lg">
                   {isPredicting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : "Run Prediction"}
                 </Button>
@@ -274,13 +242,13 @@ export default function ClearViewDemo() {
                   </div>
                   <p className="text-sm text-muted-foreground">Probability of Aspect Conflict</p>
                   <Progress value={(prediction.conflictProbability || 0) * 100} className="h-2" />
-                  {(prediction.conflictProbability || 0) > conflictThreshold ? (
+                  {(prediction.conflictProbability || 0) > 0.5 ? (
                     <Badge variant="destructive" className="mt-2">High Conflict</Badge>
                   ) : (
                     <Badge variant="secondary" className="mt-2 bg-green-100 text-green-800">Coherent</Badge>
                   )}
                   <p className="text-xs text-muted-foreground pt-1">
-                    Threshold: {Math.round(conflictThreshold * 100)}%
+                    Threshold: 50%
                   </p>
                 </CardContent>
               </Card>
@@ -427,13 +395,13 @@ export default function ClearViewDemo() {
           {explanation && (
             <div className="space-y-8">
               {/* 1. Conflict Explanation */}
-              {explanation.ig_conflict && (
+              {explanation.rawJson?.ig_conflict && (
                 <Card>
                   <CardHeader><CardTitle>Conflict Drivers</CardTitle></CardHeader>
                   <CardContent>
                     <p className="text-sm text-gray-500 mb-4">Tokens increasing conflict probability:</p>
                     <div className="flex flex-wrap gap-2">
-                      {(explanation.ig_conflict.top_tokens || []).map((t: [string, number], idx: number) => (
+                      {(explanation.rawJson.ig_conflict.top_tokens || []).map((t: [string, number], idx: number) => (
                         <span
                           key={idx}
                           className="px-2 py-1 rounded text-sm font-mono"
@@ -448,7 +416,7 @@ export default function ClearViewDemo() {
               )}
 
               {/* 2. Per Aspect */}
-              {Object.entries(explanation.aspects).map(([aspName, data]) => (
+              {Object.entries(explanation.rawJson?.aspects || {}).map(([aspName, data]: [string, any]) => (
                 <Card key={aspName}>
                   <CardHeader><CardTitle className="capitalize">{aspName} Attribution</CardTitle></CardHeader>
                   <CardContent className="grid md:grid-cols-2 gap-6">
