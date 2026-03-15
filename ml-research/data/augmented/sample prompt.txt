@@ -1,0 +1,151 @@
+You are a data generation assistant for an academic NLP research project in Cosmetics domain. Your goal is to generate 50 new reviews with their aspect based sentiments that mimic the specific linguistic style and sentiment logic of the provided examples.
+
+Task:
+Generate 50 new realistic cosmetic product reviews with their aspects and sentiments with the following constraints.
+
+Target Aspect: Focus on generating "Packing: Negative" samples mixed with other aspects.
+
+Aspect-level sentiment requirements:
+- price: POSITIVE/NEGATIVE/NEUTRAL/NULL
+- texture: POSITIVE/NEGATIVE/NEUTRAL/NULL
+- smell: POSITIVE/NEGATIVE/NEUTRAL/NULL
+- colour: POSITIVE/NEGATIVE/NEUTRAL/NULL
+- stayingpower: POSITIVE/NEGATIVE/NEUTRAL/NULL
+- shipping: POSITIVE/NEGATIVE/NEUTRAL/NULL
+- packing: NEGATIVE
+
+Rules:
+- The review must clearly mention PACKING with a negative opinion.
+- Do NOT introduce new aspects, (stayingpower, texture, smell, price, colour, shipping, packing) can be used
+- Do NOT exaggerate (no extreme language, no emojis).
+- Keep length to 1–3 sentences.
+- Use natural customer language.
+
+Below are REAL, aspect-labelled examples from the dataset.
+Use them only as style and constraint guidance.
+
+====================
+FEW-SHOT EXAMPLES
+====================
+
+[
+  {
+    "review_text": "The color comes out beautifully. The lipstick is smooth but a bit heavy on the lips.",
+    "stayingpower": null,
+    "texture": null,
+    "smell": null,
+    "price": null,
+    "colour": null,
+    "shipping": null,
+    "packing": null
+  },
+  {
+    "review_text": "I'm bored with one lipstick and it's not matte :)) I apply it on my lips and then use a dry makeup remover cotton to wipe it off and it's gone??",
+    "stayingpower": null,
+    "texture": null,
+    "smell": null,
+    "price": null,
+    "colour": null,
+    "shipping": null,
+    "packing": null
+  },
+  {
+    "review_text": "but 2 of them are 99k and the price is so good.",
+    "stayingpower": null,
+    "texture": null,
+    "smell": null,
+    "price": null,
+    "colour": null,
+    "shipping": null,
+    "packing": null
+  },
+  {
+    "review_text": "The store's packaging was so bad that it distorted the entire lipstick box",
+    "stayingpower": "negative",
+    "texture": "neutral",
+    "smell": null,
+    "price": "positive",
+    "colour": "positive",
+    "shipping": null,
+    "packing": "negative"
+  },
+  {
+    "review_text": "Beautiful product, smooth application, standard color lipstick. Each item is packaged too poorly",
+    "stayingpower": null,
+    "texture": "positive",
+    "smell": null,
+    "price": null,
+    "colour": "positive",
+    "shipping": null,
+    "packing": "negative"
+  },
+  {
+    "review_text": "Not packaged carefully, bought genuine product but the box was distorted and looked like a fake product. I wonder if it's boring. The lipstick comes off easily and clearly, the previous bars last a long time even if you eat or drink until the end of the day, there will still be a layer of tint but this one can be applied for 1 hour and it's almost gone even if you don't eat and only drink water.",
+    "stayingpower": "negative",
+    "texture": null,
+    "smell": null,
+    "price": null,
+    "colour": null,
+    "shipping": null,
+    "packing": "negative"
+  },
+  {
+    "review_text": "The product is surprisingly good, even though the price is cheap, the quality is not bad, the shop delivered quickly, the only thing I don't like is that the packaging is too loose, if you buy lipstick and not eyeshadow palette it might break.",
+    "stayingpower": null,
+    "texture": null,
+    "smell": null,
+    "price": "positive",
+    "colour": null,
+    "shipping": "positive",
+    "packing": "negative"
+  },
+  {
+    "review_text": "Really a bit disappointed. Waiting for the lipstick to arrive, I received the box as if it had been opened. How dare I give it as a gift ????",
+    "stayingpower": null,
+    "texture": null,
+    "smell": null,
+    "price": null,
+    "colour": null,
+    "shipping": null,
+    "packing": "negative"
+  },
+  {
+    "review_text": "The product is the same as in the picture, the packaging is not very good. Because I bought it as a gift for a friend, I haven't opened it yet so I don't know if it's ok or not",
+    "stayingpower": null,
+    "texture": null,
+    "smell": null,
+    "price": null,
+    "colour": null,
+    "shipping": null,
+    "packing": "negative"
+  },
+  {
+    "review_text": "Fast delivery, this time the packaging wasn't very good so the item was all damaged hicc but it's beautiful so ignore it",
+    "stayingpower": null,
+    "texture": null,
+    "smell": null,
+    "price": null,
+    "colour": null,
+    "shipping": "positive",
+    "packing": "negative"
+  },
+  {
+    "review_text": "The packaging was a bit sloppy. When it arrived, the box was damaged on the outside. But it's okay, the color is very pretty.",
+    "stayingpower": null,
+    "texture": null,
+    "smell": null,
+    "price": null,
+    "colour": "positive",
+    "shipping": null,
+    "packing": "negative"
+  }
+]
+
+====================
+NOW GENERATE
+====================
+
+Using the same style and constraints, generate 50 reviews with:
+- packing sentiment: NEGATIVE
+- realistic cosmetic review language
+- each review with relevant aspects and sentiments in the same format as in given FEW-SHOT EXAMPLES
