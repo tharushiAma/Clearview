@@ -5,9 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { Slider } from "@/components/ui/slider";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
   SelectContent,
@@ -23,13 +20,14 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { explain } from "@/lib/api";
 import { ASPECTS, type Aspect, type ExplanationBundle, type ExplanationMethod } from "@/lib/types";
-import { Sparkles, ChevronDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Sparkles, ChevronDown } from "lucide-react";
 
 export default function XAIPage() {
   const [text, setText] = useState(
     "This lipstick has amazing staying power and the color is beautiful, but the smell is too strong."
   );
   const [selectedAspect, setSelectedAspect] = useState<Aspect | "all">("all");
+  const [selectedMethod, setSelectedMethod] = useState<ExplanationMethod>("ig");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ExplanationBundle | null>(null);
   const [jsonOpen, setJsonOpen] = useState(false);
@@ -40,7 +38,7 @@ export default function XAIPage() {
       const response = await explain({
         text,
         aspect: selectedAspect,
-        methods: ["ig", "lime", "shap"],
+        methods: [selectedMethod],
         msrEnabled: true,
         msrStrength: 0.5,
       });
@@ -50,10 +48,6 @@ export default function XAIPage() {
     }
   };
 
-  const getMethodExplanations = (method: ExplanationMethod) => {
-    if (!result || !result.explanations) return [];
-    return result.explanations.filter((e) => e && e.method === method);
-  };
 
   return (
     <div className="space-y-6">
@@ -62,12 +56,12 @@ export default function XAIPage() {
           Explainable AI
         </h1>
         <p className="text-muted-foreground">
-          Understand model predictions with attribution methods
+          Understand model predictions with state-of-the-art attribution methods
         </p>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
-        {/* Input Section */}
+        {/* Configuration Panel */}
         <Card className="lg:col-span-1">
           <CardHeader>
             <CardTitle className="text-base">Configuration</CardTitle>
@@ -104,7 +98,22 @@ export default function XAIPage() {
               </Select>
             </div>
 
-
+            <div className="space-y-2">
+              <Label>Explanation Method</Label>
+              <Select
+                value={selectedMethod}
+                onValueChange={(v) => setSelectedMethod(v as ExplanationMethod)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ig">Integrated Gradients (Captum)</SelectItem>
+                  <SelectItem value="lime">LIME Text</SelectItem>
+                  <SelectItem value="shap">SHAP Partitions</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
             <Button
               onClick={handleExplain}
@@ -123,38 +132,44 @@ export default function XAIPage() {
                 </>
               )}
             </Button>
+
+            {loading && (
+              <p className="text-xs text-muted-foreground text-center">
+                This may take a minute depending on the method…
+              </p>
+            )}
           </CardContent>
         </Card>
 
-        {/* Results Section */}
+        {/* Attribution Results */}
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle className="text-base">Attribution Results</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Token importance scores. Green = supports predicted sentiment · Red = opposes it.
+            </p>
           </CardHeader>
           <CardContent>
-            {result ? (
-              <Tabs defaultValue="ig">
-                <TabsList className="grid w-full grid-cols-3">
-                  <TabsTrigger value="ig">Integrated Gradients</TabsTrigger>
-                  <TabsTrigger value="lime">LIME</TabsTrigger>
-                  <TabsTrigger value="shap">SHAP</TabsTrigger>
-                </TabsList>
-                {(["ig", "lime", "shap"] as ExplanationMethod[]).map((method) => (
-                  <TabsContent key={method} value={method} className="space-y-4 mt-4">
-                    {(getMethodExplanations(method) || []).map((exp) => (
-                      <div key={`${exp.aspect}-${exp.method}`} className="space-y-2">
-                        <h4 className="text-sm font-medium capitalize">
-                          {exp.aspect}
-                        </h4>
-                        <TokenHighlightViewer
-                          tokens={exp.tokens}
-                          showMsrDelta={true}
-                        />
-                      </div>
-                    ))}
-                  </TabsContent>
+            {result && result.explanations && result.explanations.length > 0 ? (
+              <div className="space-y-6 mt-4">
+                {result.explanations.map((exp) => (
+                  <div key={`${exp.aspect}-${exp.method}`} className="space-y-4 border rounded-lg p-5 bg-card shadow-sm">
+                    <div className="flex items-center gap-3 mb-2">
+                      <h4 className="text-sm font-semibold capitalize bg-primary/10 text-primary px-2.5 py-1 rounded-md">
+                        Aspect: {exp.aspect}
+                      </h4>
+                      <span className="text-xs font-medium text-muted-foreground bg-muted px-2.5 py-1 rounded-md uppercase tracking-wider">
+                        Method: {exp.method === 'ig' ? 'Integrated Gradients' : exp.method}
+                      </span>
+                    </div>
+                    <TokenHighlightViewer tokens={exp.tokens} />
+                  </div>
                 ))}
-              </Tabs>
+              </div>
+            ) : result ? (
+              <div className="h-32 flex items-center justify-center text-muted-foreground text-sm">
+                No attribution data returned.
+              </div>
             ) : (
               <div className="h-48 flex items-center justify-center text-muted-foreground text-sm">
                 Generate explanations to view attributions
@@ -164,76 +179,14 @@ export default function XAIPage() {
         </Card>
       </div>
 
-      {/* MSR Delta Section */}
-      {result && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">MSR Delta</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Tokens that gained or lost importance when MSR is enabled
-            </p>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 md:grid-cols-2">
-              <div>
-                <h4 className="text-sm font-medium text-green-600 dark:text-green-400 mb-2 flex items-center gap-1">
-                  <ArrowUp className="h-4 w-4" />
-                  Gained Importance
-                </h4>
-                <div className="flex flex-wrap gap-2">
-                  {(result.explanations || [])
-                    .flatMap((e) => e.tokens || [])
-                    .filter((t) => t && t.msrDelta && t.msrDelta > 0.1)
-                    .slice(0, 10)
-                    .map((t, i) => (
-                      <span
-                        key={i}
-                        className="px-2 py-1 rounded text-sm bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
-                      >
-                        {t.token}{" "}
-                        <span className="text-xs opacity-75">
-                          +{((t.msrDelta || 0) * 100).toFixed(0)}%
-                        </span>
-                      </span>
-                    ))}
-                </div>
-              </div>
-              <div>
-                <h4 className="text-sm font-medium text-red-600 dark:text-red-400 mb-2 flex items-center gap-1">
-                  <ArrowDown className="h-4 w-4" />
-                  Lost Importance
-                </h4>
-                <div className="flex flex-wrap gap-2">
-                  {(result.explanations || [])
-                    .flatMap((e) => e.tokens || [])
-                    .filter((t) => t && t.msrDelta && t.msrDelta < -0.1)
-                    .slice(0, 10)
-                    .map((t, i) => (
-                      <span
-                        key={i}
-                        className="px-2 py-1 rounded text-sm bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
-                      >
-                        {t.token}{" "}
-                        <span className="text-xs opacity-75">
-                          {((t.msrDelta || 0) * 100).toFixed(0)}%
-                        </span>
-                      </span>
-                    ))}
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Raw JSON */}
+      {/* Raw JSON (collapsible) */}
       {result && (
         <Collapsible open={jsonOpen} onOpenChange={setJsonOpen}>
           <Card>
             <CollapsibleTrigger asChild>
               <CardHeader className="cursor-pointer hover:bg-accent/50 transition-colors">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-base">Raw JSON Bundle</CardTitle>
+                  <CardTitle className="text-base">Raw JSON Response</CardTitle>
                   <ChevronDown
                     className={`h-4 w-4 transition-transform ${jsonOpen ? "rotate-180" : ""}`}
                   />
@@ -256,10 +209,8 @@ export default function XAIPage() {
 
 function TokenHighlightViewer({
   tokens,
-  showMsrDelta,
 }: {
-  tokens: { token: string; attribution: number; msrDelta?: number }[];
-  showMsrDelta: boolean;
+  tokens: { token: string; attribution: number }[];
 }) {
   const maxAttr = Math.max(...(tokens || []).map((t) => Math.abs(t.attribution || 0)), 0.001);
 
@@ -282,12 +233,9 @@ function TokenHighlightViewer({
             }}
           >
             {t.token}
-            {/* Tooltip */}
+            {/* Tooltip on hover */}
             <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 text-xs rounded bg-popover text-popover-foreground shadow-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
-              attr: {t.attribution.toFixed(3)}
-              {showMsrDelta && t.msrDelta !== undefined && (
-                <span className="block">delta: {t.msrDelta.toFixed(3)}</span>
-              )}
+              attribution: {t.attribution.toFixed(3)}
             </span>
           </span>
         );

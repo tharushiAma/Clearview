@@ -20,7 +20,7 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { predict } from "@/lib/api";
 import type { PredictionResult, AspectPrediction, SentimentLabel } from "@/lib/types";
-import { Play, AlertTriangle, ArrowRight } from "lucide-react";
+import { Play, AlertTriangle } from "lucide-react";
 
 const SENTIMENT_COLORS: Record<SentimentLabel, string> = {
   NEG: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
@@ -151,7 +151,6 @@ export default function DemoPage() {
           <CardContent>
             <PredictionTable
               predictions={result.predictions}
-              showMsrBadge={true}
             />
           </CardContent>
         </Card>
@@ -162,10 +161,8 @@ export default function DemoPage() {
 
 function PredictionTable({
   predictions,
-  showMsrBadge = false,
 }: {
   predictions: AspectPrediction[];
-  showMsrBadge?: boolean;
 }) {
   return (
     <div className="overflow-x-auto">
@@ -175,8 +172,6 @@ function PredictionTable({
             <TableHead>Aspect</TableHead>
             <TableHead>Predicted Label</TableHead>
             <TableHead>Confidence</TableHead>
-            <TableHead>Top Tokens</TableHead>
-            {showMsrBadge && <TableHead>MSR</TableHead>}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -194,18 +189,6 @@ function PredictionTable({
                 </Badge>
               </TableCell>
               <TableCell>{((pred.confidence || 0) * 100).toFixed(1)}%</TableCell>
-              <TableCell className="text-muted-foreground text-sm">
-                {(pred.topTokens || []).join(", ")}
-              </TableCell>
-              {showMsrBadge && (
-                <TableCell>
-                  {pred.msrChanged && (
-                    <Badge variant="outline" className="text-xs">
-                      Changed
-                    </Badge>
-                  )}
-                </TableCell>
-              )}
             </TableRow>
           ))}
         </TableBody>

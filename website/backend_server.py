@@ -463,11 +463,22 @@ def explain(request: ExplainRequest):
                 if asp not in ex.aspect_names:
                     continue
                 print(f"  [SEARCH] [{idx}/{total_aspects}] Analyzing '{asp}' aspect...")
-                bundle["aspects"][asp] = {
-                    "ig_aspect": ex.explain_ig_aspect(request.text, asp,
-                                                       enable_msr=True, top_k=10),
-                    "msr_delta": ex.explain_msr_delta(request.text, asp, top_k=10),
-                }
+                
+                asp_data = {}
+                
+                if "ig" in request.methods:
+                    print(f"  [SEARCH]     Running Integrated Gradients...")
+                    asp_data["ig_aspect"] = ex.explain_ig_aspect(request.text, asp, enable_msr=True, top_k=10)
+                
+                if "lime" in request.methods:
+                    print(f"  [SEARCH]     Running LIME...")
+                    asp_data["lime_aspect"] = ex.explain_lime_aspect(request.text, asp, top_k=10)
+                    
+                if "shap" in request.methods:
+                    print(f"  [SEARCH]     Running SHAP...")
+                    asp_data["shap_aspect"] = ex.explain_shap_aspect(request.text, asp, top_k=10)
+                
+                bundle["aspects"][asp] = asp_data
                 bundle["progress"].append(f"Completed {asp}")
                 print(f"  [OK] '{asp}' complete")
 

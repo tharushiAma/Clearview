@@ -60,7 +60,8 @@ export async function fetchPrediction(
 }
 
 export async function explain(req: { text: string; aspect: string; methods: string[]; msrEnabled: boolean; msrStrength: number; signal?: AbortSignal }) {
-  const res = await fetch(`${API_BASE}/explain`, {
+  // Call Python backend directly to avoid Next.js dev server timeout limits
+  const res = await fetch(`http://localhost:8000/explain`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -72,7 +73,14 @@ export async function explain(req: { text: string; aspect: string; methods: stri
     }),
     signal: req.signal,
   });
-  if (!res.ok) throw new Error("Explanation failed");
+  if (!res.ok) {
+    let detail = `Explanation failed (HTTP ${res.status})`;
+    try {
+      const errJson = await res.json();
+      detail = errJson.error || errJson.detail || detail;
+    } catch {}
+    throw new Error(detail);
+  }
   const data = await res.json();
 
   // Transform backend response into ExplanationBundle
@@ -90,17 +98,28 @@ export async function explain(req: { text: string; aspect: string; methods: stri
         tokens: (aspData.ig_aspect.top_tokens || []).map((t: any) => ({
           token: t[0],
           attribution: t[1],
-          msrDelta: (aspData.msr_delta?.top_tokens || []).find((m: any) => m[0] === t[0])?.[1] || 0
         }))
       });
     }
 
-    // Handle LIME/SHAP if they were added (placeholder for future expansion)
+    // Handle LIME
     if (aspData.lime_aspect) {
       explanations.push({
         aspect: aspName,
         method: "lime",
         tokens: (aspData.lime_aspect.top_tokens || []).map((t: any) => ({
+          token: t[0],
+          attribution: t[1]
+        }))
+      });
+    }
+
+    // Handle SHAP
+    if (aspData.shap_aspect) {
+      explanations.push({
+        aspect: aspName,
+        method: "shap",
+        tokens: (aspData.shap_aspect.top_tokens || []).map((t: any) => ({
           token: t[0],
           attribution: t[1]
         }))

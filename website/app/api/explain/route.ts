@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { ExplainResponse } from '@/types/api';
 
-export const maxDuration = 300; // 5 minutes for XAI
+export const maxDuration = 900; // 15 minutes for XAI
 
 /**
  * XAI Explanation API Route
@@ -13,8 +13,8 @@ export const maxDuration = 300; // 5 minutes for XAI
  * @param {ExplainRequest} body - Request containing review text, aspect, and XAI methods
  * @returns {ExplainResponse} Token attributions and MSR delta analysis
  * 
- * @note This endpoint has extended timeout (5 minutes) because XAI computations
- *       can take 2-3 minutes when analyzing all aspects.
+ * @note This endpoint has extended timeout (15 minutes) because XAI computations
+ *       can take 10+ minutes when analyzing all aspects.
  */
 
 interface ExplainRequest {
@@ -34,7 +34,7 @@ const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8000';
  * 
  * Flow:
  * 1. Validate incoming request
- * 2. Set up extended timeout (5 minutes) for XAI computation
+ * 2. Set up extended timeout (15 minutes) for XAI computation
  * 3. Forward to Python backend (/explain endpoint)
  * 4. Handle timeout/connection errors gracefully
  */
@@ -50,9 +50,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Call FastAPI backend with extended timeout
-    // XAI can take 2-3 minutes, so we need custom fetch options
+    // XAI can take 10+ minutes, so we need custom fetch options
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 minutes
+    const timeoutId = setTimeout(() => controller.abort(), 900000); // 15 minutes
 
     try {
       const response = await fetch(`${BACKEND_URL}/explain`, {

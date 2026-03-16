@@ -211,21 +211,6 @@ class TrainedModelAdapter:
 
         # Real mixed-sentiment conflict score (only over mentioned aspects)
         conflict_prob = _compute_conflict_score(aspects_result)
-        
-        # Highlight MSR intervention for the UI: 
-        # If the overall review has high conflict (>0.5), MSR actively worked to disentangle the aspects.
-        # We flag the most disputed/lowest confidence aspect as `msrChanged` to show the UI badge.
-        if conflict_prob > 0.5:
-            mentioned_asps = [a for a in aspects_result if a["mentioned"]]
-            if mentioned_asps:
-                # Find the aspect the model had to work hardest on (lowest confidence)
-                hardest_asp = min(mentioned_asps, key=lambda x: x["confidence"])
-                hardest_asp["changed_by_msr"] = True
-                
-                # Simulate the "Before" state for the UI to show an override
-                old_label = "neutral" if hardest_asp["label"] != "neutral" else "negative"
-                hardest_asp["before"]["label"] = old_label
-                hardest_asp["before"]["confidence"] = hardest_asp["confidence"] * 0.8
 
 
         elapsed_ms = (time.time() - t0) * 1000

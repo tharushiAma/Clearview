@@ -50,24 +50,52 @@ class TrainedModelXAI:
                           enable_msr: bool = True, top_k: int = 10) -> dict:
         """
         Return top-k tokens that most influenced the prediction for `aspect`.
-        Uses attention weights as a proxy for attribution.
+        Uses true Integrated Gradients from Captum.
 
         Returns: {"top_tokens": [[token, score], ...], "method": "attention",
                   "task": "aspect", "predicted": str, "confidence": float}
         """
-        result = self.predictor.predict(text, aspect, return_attention=True)
-        top_tokens = self._top_attention_tokens(result, top_k)
+        # Call the actual Integrated Gradients method from inference.py
+        ig_res = self.predictor.explain_with_integrated_gradients(
+            text=text, 
+            aspect=aspect, 
+            n_steps=50, 
+            top_k=top_k, 
+            save_path=None
+        )
+        
+        # Format the tokens and attributions back into [[token, score], ...]
+        top_tokens = []
+        for token, attr in zip(ig_res['tokens'], ig_res['attributions']):
+            # Filter out padding tokens
+            if token not in ("<s>", "</s>", "<pad>", "<mask>") and len(token.strip("Ġ▁ ")) > 0:
+                clean_tok = self._clean_token(token)
+                top_tokens.append([clean_tok, round(float(attr), 6)])
+                
+        # Deduplicate while preserving order and top_k magnitude
+        top_tokens.sort(key=lambda x: abs(x[1]), reverse=True)
+        seen = set()
+        deduped_tokens = []
+        for t, v in top_tokens:
+            if t.lower() not in seen:
+                seen.add(t.lower())
+                deduped_tokens.append([t, v])
+            if len(deduped_tokens) >= top_k:
+                break
+
+        # Also get base prediction probabilities to fulfill the API response shape
+        pred = self.predictor.predict(text, aspect)
 
         return {
-            "top_tokens":  top_tokens,
-            "method":      "attention",
+            "top_tokens":  deduped_tokens,
+            "method":      "attention",  # Keep literal 'attention' so frontend tab routing works
             "task":        "aspect:{}".format(aspect),
-            "predicted":   result["sentiment"],
-            "confidence":  round(result["confidence"], 4),
+            "predicted":   ig_res['target_label'],
+            "confidence":  round(ig_res['confidence'], 4),
             "probs": {
-                "negative": round(result["probabilities"]["negative"], 4),
-                "neutral":  round(result["probabilities"]["neutral"],  4),
-                "positive": round(result["probabilities"]["positive"], 4),
+                "negative": round(pred["probabilities"]["negative"], 4),
+                "neutral":  round(pred["probabilities"]["neutral"],  4),
+                "positive": round(pred["probabilities"]["positive"], 4),
             }
         }
 
@@ -168,6 +196,143 @@ class TrainedModelXAI:
             "prob_after":  [round(p, 4) for p in probs_after],
             "method":      "msr_delta",
             "task":        "aspect:{}".format(aspect),
+        }
+
+    def explain_lime_aspect(self, text: str, aspect: str, num_samples: int = 100, top_k: int = 10) -> dict:
+        """
+        Explain sentiment prediction using LIME (Local Interpretable Model-agnostic Explanations).
+        Generates perturbed variations of text, predicts on them, and fits a linear model
+        to see which words drove the prediction.
+        """
+        from lime.lime_text import LimeTextExplainer
+        import numpy as np
+
+        # Base prediction
+        result = self.predictor.predict(text, aspect)
+        pred_sentiment = result["sentiment"]
+        conf = result["confidence"]
+        
+        # Determine the target class index to explain (0=neg, 1=neu, 2=pos)
+        labels_map = {"negative": 0, "neutral": 1, "positive": 2}
+        target_idx = labels_map.get(pred_sentiment, 2)
+
+        def predictor_fn(texts):
+            """LIME expects a fn that takes list of strings, returns numpy array of shape (len(texts), classes)"""
+            probs_list = []
+            for t in texts:
+                res = self.predictor.predict(t, aspect)
+                probs = [
+                    res["probabilities"]["negative"],
+                    res["probabilities"]["neutral"],
+                    res["probabilities"]["positive"]
+                ]
+                probs_list.append(probs)
+            return np.array(probs_list)
+
+        explainer = LimeTextExplainer(class_names=["negative", "neutral", "positive"])
+        exp = explainer.explain_instance(
+            text, 
+            predictor_fn, 
+            labels=(target_idx,), 
+            num_features=top_k, 
+            num_samples=num_samples
+        )
+
+        # Extract features for the predicted class
+        lime_features = exp.as_list(label=target_idx)
+        
+        # Round scores and format
+        top_tokens = []
+        for word, score in lime_features:
+            top_tokens.append([word, round(float(score), 6)])
+
+        return {
+            "top_tokens":  top_tokens,
+            "method":      "lime",
+            "task":        "aspect:{}".format(aspect),
+            "predicted":   pred_sentiment,
+            "confidence":  round(conf, 4),
+            "probs": {
+                "negative": round(result["probabilities"]["negative"], 4),
+                "neutral":  round(result["probabilities"]["neutral"],  4),
+                "positive": round(result["probabilities"]["positive"], 4),
+            }
+        }
+
+    def explain_shap_aspect(self, text: str, aspect: str, max_evals: int = 100, top_k: int = 10) -> dict:
+        """
+        Explain sentiment prediction using SHAP (SHapley Additive exPlanations).
+        Uses PartitionExplainer to determine feature influence.
+        """
+        import shap
+        import numpy as np
+        
+        # Base prediction
+        result = self.predictor.predict(text, aspect)
+        pred_sentiment = result["sentiment"]
+        conf = result["confidence"]
+        
+        labels_map = {"negative": 0, "neutral": 1, "positive": 2}
+        target_idx = labels_map.get(pred_sentiment, 2)
+
+        def predictor_fn(texts):
+            """SHAP expects a fn that takes array of strings, returns array of shape (len(texts), classes)"""
+            probs_list = []
+            for t in texts:
+                res = self.predictor.predict(str(t), aspect)
+                probs = [
+                    res["probabilities"]["negative"],
+                    res["probabilities"]["neutral"],
+                    res["probabilities"]["positive"]
+                ]
+                probs_list.append(probs)
+            return np.array(probs_list)
+
+        # Build explainer using simple whitespace tokenization for speed
+        masker = shap.maskers.Text(r"\W")
+        explainer = shap.Explainer(predictor_fn, masker, output_names=["negative", "neutral", "positive"])
+        
+        try:
+            # SHAP returns an Explanation object
+            shap_values = explainer([text], max_evals=max_evals)
+            
+            # Extract tokens and their attribution values for the target class
+            tokens = shap_values.data[0]
+            values = shap_values.values[0, :, target_idx]
+            
+            # Pair tokens with values and filter out pure whitespace
+            pairs = []
+            for t, v in zip(tokens, values):
+                if t.strip():
+                    pairs.append([t.strip(), round(float(v), 6)])
+            
+            # Sort by absolute magnitude of importance
+            pairs.sort(key=lambda x: abs(x[1]), reverse=True)
+            
+            # Deduplicate preserving order
+            seen = set()
+            top_tokens = []
+            for t, v in pairs:
+                if t.lower() not in seen:
+                    seen.add(t.lower())
+                    top_tokens.append([t, v])
+                if len(top_tokens) >= top_k:
+                    break
+        except Exception as e:
+            print(f"[SHAP] Error generating SHAP explanation: {e}")
+            top_tokens = []
+
+        return {
+            "top_tokens":  top_tokens,
+            "method":      "shap",
+            "task":        "aspect:{}".format(aspect),
+            "predicted":   pred_sentiment,
+            "confidence":  round(conf, 4),
+            "probs": {
+                "negative": round(result["probabilities"]["negative"], 4),
+                "neutral":  round(result["probabilities"]["neutral"],  4),
+                "positive": round(result["probabilities"]["positive"], 4),
+            }
         }
 
     # ------------------------------------------------------------------

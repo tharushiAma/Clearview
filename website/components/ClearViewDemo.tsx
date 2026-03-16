@@ -256,24 +256,26 @@ export default function ClearViewDemo() {
               {/* Aspects Grid */}
               <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
                 {(prediction.predictions || []).map((asp) => (
-                  <Card key={asp.aspect} className={`relative border-l-4 ${asp.label === 'not_mentioned' ? 'border-l-slate-200 bg-slate-50/50 opacity-60' :
-                    asp.msrChanged ? 'border-l-yellow-400 bg-yellow-50/30' :
-                      asp.label === 'positive' ? 'border-l-green-500' :
-                        asp.label === 'negative' ? 'border-l-red-500' :
-                          'border-l-slate-300'
-                    }`}>
+                  <Card key={asp.aspect} className={`relative border-l-4 ${
+                    asp.label === 'not_mentioned' ? 'border-l-slate-200 bg-slate-50/50 opacity-60' :
+                    asp.label === 'positive' ? 'border-l-green-500' :
+                    asp.label === 'negative' ? 'border-l-red-500' :
+                    'border-l-slate-300'
+                  }`}>
                     <CardHeader className="pb-2">
                       <div className="flex justify-between items-center">
-                        <CardTitle className={`capitalize text-lg ${asp.label === 'not_mentioned' ? 'text-slate-400' : ''
-                          }`}>{asp.aspect}</CardTitle>
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${asp.label === 'positive' ? 'bg-green-100 text-green-800' :
+                        <CardTitle className={`capitalize text-lg ${
+                          asp.label === 'not_mentioned' ? 'text-slate-400' : ''
+                        }`}>{asp.aspect}</CardTitle>
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                          asp.label === 'positive' ? 'bg-green-100 text-green-800' :
                           asp.label === 'negative' ? 'bg-red-100 text-red-800' :
-                            asp.label === 'not_mentioned' ? 'bg-slate-100 text-slate-400 italic' :
-                              'bg-slate-100 text-slate-700'
-                          }`}>
+                          asp.label === 'not_mentioned' ? 'bg-slate-100 text-slate-400 italic' :
+                          'bg-slate-100 text-slate-700'
+                        }`}>
                           {asp.label === 'positive' ? '✓ positive' :
-                            asp.label === 'negative' ? '✗ negative' :
-                              asp.label === 'not_mentioned' ? '— not mentioned' : '— neutral'}
+                           asp.label === 'negative' ? '✗ negative' :
+                           asp.label === 'not_mentioned' ? '— not mentioned' : '— neutral'}
                         </span>
                       </div>
                     </CardHeader>
@@ -290,21 +292,26 @@ export default function ClearViewDemo() {
                           </div>
                           <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
                             <div
-                              className={`h-full rounded-full ${asp.label === 'positive' ? 'bg-green-500' :
+                              className={`h-full rounded-full ${
+                                asp.label === 'positive' ? 'bg-green-500' :
                                 asp.label === 'negative' ? 'bg-red-500' : 'bg-slate-400'
-                                }`}
+                              }`}
                               style={{ width: `${((asp.confidence || 0) * 100).toFixed(1)}%` }}
                             />
                           </div>
+                          {asp.topTokens && asp.topTokens.length > 0 && (
+                            <div className="pt-1">
+                              <p className="text-xs text-muted-foreground mb-1">Key words</p>
+                              <div className="flex flex-wrap gap-1">
+                                {asp.topTokens.map((token: string, i: number) => (
+                                  <span key={i} className="px-1.5 py-0.5 bg-slate-100 text-slate-700 rounded text-xs font-mono">
+                                    {token}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
                         </>
-                      )}
-                      {asp.msrChanged && asp.before && (
-                        <div className="mt-3 p-2 bg-white rounded border text-xs flex items-center gap-2">
-                          <AlertTriangle className="w-3 h-3 text-yellow-600" />
-                          <span className="text-gray-600">
-                            Changed from <span className="font-semibold">{asp.before.label}</span> ({((asp.before.confidence || 0) * 100).toFixed(0)}%)
-                          </span>
-                        </div>
                       )}
                     </CardContent>
                   </Card>

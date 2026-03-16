@@ -53,7 +53,7 @@ export function AppSidebar() {
           </div>
           <div className="flex flex-col">
             <span className="text-sm font-semibold">ClearView</span>
-            <span className="text-xs text-muted-foreground">ABSA + MSR + XAI</span>
+            <span className="text-xs text-muted-foreground">ABSA + XAI</span>
           </div>
         </div>
       </SidebarHeader>
