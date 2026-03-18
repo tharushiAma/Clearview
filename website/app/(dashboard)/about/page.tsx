@@ -30,14 +30,14 @@ export default function AboutPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground leading-relaxed">
-            ClearView is a comprehensive dashboard for Aspect-Based Sentiment Analysis (ABSA) 
-            of cosmetics reviews. It incorporates Multi-Sentiment Regularization (MSR) to handle 
+            ClearView is a comprehensive dashboard for Aspect-Based Sentiment Analysis (ABSA)
+            of cosmetics reviews. It incorporates Mixed Sentiment Resolution (MSR) to handle
             conflicting sentiments and provides Explainable AI (XAI) capabilities for model interpretability.
           </p>
-          
+
           <div className="flex flex-wrap gap-2">
             <Badge variant="secondary">ABSA</Badge>
-            <Badge variant="secondary">Multi-Sentiment Regularization</Badge>
+            <Badge variant="secondary">Mixed Sentiment Resolution</Badge>
             <Badge variant="secondary">Explainable AI</Badge>
             <Badge variant="secondary">Cosmetics Domain</Badge>
           </div>
@@ -53,7 +53,7 @@ export default function AboutPage() {
         <FeatureCard
           icon={Activity}
           title="MSR"
-          description="Multi-Sentiment Regularization handles conflicting sentiments in complex reviews."
+          description="Mixed Sentiment Resolution handles conflicting sentiments in complex reviews."
         />
         <FeatureCard
           icon={Sparkles}
@@ -89,9 +89,6 @@ export default function AboutPage() {
       <Separator />
 
       <div className="text-sm text-muted-foreground">
-        <p>
-          Built with Next.js, TypeScript, Tailwind CSS, and shadcn/ui.
-        </p>
         <p className="mt-1">
           Designed for thesis demonstration purposes.
         </p>

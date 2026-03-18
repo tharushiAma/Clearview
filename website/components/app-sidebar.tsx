@@ -3,12 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  LayoutDashboard,
   Play,
   Sparkles,
-  BarChart3,
-  FileText,
-  Settings,
   Info,
   Eye,
   UploadCloud,
@@ -28,16 +24,12 @@ import {
 } from "@/components/ui/sidebar";
 
 const navItems = [
-  { title: "Overview", href: "/", icon: LayoutDashboard },
   { title: "Live Demo", href: "/demo", icon: Play },
   { title: "XAI", href: "/xai", icon: Sparkles },
   { title: "Bulk Reviews", href: "/bulk", icon: UploadCloud },
-  { title: "Analytics", href: "/analytics", icon: BarChart3 },
-  { title: "Logs", href: "/logs", icon: FileText },
 ];
 
 const settingsItems = [
-  { title: "Settings", href: "/settings", icon: Settings },
   { title: "About", href: "/about", icon: Info },
 ];
 
@@ -53,7 +45,7 @@ export function AppSidebar() {
           </div>
           <div className="flex flex-col">
             <span className="text-sm font-semibold">ClearView</span>
-            <span className="text-xs text-muted-foreground">ABSA + XAI</span>
+            <span className="text-xs text-muted-foreground">ABSA + MSR + XAI</span>
           </div>
         </div>
       </SidebarHeader>

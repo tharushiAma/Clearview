@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -31,6 +31,11 @@ export default function XAIPage() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ExplanationBundle | null>(null);
   const [jsonOpen, setJsonOpen] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const handleExplain = async () => {
     setLoading(true);
@@ -47,6 +52,19 @@ export default function XAIPage() {
       setLoading(false);
     }
   };
+
+  if (!isMounted) {
+    return (
+      <div className="space-y-6 animate-pulse">
+        <div className="h-10 w-48 bg-muted rounded" />
+        <div className="h-4 w-96 bg-muted rounded" />
+        <div className="grid gap-6 lg:grid-cols-3">
+          <div className="lg:col-span-1 h-96 bg-muted rounded-xl" />
+          <div className="lg:col-span-2 h-[500px] bg-muted rounded-xl" />
+        </div>
+      </div>
+    );
+  }
 
 
   return (
@@ -135,7 +153,7 @@ export default function XAIPage() {
 
             {loading && (
               <p className="text-xs text-muted-foreground text-center">
-                This may take a minute depending on the method…
+                This may take few minutes depending on the method…
               </p>
             )}
           </CardContent>

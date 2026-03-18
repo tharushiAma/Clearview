@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useCallback } from "react";
+import { useRef, useState, useCallback, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -43,12 +43,23 @@ import {
     AlertTriangle,
     CheckCircle2,
     X,
+    Sparkles,
 } from "lucide-react";
-import { predictBulk } from "@/lib/api";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { predictBulk, explain } from "@/lib/api";
 import type {
     BulkPredictResult,
     SentimentLabel,
+    ExplanationBundle,
+    ExplanationMethod,
 } from "@/lib/types";
+import { ASPECTS, type Aspect } from "@/lib/types";
 
 // ── Colour helpers ──────────────────────────────────────────────────────────
 
@@ -154,6 +165,13 @@ export default function BulkReviewsPage() {
     const [progress, setProgress] = useState(0);
     const [result, setResult] = useState<BulkPredictResult | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [isMounted, setIsMounted] = useState(false);
+    const [explainModalText, setExplainModalText] = useState<string | null>(null);
+
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
+
 
     // ── file handling ──
     const handleFile = useCallback((file: File) => {
@@ -228,7 +246,21 @@ export default function BulkReviewsPage() {
         ...result!.aspect_summary[asp],
     }));
 
+    if (!isMounted) {
+        return (
+            <div className="space-y-6 animate-pulse p-6">
+                <div className="h-10 w-64 bg-muted rounded" />
+                <div className="h-4 w-full max-w-lg bg-muted rounded mb-10" />
+                <div className="grid gap-6 lg:grid-cols-3">
+                    <div className="lg:col-span-2 h-80 bg-muted rounded-xl" />
+                    <div className="h-80 bg-muted rounded-xl" />
+                </div>
+            </div>
+        );
+    }
+
     return (
+        <>
         <div className="space-y-6">
             {/* Header */}
             <div>
@@ -492,7 +524,7 @@ export default function BulkReviewsPage() {
                                                 tick={{ fontSize: 12 }}
                                             />
                                             <Tooltip
-                                                content={({ active, payload, label }: { active?: boolean; payload?: Array<{ dataKey: string; value: number; color?: string }>; label?: string }) => {
+                                                content={({ active, payload, label }: any) => {
                                                     if (!active || !payload?.length) return null;
                                                     return (
                                                         <div className="bg-background border border-border rounded-lg px-3 py-2 shadow-lg text-sm">
@@ -692,6 +724,7 @@ export default function BulkReviewsPage() {
                                             <TableHead>Review</TableHead>
                                             <TableHead>Mixed?</TableHead>
                                             <TableHead>Conflict</TableHead>
+                                            <TableHead>XAI</TableHead>
                                             {aspectNames.map((a) => (
                                                 <TableHead key={a} className="capitalize">
                                                     {a}
@@ -740,6 +773,17 @@ export default function BulkReviewsPage() {
                                                             {(row.conflict_prob * 100).toFixed(0)}%
                                                         </span>
                                                     </TableCell>
+                                                    <TableCell>
+                                                        <Button
+                                                            size="sm"
+                                                            variant="ghost"
+                                                            className="h-7 px-2 text-xs"
+                                                            onClick={() => setExplainModalText(row.text)}
+                                                        >
+                                                            <Sparkles className="h-3.5 w-3.5 mr-1" />
+                                                            Explain
+                                                        </Button>
+                                                    </TableCell>
                                                     {aspectNames.map((a) => {
                                                         const d = aspMap[a];
                                                         return (
@@ -778,6 +822,11 @@ export default function BulkReviewsPage() {
                 </>
             )}
         </div>
+
+        {explainModalText !== null && (
+            <XAIModal text={explainModalText} onClose={() => setExplainModalText(null)} />
+        )}
+        </>
     );
 }
 
@@ -825,3 +874,143 @@ function pct(n: number, counts: Record<string, number>): string {
     if (total === 0) return "0%";
     return `${((n / total) * 100).toFixed(1)}% of all aspect predictions`;
 }
+
+// ── XAI Modal ───────────────────────────────────────────────────────────────────────────────
+
+function XAIModal({ text, onClose }: { text: string; onClose: () => void }) {
+    const [selectedAspect, setSelectedAspect] = useState<Aspect | "all">("all");
+    const [selectedMethod, setSelectedMethod] = useState<ExplanationMethod>("ig");
+    const [loading, setLoading] = useState(false);
+    const [result, setResult] = useState<ExplanationBundle | null>(null);
+    const [error, setError] = useState<string | null>(null);
+
+    const handleExplain = async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const response = await explain({
+                text,
+                aspect: selectedAspect,
+                methods: [selectedMethod],
+                msrEnabled: true,
+                msrStrength: 0.5,
+            });
+            setResult(response);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Explanation failed");
+        } finally {
+            setLoading(false);
+        }
+    };
+    return (
+        <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
+            <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2">
+                        <Sparkles className="h-4 w-4 text-primary" />
+                        Explain Review
+                    </DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                    <div className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground">Review Text</Label>
+                        <Textarea value={text} readOnly rows={3} className="resize-none text-sm" />
+                    </div>
+                    <div className="flex flex-wrap gap-3">
+                        <div className="flex-1 min-w-[160px] space-y-1.5">
+                            <Label className="text-xs text-muted-foreground">Aspect</Label>
+                            <Select value={selectedAspect} onValueChange={(v) => setSelectedAspect(v as Aspect | "all")}>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All aspects</SelectItem>
+                                    {ASPECTS.map((a) => (
+                                        <SelectItem key={a} value={a} className="capitalize">{a}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="flex-1 min-w-[160px] space-y-1.5">
+                            <Label className="text-xs text-muted-foreground">Method</Label>
+                            <Select value={selectedMethod} onValueChange={(v) => setSelectedMethod(v as ExplanationMethod)}>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="ig">Integrated Gradients</SelectItem>
+                                    <SelectItem value="lime">LIME</SelectItem>
+                                    <SelectItem value="shap">SHAP</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="flex items-end">
+                            <Button onClick={handleExplain} disabled={loading}>
+                                {loading ? (
+                                    <><Spinner className="h-4 w-4 mr-2" />Generating...</>
+                                ) : (
+                                    <><Sparkles className="h-4 w-4 mr-2" />Generate</>
+                                )}
+                            </Button>
+                        </div>
+                    </div>                    {loading && (
+                        <p className="text-xs text-muted-foreground text-center">
+                            This may take a few minutes depending on the method...
+                        </p>
+                    )}
+                    {error && (
+                        <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
+                            <AlertTriangle className="h-4 w-4 shrink-0" />
+                            {error}
+                        </div>
+                    )}
+                    {result && result.explanations && result.explanations.length > 0 && (
+                        <div className="space-y-4">
+                            <p className="text-xs text-muted-foreground">
+                                Green = supports predicted sentiment · Red = opposes it
+                            </p>
+                            {result.explanations.map((exp) => (
+                                <div key={exp.aspect + "-" + exp.method} className="space-y-2 border rounded-lg p-4 bg-card">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-xs font-semibold capitalize bg-primary/10 text-primary px-2 py-0.5 rounded">{exp.aspect}</span>
+                                        <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded uppercase tracking-wider">
+                                            {exp.method === "ig" ? "Integrated Gradients" : exp.method}
+                                        </span>
+                                    </div>
+                                    <TokenHighlightViewer tokens={exp.tokens} />
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                    {result && (!result.explanations || result.explanations.length === 0) && (
+                        <p className="text-sm text-muted-foreground text-center py-4">No attribution data returned.</p>
+                    )}
+                </div>
+            </DialogContent>
+        </Dialog>
+    );
+}
+function TokenHighlightViewer({ tokens }: { tokens: { token: string; attribution: number }[] }) {
+    const maxAttr = Math.max(...(tokens || []).map((t) => Math.abs(t.attribution || 0)), 0.001);
+    return (
+        <div className="flex flex-wrap gap-1 p-3 rounded-lg bg-muted/50">
+            {(tokens || []).map((t, i) => {
+                const normalizedAttr = (t.attribution || 0) / maxAttr;
+                const isPositive = normalizedAttr > 0;
+                const intensity = Math.abs(normalizedAttr);
+                const bg = isPositive
+                    ? `oklch(0.7 0.15 145 / ${intensity * 0.6 + 0.1})`
+                    : `oklch(0.65 0.2 25 / ${intensity * 0.6 + 0.1})`;
+                return (
+                    <span
+                        key={i}
+                        className="px-1.5 py-0.5 rounded text-sm relative group cursor-default"
+                        style={{ backgroundColor: bg, color: intensity > 0.5 ? "white" : "inherit" }}
+                    >
+                        {t.token}
+                        <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 text-xs rounded bg-popover text-popover-foreground shadow-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
+                            attribution: {t.attribution.toFixed(3)}
+                        </span>
+                    </span>
+                );
+            })}
+        </div>
+    );
+}
+
