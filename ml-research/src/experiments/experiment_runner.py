@@ -50,7 +50,7 @@ from baseline_models import create_baseline, CrossEntropyLossWrapper, TFIDFSVMBa
 from models.model import create_model
 from models.losses import AspectSpecificLossManager
 from utils.data_utils import create_dataloaders, DependencyParser, compute_class_weights
-from utils.metrics import AspectSentimentEvaluator
+from utils.metrics import AspectSentimentEvaluator, MixedSentimentEvaluator
 from transformers import RobertaTokenizer, BertTokenizer, get_linear_schedule_with_warmup
 
 
@@ -215,29 +215,33 @@ class ExperimentTrainer:
         print(f"\n[{self.exp_id}] Training for {self.config['training']['num_epochs']} epochs")
 
         t0 = time.time()
-        for epoch in range(self.config['training']['num_epochs']):
-            train_loss = self.train_epoch()
-            val_metrics = self.evaluate(self.val_loader)
-            val_f1 = val_metrics['overall']['macro_f1']
+        best_ckpt = self.results_dir / f'{self.exp_id}_best.pt'
+        
+        if best_ckpt.exists():
+            print(f"  Checkpoint {best_ckpt} found! Skipping training.")
+        else:
+            for epoch in range(self.config['training']['num_epochs']):
+                train_loss = self.train_epoch()
+                val_metrics = self.evaluate(self.val_loader)
+                val_f1 = val_metrics['overall']['macro_f1']
 
-            print(f"  Epoch {epoch+1}: loss={train_loss:.4f}  val_macro_f1={val_f1:.4f}  "
-                  f"patience={self.patience_counter}/{self.patience}")
+                print(f"  Epoch {epoch+1}: loss={train_loss:.4f}  val_macro_f1={val_f1:.4f}  "
+                      f"patience={self.patience_counter}/{self.patience}")
 
-            if val_f1 > self.best_val_metric:
-                self.best_val_metric = val_f1
-                self.patience_counter = 0
-                torch.save({
-                    'model_state_dict': self.model.state_dict(),
-                    'config': self.config,
-                }, self.results_dir / f'{self.exp_id}_best.pt')
-            else:
-                self.patience_counter += 1
-                if self.patience_counter >= self.patience:
-                    print(f"  Early stopping at epoch {epoch+1}")
-                    break
+                if val_f1 > self.best_val_metric:
+                    self.best_val_metric = val_f1
+                    self.patience_counter = 0
+                    torch.save({
+                        'model_state_dict': self.model.state_dict(),
+                        'config': self.config,
+                    }, best_ckpt)
+                else:
+                    self.patience_counter += 1
+                    if self.patience_counter >= self.patience:
+                        print(f"  Early stopping at epoch {epoch+1}")
+                        break
 
         # Load best and evaluate on test
-        best_ckpt = self.results_dir / f'{self.exp_id}_best.pt'
         if best_ckpt.exists():
             ckpt = torch.load(best_ckpt, map_location=self.device)
             self.model.load_state_dict(ckpt['model_state_dict'])
@@ -350,10 +354,12 @@ def run_dl_experiment(exp_id: str, desc: str, config: dict,
             tokenizer = RobertaTokenizer.from_pretrained(roberta_name)
 
         # ── Build model ─────────────────────────────────────────────────────
-        # Baseline B1: plain roberta (no aspect awareness)
-        if exp_id.startswith('B1_') or exp_id.startswith('B3_'):
-            baseline_key = 'plain_roberta' if 'roberta' in exp_id.lower() else 'bert_base'
-            model = create_baseline(baseline_key, config)
+        # BUG FIX: Use explicit exp_id prefix check instead of substring
+        # matching on the name (which could break if experiment names change).
+        if exp_id.startswith('B1_'):
+            model = create_baseline('plain_roberta', config)
+        elif exp_id.startswith('B3_'):
+            model = create_baseline('bert_base', config)
         else:
             # Full model or ablation variants
             model = create_model(config)
@@ -388,6 +394,57 @@ def run_dl_experiment(exp_id: str, desc: str, config: dict,
         result['overall']       = ser(test_metrics['overall'])
         result['per_aspect']    = ser(test_metrics['aspects'])
 
+        # ── A6: MSR Evaluation (Mixed Sentiment Resolution) ─────────────────
+        # When the config has evaluate_msr=True (set by ablation_6_mixed_sentiment),
+        # run MixedSentimentEvaluator on the test set to capture MSR-specific metrics.
+        if config.get('experiment', {}).get('evaluate_msr', False):
+            print(f"  [{exp_id}] Running Mixed Sentiment Resolution evaluation...")
+            mixed_evaluator = MixedSentimentEvaluator(config['aspects']['names'])
+            trainer.model.eval()
+            review_true = {}
+            review_pred = {}
+
+            with torch.no_grad():
+                for batch in trainer.test_loader:
+                    input_ids      = batch['input_ids'].to(trainer.device)
+                    attention_mask = batch['attention_mask'].to(trainer.device)
+                    aspect_ids     = batch['aspect_ids'].to(trainer.device)
+
+                    edge_indices = None
+                    if config['model'].get('use_dependency_gcn', False):
+                        edge_indices = [e.to(trainer.device) if e is not None else None
+                                       for e in batch['edge_indices']]
+
+                    preds = trainer.model(input_ids, attention_mask, aspect_ids, edge_indices)
+                    if isinstance(preds, tuple):
+                        preds = preds[0]
+                    pred_classes = torch.argmax(preds, dim=1).cpu().numpy()
+
+                    for i in range(len(pred_classes)):
+                        review_idx  = batch['review_ids'][i]
+                        aspect_name = batch['aspects'][i]
+                        true_label  = batch['labels'][i].item()
+
+                        if review_idx not in review_true:
+                            review_true[review_idx] = {}
+                            review_pred[review_idx] = {}
+
+                        review_true[review_idx][aspect_name] = true_label
+                        review_pred[review_idx][aspect_name] = int(pred_classes[i])
+
+            mixed_metrics = mixed_evaluator.evaluate_mixed_sentiment_resolution(
+                review_true, review_pred
+            )
+            mixed_evaluator.print_mixed_sentiment_results(mixed_metrics)
+
+            # Store key MSR scalars in result (JSON-serialisable)
+            result['mixed_sentiment'] = {
+                'mixed_review_count':    mixed_metrics.get('mixed_review_count', 0),
+                'mixed_review_accuracy': mixed_metrics.get('mixed_review_accuracy', 0.0),
+                'mixed_aspect_accuracy': mixed_metrics.get('mixed_aspect_accuracy', 0.0),
+                'mixed_detection_rate':  mixed_metrics.get('mixed_detection_rate', 0.0),
+            }
+
     except Exception as exc:
         import traceback
         result['status'] = 'error'
@@ -407,6 +464,15 @@ def run_experiments(exp_ids: list, base_config: dict, results_dir: Path) -> dict
     all_specs = {**all_ablation_specs, **all_baseline_specs}
 
     results = {}
+    out_path = results_dir / 'all_results.json'
+    if out_path.exists():
+        try:
+            with open(out_path, 'r') as f:
+                results = json.load(f)
+            print(f"Loaded {len(results)} existing results from {out_path}.")
+        except Exception as e:
+            print(f"Could not load existing {out_path}: {e}")
+
     for exp_id in exp_ids:
         if exp_id not in all_specs:
             print(f"  Warning: unknown experiment '{exp_id}' — skipping")

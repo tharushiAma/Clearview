@@ -3,7 +3,7 @@
 # Model Configuration
 model:
   name: "multi_aspect_sentiment_roberta_gcn"
-  roberta_model: "roberta-base" 
+  roberta_model: "roberta-base"
   hidden_dim: 768
   num_aspects: 7
   num_classes: 3 # negative, neutral, positive
@@ -57,7 +57,6 @@ training:
   loss_weights:
     focal: 1.0
     cb: 0.5
-    dice: 0.3
 
   # Aspect-specific loss parameters
   focal_gamma:
@@ -126,6 +125,6 @@ evaluation:
 # Hardware Configuration
 hardware:
   device: "cuda" # or "cpu"
-  num_workers: 4
+  num_workers: 0
   pin_memory: true
   mixed_precision: true # Use automatic mixed precision for faster training

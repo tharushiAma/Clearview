@@ -68,9 +68,18 @@ class CrossEntropyLossWrapper(nn.Module):
         self.criterion = nn.CrossEntropyLoss()
 
     def compute_loss(self, predictions, targets, aspect_ids, aspect_names):
-        """Same interface as AspectSpecificLossManager.compute_loss"""
+        """Same interface as AspectSpecificLossManager.compute_loss.
+
+        Returns a loss_details dict with 'ce' and 'total' keys so that
+        per-aspect loss logging in the A3 ablation is consistent across all
+        loss variants (Hybrid variants log 'focal', 'cb', 'dice', 'total').
+        """
         loss = self.criterion(predictions, targets)
-        loss_details = {}
+        loss_val = loss.item()
+        loss_details = {
+            'ce':    loss_val,
+            'total': loss_val,
+        }
         return loss, loss_details
 
 

@@ -268,32 +268,37 @@ def create_dataloaders(config, tokenizer, dependency_parser=None):
         dataset_class = CosmeticReviewDataset
         print("Using CosmeticReviewDataset (no dependency parsing)")
     
+    # Build kwargs — only pass dependency_parser for DependencyParsingDataset
+    extra_kwargs = {}
+    if dataset_class is DependencyParsingDataset:
+        extra_kwargs['dependency_parser'] = dependency_parser
+
     # Create datasets
     train_dataset = dataset_class(
         data_path=data_config['train_path'],
         tokenizer=tokenizer,
         config=config,
         aspect_names=aspect_names,
-        dependency_parser=dependency_parser,
-        is_train=True
+        is_train=True,
+        **extra_kwargs
     )
-    
+
     val_dataset = dataset_class(
         data_path=data_config['val_path'],
         tokenizer=tokenizer,
         config=config,
         aspect_names=aspect_names,
-        dependency_parser=dependency_parser,
-        is_train=False
+        is_train=False,
+        **extra_kwargs
     )
-    
+
     test_dataset = dataset_class(
         data_path=data_config['test_path'],
         tokenizer=tokenizer,
         config=config,
         aspect_names=aspect_names,
-        dependency_parser=dependency_parser,
-        is_train=False
+        is_train=False,
+        **extra_kwargs
     )
     
     # Create dataloaders

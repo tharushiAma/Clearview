@@ -149,9 +149,9 @@ class HybridLoss(nn.Module):
         loss_cb = self.cb_loss(inputs, targets)
         loss_dice = self.dice_loss(inputs, targets)
         
-        total_loss = (self.weights['focal'] * loss_focal + 
-                     self.weights['cb'] * loss_cb + 
-                     self.weights['dice'] * loss_dice)
+        total_loss = (self.weights.get('focal', 0.0) * loss_focal + 
+                     self.weights.get('cb', 0.0) * loss_cb + 
+                     self.weights.get('dice', 0.0) * loss_dice)
         
         loss_dict = {
             'focal': loss_focal.item(),
@@ -212,7 +212,7 @@ class AspectSpecificLossManager:
                 focal_alpha=focal_alpha,
                 focal_gamma=gamma,
                 cb_beta=beta,
-                weights=config.get('loss_weights', {'focal': 1.0, 'cb': 0.5, 'dice': 0.3})
+                weights=config.get('loss_weights', {'focal': 1.0, 'cb': 0.5})
             )
             
             print(f"Initialized loss for {aspect}:")

@@ -195,6 +195,40 @@ def generate_latex_table(results: dict, exp_ids: list, title: str) -> str:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Table 4: Mixed Sentiment Resolution (MSR) Metrics — for A6 experiments
+# ─────────────────────────────────────────────────────────────────────────────
+def msr_comparison_table(results: dict, exp_ids: list, title: str) -> str:
+    """Generates a Markdown table comparing MSR metrics across A6 experiment variants."""
+    lines = [f"## {title} — Mixed Sentiment Resolution Metrics\n"]
+    header = ("| Experiment | MSR Review Acc (%) | MSR Aspect Acc (%) "
+              "| Mixed Detection Rate (%) | Mixed Review Count |")
+    sep    = "|---|---|---|---|---|"
+    lines.append(header)
+    lines.append(sep)
+
+    for exp_id in exp_ids:
+        if exp_id not in results:
+            continue
+        r   = results[exp_id]
+        desc = r.get('description', exp_id)
+        msr  = r.get('mixed_sentiment', {})
+
+        if not msr:
+            lines.append(f"| {desc} | — | — | — | — |")
+            continue
+
+        lines.append(
+            f"| {desc} "
+            f"| **{_pct(msr.get('mixed_review_accuracy', 0) / 100)}** "
+            f"| {_pct(msr.get('mixed_aspect_accuracy', 0) / 100)} "
+            f"| {_pct(msr.get('mixed_detection_rate', 0) / 100)} "
+            f"| {msr.get('mixed_review_count', '—')} |"
+        )
+
+    return "\n".join(lines)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Bar Chart
 # ─────────────────────────────────────────────────────────────────────────────
 def plot_macro_f1_comparison(results: dict, exp_ids: list, title: str, save_path: str):
@@ -288,6 +322,11 @@ def generate_report(results: dict, save_dir: Path):
         report_lines.append(overall_comparison_table(results, ids, group_title))
         report_lines.append("\n")
         report_lines.append(rare_class_table(results, ids, group_title))
+
+        # A6 has MSR-specific metrics — add a dedicated MSR table
+        if group_key == 'A6':
+            report_lines.append("\n")
+            report_lines.append(msr_comparison_table(results, ids, group_title))
 
         plot_macro_f1_comparison(results, ids,
                                   f"{group_title} — Macro-F1",

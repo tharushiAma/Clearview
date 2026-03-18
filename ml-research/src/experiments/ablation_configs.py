@@ -11,7 +11,7 @@ Ablations:
   A3  — Loss function variants (Hybrid / Focal / CB / CE)
   A4  — Data augmentation on/off
   A5  — Aspect-specific vs shared classifier
-  A6  — Text preprocessing on/off
+  A6  — Mixed Sentiment Resolution evaluation (GCN with/without MSR eval)
 """
 
 import copy
@@ -38,7 +38,7 @@ def get_all_ablation_specs(base_config: dict) -> List[ExperimentSpec]:
     specs.extend(ablation_3_loss_function(base_config))
     specs.extend(ablation_4_augmentation(base_config))
     specs.extend(ablation_5_classifier_head(base_config))
-    specs.extend(ablation_6_preprocessing(base_config))
+    specs.extend(ablation_6_mixed_sentiment(base_config))
     return specs
 
 
@@ -158,30 +158,39 @@ def ablation_5_classifier_head(base_config: dict) -> List[ExperimentSpec]:
     ]
 
 
-# ─── Ablation 6: Text Preprocessing ─────────────────────────────────────────
-def ablation_6_preprocessing(base_config: dict) -> List[ExperimentSpec]:
+# ─── Ablation 6: Mixed Sentiment Resolution (MSR) Evaluation ────────────────
+def ablation_6_mixed_sentiment(base_config: dict) -> List[ExperimentSpec]:
     """
-    Tests the impact of the cleaning pipeline.
-    'no_preprocessing' uses the original raw text column — set via a special flag
-    picked up in data_utils.py to skip clean_text_for_inference().
-    This requires a separate unprocessed data split or using 'raw_data' path.
-    """
-    with_preprocess = copy.deepcopy(base_config)
-    with_preprocess['experiment']['name'] = 'A6_with_preprocessing'
+    Tests whether the Dependency GCN specifically improves Mixed Sentiment
+    Resolution (MSR) — i.e., correctly separating conflicting sentiments
+    across aspects within the same review.
 
-    no_preprocess = copy.deepcopy(base_config)
-    # train.csv contains the cleaned text in 'data' column.
-    # For the no-preprocess ablation we point to the raw original data split
-    # (which must be created via a separate extraction step — see experiment_runner)
-    no_preprocess['data']['skip_inference_cleaning'] = True
-    no_preprocess['data']['train_path'] = 'data/splits/train_raw.csv'
-    no_preprocess['data']['val_path']   = 'data/splits/val_raw.csv'
-    no_preprocess['data']['test_path']  = 'data/splits/test_raw.csv'
-    no_preprocess['experiment']['name'] = 'A6_no_preprocessing'
+    Hypothesis: The GCN's aspect-oriented gating allows the model to isolate
+    aspect-relevant tokens, which is critical for MSR. Removing the GCN
+    should degrade MSR accuracy more than overall accuracy.
+
+    Both variants are evaluated with the dedicated MixedSentimentEvaluator
+    (in addition to standard metrics) so that experiment_runner can compare:
+      - Overall Macro-F1 drop with/without GCN
+      - MSR review-level accuracy drop with/without GCN
+    This pair of numbers proves the GCN's specific contribution to MSR.
+
+    The 'evaluate_msr' flag in the config is picked up by experiment_runner.py
+    to trigger MixedSentimentEvaluator after the standard test evaluation.
+    """
+    with_gcn = copy.deepcopy(base_config)
+    with_gcn['experiment']['name']         = 'A6_msr_with_gcn'
+    with_gcn['experiment']['evaluate_msr'] = True  # Signal runner to run MSR eval
+
+    no_gcn = copy.deepcopy(base_config)
+    no_gcn['model']['use_dependency_gcn']    = False
+    no_gcn['data']['use_dependency_parsing'] = False
+    no_gcn['experiment']['name']             = 'A6_msr_no_gcn'
+    no_gcn['experiment']['evaluate_msr']     = True
 
     return [
-        ('A6_with_preprocessing', 'With text cleaning pipeline', with_preprocess),
-        ('A6_no_preprocessing',   'Without cleaning (raw text)',  no_preprocess),
+        ('A6_msr_with_gcn', 'MSR Eval: Full model + GCN (mixed sent resolution)', with_gcn),
+        ('A6_msr_no_gcn',   'MSR Eval: No GCN (attention only, no dep parsing)',  no_gcn),
     ]
 
 
@@ -220,6 +229,24 @@ def get_all_baseline_specs(base_config: dict) -> List[ExperimentSpec]:
     specs.append(('B4_tfidf_svm',
                   'Classical TF-IDF + LinearSVC — no deep learning',
                   b4))
+
+    # B5: Flat ABSA RoBERTa (standard ABSA approach — mirrors prior work e.g. MAFESA)
+    # Uses RoBERTa + aspect attention (aspect-aware) BUT:
+    #   - No Dependency GCN            (use_dependency_gcn=False)
+    #   - Single shared classifier head (use_shared_classifier=True)
+    #   - Plain Cross-Entropy loss      (use_ce_loss=True)
+    # This is the strongest "prior-art style" baseline: it has aspect awareness
+    # but lacks your three main architectural contributions (GCN, per-aspect heads,
+    # hybrid loss). A gap between B5 and the full model proves all three matter.
+    b5 = copy.deepcopy(base_config)
+    b5['model']['use_dependency_gcn']    = False
+    b5['model']['use_shared_classifier'] = True
+    b5['data']['use_dependency_parsing'] = False
+    b5['training']['use_ce_loss']        = True
+    b5['experiment']['name'] = 'B5_flat_absa'
+    specs.append(('B5_flat_absa',
+                  'Flat ABSA RoBERTa — aspect attention, shared head, CE loss (no GCN/hybrid loss)',
+                  b5))
 
     return specs
 
