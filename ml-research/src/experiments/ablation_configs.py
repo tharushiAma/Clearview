@@ -39,6 +39,7 @@ def get_all_ablation_specs(base_config: dict) -> List[ExperimentSpec]:
     specs.extend(ablation_4_augmentation(base_config))
     specs.extend(ablation_5_classifier_head(base_config))
     specs.extend(ablation_6_mixed_sentiment(base_config))
+    specs.extend(ablation_7_hybrid_weights(base_config))
     return specs
 
 
@@ -191,6 +192,26 @@ def ablation_6_mixed_sentiment(base_config: dict) -> List[ExperimentSpec]:
     return [
         ('A6_msr_with_gcn', 'MSR Eval: Full model + GCN (mixed sent resolution)', with_gcn),
         ('A6_msr_no_gcn',   'MSR Eval: No GCN (attention only, no dep parsing)',  no_gcn),
+    ]
+
+
+# ─── Ablation 7: Hybrid Loss Weights ─────────────────────────────────────────
+def ablation_7_hybrid_weights(base_config: dict) -> List[ExperimentSpec]:
+    """
+    Tests different combinations of focal and class-balanced weights without dice loss.
+    """
+    def make_cfg(name: str, weights: dict) -> dict:
+        cfg = copy.deepcopy(base_config)
+        cfg['training']['loss_weights'] = weights
+        cfg['experiment']['name'] = name
+        return cfg
+
+    cb_05 = make_cfg('A7_hybrid_cb_05', {'focal': 1.0, 'cb': 0.5, 'dice': 0.0})
+    cb_10 = make_cfg('A7_hybrid_cb_10', {'focal': 1.0, 'cb': 1.0, 'dice': 0.0})
+
+    return [
+        ('A7_hybrid_cb_05', 'Hybrid Loss (Focal 1.0 + CB 0.5 + Dice 0.0)', cb_05),
+        ('A7_hybrid_cb_10', 'Hybrid Loss (Focal 1.0 + CB 1.0 + Dice 0.0)', cb_10),
     ]
 
 

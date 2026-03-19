@@ -1,6 +1,6 @@
 # Experiment Results Report
 
-Generated from 20 experiments
+Generated from 22 experiments
 
 ---
 
