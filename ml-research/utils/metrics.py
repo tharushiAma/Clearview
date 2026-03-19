@@ -43,13 +43,18 @@ class AspectSentimentEvaluator:
         precision, recall, f1, support = precision_recall_fscore_support(
             y_true, y_pred, average=None, zero_division=0, labels=[0, 1, 2]
         )
-        
-        # Macro metrics (important for imbalanced data)
+
+        # Macro-F1: unweighted average across all classes.
+        # This is the primary metric for imbalanced data because it weights each class
+        # equally regardless of how many samples it has — penalises failures on rare
+        # minority classes (e.g. price-neg) just as much as the majority class.
         macro_precision, macro_recall, macro_f1, _ = precision_recall_fscore_support(
             y_true, y_pred, average='macro', zero_division=0, labels=[0, 1, 2]
         )
-        
-        # Weighted metrics
+
+        # Weighted-F1: each class is weighted by its support (sample count).
+        # Useful as a secondary metric to show overall practical accuracy, but can
+        # be misleadingly high when the majority class dominates correct predictions.
         weighted_precision, weighted_recall, weighted_f1, _ = precision_recall_fscore_support(
             y_true, y_pred, average='weighted', zero_division=0, labels=[0, 1, 2]
         )

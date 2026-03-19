@@ -183,9 +183,12 @@ class DependencyParsingDataset(CosmeticReviewDataset):
                 dep_info = self.dependency_trees[text]
                 edge_index = dep_info['edge_index']
                 
-                # CRITICAL FIX: Prune edges that are out of bounds
-                # RoBERTa truncates inputs to self.max_length
-                # SpaCy parses full text, so indices can exceed max_length
+                # Prune dependency edges whose node indices exceed
+                # the RoBERTa sequence length after truncation.
+                # spaCy operates on raw word tokens (index = word position), but
+                # RoBERTa uses subword (BPE) tokens capped at max_length.
+                # Without this mask, out-of-range indices cause IndexError in GCN
+                # scatter_add_ during the forward pass.
                 if edge_index.size(1) > 0:
                     mask = (edge_index[0] < self.max_length) & (edge_index[1] < self.max_length)
                     edge_index = edge_index[:, mask]

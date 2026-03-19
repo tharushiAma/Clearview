@@ -55,12 +55,15 @@ class TrainedModelXAI:
         Returns: {"top_tokens": [[token, score], ...], "method": "attention",
                   "task": "aspect", "predicted": str, "confidence": float}
         """
-        # Call the actual Integrated Gradients method from inference.py
+        # n_steps=50: number of Riemann-sum steps along the straight path from
+        # baseline (all-zeros embedding) to the actual input embedding.
+        # Higher steps → more accurate attribution but slower; 50 is a good
+        # trade-off between speed and completeness-axiom accuracy for inference.
         ig_res = self.predictor.explain_with_integrated_gradients(
-            text=text, 
-            aspect=aspect, 
-            n_steps=50, 
-            top_k=top_k, 
+            text=text,
+            aspect=aspect,
+            n_steps=50,
+            top_k=top_k,
             save_path=None
         )
         

@@ -1,5 +1,18 @@
 """
-Evaluation script for trained models
+Evaluation script for trained models.
+
+Distinct from inference.py:
+  - evaluate.py  — Batch evaluation on the full test/val split; computes Macro-F1,
+                   Weighted-F1, MCC, confusion matrices, and Mixed Sentiment Resolution
+                   metrics. Writes structured JSON results to the save directory.
+  - inference.py — Single-review prediction + interactive XAI (LIME, SHAP, IG, MSR
+                   Delta). Designed for the website and exploratory analysis.
+
+Usage (from ml-research root):
+    python outputs/cosmetic_sentiment_v1/evaluation/evaluate.py \\
+        --checkpoint outputs/cosmetic_sentiment_v1/best_model.pt \\
+        --split test \\
+        --save_dir outputs/cosmetic_sentiment_v1/evaluation
 """
 
 import os

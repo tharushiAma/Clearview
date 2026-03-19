@@ -24,7 +24,9 @@ class AspectAwareRoBERTa(nn.Module):
         # Load pre-trained RoBERTa
         self.roberta = RobertaModel.from_pretrained(roberta_model)
         
-        # Aspect embeddings (learnable) — always needed for GCN gating & loss routing
+        # Learnable aspect query vectors (one per aspect, 768-dim).
+        # Used both for MHA attention queries and for GCN aspect-gating.
+        # Xavier uniform init keeps initial gradient magnitudes stable.
         self.aspect_embeddings = nn.Embedding(num_aspects, hidden_dim)
         nn.init.xavier_uniform_(self.aspect_embeddings.weight)
         
@@ -176,8 +178,11 @@ class AspectOrientedDepGCN(nn.Module):
             # Message passing
             if edge_index.size(1) > 0:
                 src, dst = edge_index[0], edge_index[1]
-                messages = x[src]  # (num_edges, hidden_dim)
+                messages = x[src]  # (num_edges, hidden_dim) — gather source node features
                 aggregated = torch.zeros_like(x)
+                # scatter_add_ accumulates each message into the destination node row.
+                # dst.unsqueeze(1).expand_as(messages) broadcasts scalar node indices
+                # to match the hidden_dim columns of messages.
                 aggregated = aggregated.scatter_add_(0, dst.unsqueeze(1).expand_as(messages), messages)
                 
                 # Apply linear transformation
@@ -298,9 +303,10 @@ class MultiAspectSentimentModel(nn.Module):
                 
                 # Pool GCN output (mean pooling over tokens)
                 mask_expanded = attention_mask[i].unsqueeze(-1).float()
-                # Ensure division by non-zero sum, handle cases where mask_expanded.sum(0) might be 0
+                # Mean-pool GCN token features over the non-padding positions.
+                # 1e-9 epsilon prevents division by zero for all-padding sequences.
                 sum_mask = mask_expanded.sum(0)
-                gcn_pooled = (gcn_out * mask_expanded).sum(0) / (sum_mask + 1e-9) # Add epsilon for stability
+                gcn_pooled = (gcn_out * mask_expanded).sum(0) / (sum_mask + 1e-9)
                 gcn_outputs.append(gcn_pooled)
             else:
                 # No dependency tree, use zero tensor or aspect repr
