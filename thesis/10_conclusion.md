@@ -21,13 +21,13 @@ Deployable web system with interactive XAI visualizations demonstrating practica
 
 ## 10.2 Answers to Research Questions
 
-RQ1 (Hybrid Loss): Expected to significantly outperform individual losses. CE baseline expected near-zero negative recall for extreme imbalance cases.
+**RQ1 (Hybrid Loss):** Partially confirmed. The Focal+CB combination (A7: Macro-F1 = 0.7944) outperforms all individual losses. Dice Loss alone collapsed to Macro-F1 = 0.2926, confirming it cannot be used in isolation under extreme imbalance. CE and CB-only tied at 0.7911, with Focal+CB providing the winning +0.33% margin through hard-example focusing combined with principled reweighting. Price and packing negative classes remained near-zero F1 regardless of loss choice due to insufficient training samples (9 each).
 
-RQ2 (Dependency GCN): Expected 3-5% improvement in Mixed Sentiment Resolution Accuracy.
+**RQ2 (Dependency GCN):** Confirmed. Removing GCN caused a −9.9% Macro-F1 drop (0.7856 → 0.6863), the largest single-component ablation effect. Aspect-level accuracy on mixed reviews (87.55%) demonstrates that the GCN's aspect-gating mechanism successfully prevents cross-aspect signal contamination.
 
-RQ3 (LLM Augmentation): Expected 5-10% improvement in negative class F1 without harming majority class.
+**RQ3 (LLM Augmentation):** Partially confirmed. Overall Macro-F1 impact was negligible (−0.16%), as the most extreme imbalance cases (price: 9 negative samples) remain too sparse even after augmentation. Localised improvements were observed for moderately imbalanced aspects. The fundamental bottleneck is original data scarcity, not augmentation volume.
 
-RQ4 (XAI Evidence): MSR Delta expected to show near-zero cross-aspect delta in mixed-sentiment reviews.
+**RQ4 (XAI Evidence):** Confirmed. MSR Delta analysis shows orthogonal token attribution patterns across focus aspects in mixed-sentiment reviews — tokens contributing to colour prediction carry near-zero delta for smell prediction and vice versa. This provides direct interpretable evidence of aspect-specific signal separation by the GCN.
 
 ## 10.3 Limitations
 

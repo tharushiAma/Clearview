@@ -13,7 +13,7 @@ This document gives a concise technical reference for the training process, arch
 The system classifies sentiment (Positive / Neutral / Negative) across **7 aspects** of cosmetic reviews — *stayingpower, texture, smell, price, colour, shipping, packing* — while:
 - Correctly resolving **mixed sentiments** within the same review
 - Handling **severe class imbalance** (up to 185:1 before augmentation)
-- Providing **multi-level explainability** (Attention, LIME, SHAP, Integrated Gradients, MSR Delta)
+- Providing **multi-level explainability** (Attention, LIME, SHAP, Integrated Gradients)
 
 ---
 

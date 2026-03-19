@@ -30,7 +30,7 @@ aspects:
     positive: 2
 
   # Class distribution (from augmented training data with preprocessed synthetic)
-  # Updated: 2026-02-11 - After synthetic data integration (87.8% retention)
+  # After synthetic data integration (87.8% retention)
   class_counts:
     stayingpower: [727, 244, 1076] # neg, neu, pos
     texture: [639, 420, 2563]
@@ -78,20 +78,9 @@ data:
   max_seq_length: 256
   text_column: "data"
 
-  # Data augmentation
-  # augmentation:
-  #   enabled: true
-  #   techniques: ["back_translation", "synonym_replacement", "mixup"]
-  #   augment_minority_only: true
-  #   augmentation_ratio:
-  #     negative: 3.0 # Generate 3x samples for negative class
-  #     neutral: 2.0
-  #     positive: 1.0
-  #   mixup_alpha: 0.4
-
   # Dependency parsing
   use_dependency_parsing: true
-  dependency_parser: "spacy" # or "stanza"
+  dependency_parser: "spacy"
   language: "en"
 
 # Explainability Configuration
@@ -124,7 +113,7 @@ evaluation:
 
 # Hardware Configuration
 hardware:
-  device: "cuda" # or "cpu"
+  device: "cuda"
   num_workers: 0
   pin_memory: true
   mixed_precision: true # Use automatic mixed precision for faster training

@@ -45,7 +45,8 @@ def load_model(checkpoint_path, device='cuda'):
     model.eval()
     
     print(f"Model loaded successfully")
-    print(f"Best validation metric: {checkpoint['best_val_metric']:.4f}")
+    best_metric = checkpoint.get('best_val_metric', 0.0)
+    print(f"Best validation metric: {best_metric:.4f}")
     
     return model, config
 

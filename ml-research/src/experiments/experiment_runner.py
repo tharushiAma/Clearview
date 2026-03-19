@@ -58,6 +58,12 @@ from transformers import RobertaTokenizer, BertTokenizer, get_linear_schedule_wi
 # Shared Experiment Result Structure
 # ─────────────────────────────────────────────────────────────────────────────
 def empty_result(exp_id: str, desc: str) -> dict:
+    """
+    Return a skeleton result dict for an experiment that has not yet run.
+
+    Used as a safe default so that partial failures still produce a
+    well-formed entry in all_results.json.
+    """
     return {
         'experiment_id': exp_id,
         'description':   desc,
@@ -135,7 +141,17 @@ class ExperimentTrainer:
 
         return self.model(input_ids, attention_mask, aspect_ids, edge_indices)
 
-    def train_epoch(self):
+    def train_epoch(self) -> float:
+        """
+        Run one full pass over the training dataloader.
+
+        Supports both AMP and standard precision. Handles tuple model outputs
+        (aspect-aware model returns (logits, attn_weights, repr) — only logits
+        are used for the loss).
+
+        Returns:
+            Average training loss across all batches.
+        """
         self.model.train()
         total_loss = 0
         from tqdm import tqdm
@@ -183,6 +199,17 @@ class ExperimentTrainer:
         return total_loss / max(len(self.train_loader), 1)
 
     def evaluate(self, loader) -> dict:
+        """
+        Evaluate the model on a dataloader and return per-aspect metrics.
+
+        Args:
+            loader: DataLoader for the split to evaluate (val or test).
+
+        Returns:
+            dict with keys:
+              'overall'  → {accuracy, macro_f1, weighted_f1, mcc, ...}
+              'aspects'  → {aspect_name: {accuracy, macro_f1, ...}, ...}
+        """
         self.model.eval()
         all_preds, all_labels, all_aspects = [], [], []
 

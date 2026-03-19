@@ -15,18 +15,18 @@ import sys, os, time, argparse
 
 # ── Path setup ────────────────────────────────────────────────────────────────
 PROJECT_ROOT  = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-WEBSITE_ROOT  = os.path.abspath(os.path.join(PROJECT_ROOT, "..", "website"))
 INFERENCE_DIR = os.path.join(PROJECT_ROOT, "outputs", "cosmetic_sentiment_v1", "evaluation")
 SRC_DIR       = os.path.join(PROJECT_ROOT, "src")
 
-for p in [PROJECT_ROOT, WEBSITE_ROOT, INFERENCE_DIR, SRC_DIR]:
+for p in [PROJECT_ROOT, INFERENCE_DIR, SRC_DIR]:
     if p not in sys.path:
         sys.path.insert(0, p)
 
 import importlib.util
 
 def load_adapter_module():
-    adapter_path = os.path.join(WEBSITE_ROOT, "ml_models", "trained_model_adapter.py")
+    # Adapter now lives in ml-research/inference_bridge/ (moved from website/ml_models/)
+    adapter_path = os.path.join(PROJECT_ROOT, "inference_bridge", "trained_model_adapter.py")
     if not os.path.exists(adapter_path):
         return None, f"Adapter not found: {adapter_path}"
     spec = importlib.util.spec_from_file_location("trained_model_adapter", adapter_path)

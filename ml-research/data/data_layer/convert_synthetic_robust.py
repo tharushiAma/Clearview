@@ -1,14 +1,88 @@
+"""
+convert_synthetic_robust.py
+Convert JSON files of LLM-generated synthetic reviews into standardised CSV
+format that matches the schema used by the rest of the data pipeline.
+
+Pipeline:
+  Input : data/augmented/*.json   (raw LLM output, potentially malformed JSON)
+  Output: data/augmented/*.csv    (one CSV per JSON, same base filename)
+
+Each output CSV has the columns:
+  data, <aspects...>, text_clean, signature
+
+Usage:
+    python data/data_layer/convert_synthetic_robust.py --project_dir <path>
+
+Notes:
+  - JSON extraction uses a non-nested regex strategy; each review object must
+    not contain nested { } braces (true for this schema).
+  - Config is loaded from <project_dir>/configs/config.yaml.
+"""
+
 import os
 import json
 import argparse
+import logging
 import pandas as pd
 import re
+import yaml
 import emoji
 from cleantext import clean
 from pathlib import Path
-from _common import load_cfg, setup_logger, ensure_dirs
 
-def clean_text(text):
+
+# ── Inline utilities (replaced _common dependency) ────────────────────────────
+
+def load_cfg(project_dir: str) -> tuple:
+    """Load configs/config.yaml and return (project_dir_path, cfg dict)."""
+    root = Path(project_dir).resolve()
+    cfg_path = root / "configs" / "config.yaml"
+    with open(cfg_path, "r", encoding="utf-8") as f:
+        cfg = yaml.safe_load(f)
+    return root, cfg
+
+
+def setup_logger(project_dir: Path, name: str) -> logging.Logger:
+    """Set up a logger that writes to both console and a log file."""
+    log_dir = Path(project_dir) / "logs"
+    log_dir.mkdir(parents=True, exist_ok=True)
+
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.INFO)
+    if not logger.handlers:
+        fmt = logging.Formatter(
+            "%(asctime)s [%(levelname)s] %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S",
+        )
+        # Console handler
+        ch = logging.StreamHandler()
+        ch.setFormatter(fmt)
+        logger.addHandler(ch)
+        # File handler
+        fh = logging.FileHandler(log_dir / f"{name}.log", encoding="utf-8")
+        fh.setFormatter(fmt)
+        logger.addHandler(fh)
+    return logger
+
+
+def ensure_dirs(project_dir: Path):
+    """Create standard output directories if they don't already exist."""
+    for sub in ("data/augmented", "data/splits", "logs", "results"):
+        (Path(project_dir) / sub).mkdir(parents=True, exist_ok=True)
+
+
+def clean_text(text: str) -> str:
+    """
+    Lightweight text cleaning for synthetic reviews.
+    Applies the same normalisation steps used in the main preprocessing
+    pipeline so that synthetic and real reviews share the same text format.
+
+    Steps:
+      1. Strip HTML tags
+      2. Replace emojis with a space
+      3. Collapse whitespace
+      4. Lowercase, remove URLs / emails / line breaks (via cleantext)
+    """
     text = str(text)
     text = re.sub(r"<.*?>", " ", text)
     text = emoji.replace_emoji(text, replace=" ")
@@ -18,11 +92,19 @@ def clean_text(text):
         lower=True,
         no_urls=True,
         no_emails=True,
-        no_line_breaks=True
+        no_line_breaks=True,
     )
     return text.strip()
 
-def make_signature(row, aspects):
+
+def make_signature(row: pd.Series, aspects: list) -> str:
+    """
+    Build a compact deduplication key for a review row by concatenating all
+    aspect label values.
+
+    Example output: "stayingpower:na|texture:positive|smell:na|..."
+    Missing / null aspect values are represented as 'na'.
+    """
     return "|".join(
         f"{a}:{row[a] if pd.notna(row[a]) and row[a] is not None else 'na'}"
         for a in aspects
@@ -63,7 +145,7 @@ def main(project_dir: str):
     ensure_dirs(project_dir)
     logger = setup_logger(project_dir, "convert_synthetic_robust")
     
-    aspects = cfg["aspects"]
+    aspects = cfg["aspects"]["names"]  # list of aspect name strings from config.yaml
     augmented_dir = Path(project_dir) / "data" / "augmented"
     
     json_files = list(augmented_dir.glob("*.json"))

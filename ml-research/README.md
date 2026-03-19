@@ -11,8 +11,8 @@ A research implementation combining **RoBERTa**, **Aspect-Aware Attention**, **D
 
 1. **Multi-Aspect Sentiment Analysis** — Classify sentiment (Positive / Neutral / Negative) for 7 aspects: *stayingpower, texture, smell, price, colour, shipping, packing*
 2. **Mixed Sentiment Resolution** — Correctly separate conflicting sentiments in the same review (e.g. *"Love the colour but hate the smell"*)
-3. **Severe Class Imbalance Handling** — Hybrid loss (Focal + Class-Balanced + Dice) combined with LLM synthetic augmentation
-4. **Multi-Level Explainability** — Attention visualization, LIME, SHAP, **Integrated Gradients**, and **MSR Delta** analysis
+3. **Severe Class Imbalance Handling** — Hybrid loss (primarily Focal + Class-Balanced) combined with LLM synthetic augmentation
+4. **Multi-Level Explainability** — Attention visualization, LIME, SHAP, and **Integrated Gradients**
 
 ---
 
@@ -96,9 +96,9 @@ ml-research/
 │       └── evaluation/
 │           └── inference.py        # SentimentPredictor with LIME, SHAP, IG, MSR Delta
 │
-├── website/
-│   └── ml_models/
-│       └── trained_model_adapter.py  # Bridge: website ↔ SentimentPredictor
+├── inference_bridge/
+│   ├── trained_model_adapter.py      # Bridge: website ↔ SentimentPredictor
+│   └── trained_model_xai.py         # XAI bridge (IG, LIME, SHAP, MSR Delta)
 │
 └── tests/
     ├── comprehensive_test.py        # Full prediction + XAI tests (needs checkpoint)
@@ -158,7 +158,7 @@ python outputs/cosmetic_sentiment_v1/evaluation/inference.py \
 ### 6. Run Ablation / Baseline Experiments
 
 ```bash
-# List all 19 experiments
+# List all 22 experiments
 python src/experiments/experiment_runner.py --list
 
 # Run all baseline comparisons
@@ -177,22 +177,22 @@ python src/experiments/results_analyzer.py
 
 | Metric | Score |
 |--------|-------|
-| Overall Accuracy | **92.14%** |
-| Overall Macro-F1 | **0.7981** |
-| Weighted F1 | **0.9242** |
-| MCC | **0.7842** |
+| Overall Accuracy | **92.47%** |
+| Overall Macro-F1 | **0.7944** |
+| Weighted F1 | **0.9236** |
+| MCC | **0.7900** |
 
 **Per-Aspect Macro-F1:**
 
 | Aspect | Macro-F1 |
 |--------|----------|
-| Shipping | 0.8507 |
-| Stayingpower | 0.7920 |
-| Colour | 0.7791 |
-| Texture | 0.7726 |
-| Smell | 0.7381 |
-| Packing | 0.5989 |
-| Price | 0.4944 |
+| Texture | 0.8088 |
+| Shipping | 0.7975 |
+| Stayingpower | 0.7933 |
+| Colour | 0.7647 |
+| Smell | 0.7311 |
+| Packing | 0.5997 |
+| Price | 0.3275 |
 
 ---
 
@@ -206,11 +206,10 @@ All four methods are available in `inference.py` via `SentimentPredictor`:
 | LIME | `--explain lime` | Local perturbation-based word contributions |
 | SHAP | `--explain shap` | Shapley value attributions |
 | Integrated Gradients | `--explain ig` | Meets completeness axiom; most rigorous for transformers |
-| MSR Delta | `--explain msr` | Proves mixed sentiment separation per aspect |
 
 ---
 
-## 🧪 Ablation Studies (19 Experiments)
+## 🧪 Ablation Studies (22 Experiments)
 
 | ID | Study | Variants |
 |----|-------|---------|
@@ -219,8 +218,9 @@ All four methods are available in `inference.py` via `SentimentPredictor`:
 | A3 | Loss Function | Hybrid / Focal / CB / Dice / CE |
 | A4 | Data Augmentation | With / Without LLM synthetic data |
 | A5 | Classifier Head | 7 aspect-specific / 1 shared head |
-| A6 | Text Preprocessing | With / Without cleaning pipeline |
-| B1-B4 | Baselines | PlainRoBERTa / RoBERTa+CE / BERT-base / TF-IDF+SVM |
+| A6 | Mixed Sentiment Resolution | MSR Eval: Full model + GCN / No GCN |
+| A7 | Hybrid Loss Weights | Focal 1.0 + CB 0.5 / Focal 1.0 + CB 1.0 |
+| B1-B5 | Baselines | PlainRoBERTa / RoBERTa+CE / BERT-base / TF-IDF+SVM / Flat ABSA RoBERTa |
 
 ---
 
@@ -246,8 +246,7 @@ training:
   early_stopping_metric: macro_f1
   loss_weights:
     focal: 1.0
-    class_balanced: 0.5
-    dice: 0.3
+    cb: 0.5
   focal_gamma:
     default: 2.0
     price: 3.0

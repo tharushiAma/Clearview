@@ -1,13 +1,26 @@
 # -*- coding: utf-8 -*-
-"""Google Translator - Modified for local execution
+"""
+google_translator_local.py
+Translates the raw Vietnamese cosmetics review dataset to English using
+Google Translate via the deep-translator library.
 
-Original file was designed for Google Colab.
-This version is adapted to run on Windows with local file paths.
+Pipeline:
+  Input : data/raw/full_data_vn.csv   (original Vietnamese reviews)
+  Output: data/raw/full_data_en.csv   (machine-translated English reviews)
+
+Usage:
+    python data/data_layer/google_translator_local.py
+    (run from the ml-research root directory)
+
+Notes:
+  - Requires `deep_translator` and `tqdm` packages.
+  - Translation is done row-by-row with a progress bar.
+  - On API errors (rate limits etc.) the original text is kept as fallback.
 """
 
 import pandas as pd
 from deep_translator import GoogleTranslator
-from tqdm import tqdm  # Using standard tqdm instead of tqdm.notebook
+from tqdm import tqdm
 import os
 import sys
 
@@ -16,9 +29,10 @@ if sys.platform == 'win32':
     import io
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
-# 1. Load file - Updated to use correct path
-input_file = "data\\full_data_vn.csv"
-output_file = "data\\full_data_en.csv"
+# ── File paths (relative to ml-research root) ─────────────────────────────────
+# Input:  raw Vietnamese reviews  |  Output: translated English reviews
+input_file = "data/raw/full_data_vn.csv"
+output_file = "data/raw/full_data_en.csv"
 
 # Check if input file exists
 if not os.path.exists(input_file):
@@ -62,11 +76,7 @@ else:
     print(f"Available columns: {list(df.columns)}")
     exit(1)
 
-# 4. Optional: rename columns for your project
-if 'data_en' in df.columns:
-    df = df.rename(columns={"data_en": "review_en"})
-
-# 5. Save translated dataset
+# 4. Save translated dataset
 print(f"\nSaving to: {output_file}")
 df.to_csv(output_file, index=False)
 print(f"✓ Successfully saved → {output_file}")

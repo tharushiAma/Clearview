@@ -1,5 +1,22 @@
 """
-Training script for Multi-Aspect Sentiment Analysis
+train.py
+Training script for the Multi-Aspect Sentiment Analysis model
+(RoBERTa + Aspect Attention + Dependency GCN).
+
+Pipeline:
+  1. Load config from YAML
+  2. Initialise tokenizer, dependency parser (optional), dataloaders
+  3. Build model + AspectSpecificLossManager (Focal/CB/Hybrid losses)
+  4. Train with AdamW + linear warmup scheduler + AMP
+  5. Early stopping on validation Macro-F1
+  6. Evaluate best checkpoint on test set
+  7. Run Mixed Sentiment Resolution (MSR) evaluation
+  8. Save results to JSON + TensorBoard / W&B logs
+
+Usage:
+    python src/models/train.py --config configs/config.yaml
+    python src/models/train.py --config configs/config.yaml --resume results/.../best_model.pt
+    (run from the ml-research root directory)
 """
 
 import os
@@ -137,8 +154,19 @@ class Trainer:
         random.seed(seed)
         torch.backends.cudnn.deterministic = True
     
-    def train_epoch(self, epoch):
-        """Train for one epoch"""
+    def train_epoch(self, epoch: int) -> float:
+        """
+        Run one full pass over the training dataloader.
+
+        Handles both AMP and standard precision paths, gradient clipping,
+        and mid-epoch logging to TensorBoard / W&B.
+
+        Args:
+            epoch: Zero-based epoch index (used for progress bar label).
+
+        Returns:
+            Average training loss over all batches in the epoch.
+        """
         self.model.train()
         total_loss = 0
         aspect_losses = {aspect: [] for aspect in self.config['aspects']['names']}
@@ -250,8 +278,22 @@ class Trainer:
         
         return total_loss / len(self.train_loader)
     
-    def evaluate(self, dataloader, split_name="Validation"):
-        """Evaluate model on validation or test set"""
+    def evaluate(self, dataloader, split_name: str = "Validation") -> dict:
+        """
+        Evaluate the model on a given dataloader and return per-aspect metrics.
+
+        Collects predictions across all batches, then computes accuracy,
+        Macro-F1, Weighted-F1, and MCC for each aspect separately and overall.
+
+        Args:
+            dataloader: DataLoader for the split to evaluate (val or test).
+            split_name: Label used in console output (e.g. "Validation", "Test").
+
+        Returns:
+            dict with keys:
+              'overall'  → {accuracy, macro_f1, weighted_f1, mcc, ...}
+              'aspects'  → {aspect_name: {accuracy, macro_f1, ...}, ...}
+        """
         self.model.eval()
         
         all_predictions = []
@@ -322,8 +364,16 @@ class Trainer:
             'aspects': aspect_metrics
         }
     
-    def save_checkpoint(self, filename):
-        """Save model checkpoint"""
+    def save_checkpoint(self, filename: str):
+        """
+        Persist model, optimizer, and scheduler state to disk.
+
+        Saved dict keys: model_state_dict, optimizer_state_dict,
+        scheduler_state_dict, global_step, best_val_metric, config.
+
+        Args:
+            filename: File name (not full path) relative to self.save_dir.
+        """
         checkpoint = {
             'model_state_dict': self.model.state_dict(),
             'optimizer_state_dict': self.optimizer.state_dict(),
@@ -338,7 +388,15 @@ class Trainer:
         print(f"Checkpoint saved to {save_path}")
     
     def load_checkpoint(self, checkpoint_path):
-        """Load model checkpoint"""
+        """
+        Restore model, optimizer, and scheduler state from a checkpoint file.
+
+        Also restores global_step and best_val_metric so training can resume
+        seamlessly from where it left off.
+
+        Args:
+            checkpoint_path: Full path to the .pt checkpoint file.
+        """
         checkpoint = torch.load(checkpoint_path, map_location=self.device)
         self.model.load_state_dict(checkpoint['model_state_dict'])
         self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])

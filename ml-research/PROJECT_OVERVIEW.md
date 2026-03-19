@@ -52,9 +52,9 @@ ml-research/
 │       └── evaluation/
 │           └── inference.py          # SentimentPredictor (predict, LIME, SHAP, IG, MSR Delta)
 │
-├── 📂 website/
-│   └── ml_models/
-│       └── trained_model_adapter.py  # Website ↔ SentimentPredictor bridge
+├── 📂 inference_bridge/
+│   ├── trained_model_adapter.py      # Website ↔ SentimentPredictor bridge
+│   └── trained_model_xai.py         # XAI methods (IG, LIME, SHAP, MSR Delta) for website
 │
 ├── 📂 tests/
 │   ├── comprehensive_test.py         # Full prediction + optional XAI tests

@@ -32,22 +32,24 @@ for p in [os.path.join(current_dir, "ml-research"), os.path.join(current_dir, ".
         _ml_research_found = True
         break
 
-# Add project root to path for the trained model adapter
-sys.path.insert(0, project_root)
+# Add ml-research to path for the trained model adapter (moved from website/ml_models/)
+_ml_research_dir = os.path.join(project_root, "ml-research")
+if _ml_research_dir not in sys.path:
+    sys.path.insert(0, _ml_research_dir)
 
-# Try to import trained model adapter (new model)
+# Try to import trained model adapter (lives in ml-research/inference_bridge/)
 _trained_adapter_available = False
 try:
-    from ml_models.trained_model_adapter import TrainedModelAdapter
+    from inference_bridge.trained_model_adapter import TrainedModelAdapter
     _trained_adapter_available = True
     print("[OK] Trained model adapter available")
 except ImportError as e:
     print(f"[WARN]  Trained model adapter not available: {e}")
 
-# Try to import trained model XAI bridge
+# Try to import trained model XAI bridge (lives in ml-research/inference_bridge/)
 _trained_xai_available = False
 try:
-    from ml_models.trained_model_xai import TrainedModelXAI
+    from inference_bridge.trained_model_xai import TrainedModelXAI
     _trained_xai_available = True
     print("[OK] Trained model XAI bridge available")
 except ImportError as e:

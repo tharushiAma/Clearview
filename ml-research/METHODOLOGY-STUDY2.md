@@ -26,7 +26,7 @@ This project implements a **Multi-Aspect Mixed Sentiment Resolution (MAMSR)** sy
 - **Mixed sentiment resolution** — correctly separating conflicting sentiments for different aspects within the same review
 - **Multi-level explainability** through attention visualization, LIME, SHAP, Integrated Gradients, and MSR Delta analysis
 
-The system combines RoBERTa-base (contextualized embeddings) with Aspect-Aware Multi-Head Attention, an Aspect-Oriented Dependency GCN, and a Hybrid Loss function (Focal + Class-Balanced + Dice), with LLM-based synthetic data augmentation for minority class enrichment.
+The system combines RoBERTa-base (contextualized embeddings) with Aspect-Aware Multi-Head Attention, an Aspect-Oriented Dependency GCN, and a Hybrid Loss function (primarily Focal + Class-Balanced), with LLM-based synthetic data augmentation for minority class enrichment.
 
 ---
 
@@ -268,12 +268,13 @@ Directly optimizes the Dice coefficient (equivalent to F1-score). Complements cr
 ### 5.5 Hybrid Loss
 
 ```python
-total_loss = (1.0 × focal_loss) + (0.5 × cb_loss) + (0.3 × dice_loss)
+total_loss = (1.0 × focal_loss) + (0.5 × cb_loss)  # optional: + (w × dice_loss)
 ```
 
-Each aspect gets its own `HybridLoss` instance auto-configured from `config.yaml: training.class_counts` by `AspectSpecificLossManager`.
+Each aspect gets its own `HybridLoss` instance auto-configured from `config.yaml: training.class_counts` by `AspectSpecificLossManager`. The base configuration uses predominantly Focal and Class-Balanced loss.
 
 **Ablation A3** tests: Hybrid vs. Focal-only vs. CB-only vs. Dice-only vs. plain CE.
+**Ablation A7** specifically evaluates different weight combinations of Focal and CB.
 
 ---
 
@@ -302,8 +303,6 @@ weights = result['attention']['weights']  # (seq_len,)
 
 ### 6.3 LIME
 
-**Paper**: Ribeiro et al., KDD 2016
-
 **Method**: Randomly mask words and observe prediction change → fit local linear model → report feature importances.
 
 **Implementation** (`inference.py: explain_with_lime`):
@@ -320,9 +319,7 @@ weights = result['attention']['weights']  # (seq_len,)
 - Baseline: randomly masked versions of the input
 - Reports per-token SHAP values for the predicted class
 
-### 6.5 Integrated Gradients *(Most Theoretically Rigorous)*
-
-**Paper**: Sundararajan et al., ICML 2017
+### 6.5 Integrated Gradients 
 
 **Formula**: `IG(x) = (x − x') · ∫₀¹ ∂F(x' + α(x − x'))/∂x dα`
 
@@ -395,7 +392,7 @@ scaler.update()
 - ~2× speedup on RTX 4060
 - Gradient clipping at 1.0 prevents exploding gradients
 
-### 7.3 Early Stopping (Bug-Fixed)
+### 7.3 Early Stopping 
 
 **Important fix**: Early stopping is evaluated only at **epoch end**. Mid-epoch evaluations log metrics only and do NOT update `patience_counter` or `best_val_metric`. This prevents premature stopping due to noisy mid-epoch checkpoints.
 
@@ -464,7 +461,7 @@ results = evaluator.compute()  # {accuracy, macro_f1, weighted_f1, mcc, per_clas
 
 ## 9. Ablation Studies & Baselines
 
-### 9.1 Ablation Studies (6 studies, 15 variants)
+### 9.1 Ablation Studies (7 studies, 17 variants)
 
 | ID | Component | Conditions |
 |----|-----------|-----------|
@@ -473,9 +470,10 @@ results = evaluator.compute()  # {accuracy, macro_f1, weighted_f1, mcc, per_clas
 | A3 | Loss Function | Hybrid / Focal-only / CB-only / Dice-only / plain CE |
 | A4 | Data Augmentation | With synthetic data vs. original only |
 | A5 | Classifier Head | 7 aspect-specific heads vs. 1 shared head |
-| A6 | Text Preprocessing | With cleaning pipeline vs. raw text |
+| A6 | Mixed Sentiment Resolution | MSR Eval: Full model + GCN vs. No GCN |
+| A7 | Hybrid Loss Weights | Focal 1.0 + CB 0.5 vs. Focal 1.0 + CB 1.0 (no Dice) |
 
-### 9.2 Baseline Comparisons (4 models)
+### 9.2 Baseline Comparisons (5 models)
 
 | ID | Model | Description |
 |----|-------|-------------|
@@ -483,11 +481,12 @@ results = evaluator.compute()  # {accuracy, macro_f1, weighted_f1, mcc, per_clas
 | B2 | RoBERTa+CE | Full architecture but CrossEntropy only (no hybrid loss) |
 | B3 | BERTBaseline | BERT-base-uncased + [CLS] head, CE loss |
 | B4 | TF-IDF+SVM | Classical: TF-IDF features + LinearSVC per aspect |
+| B5 | Flat ABSA RoBERTa | Aspect attention, shared head, CE loss (no GCN/hybrid loss) |
 
 ### 9.3 Running Experiments
 
 ```bash
-# See all 19 experiments
+# See all 22 experiments
 python src/experiments/experiment_runner.py --list
 
 # Run all baselines

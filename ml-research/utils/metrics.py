@@ -306,7 +306,7 @@ class ErrorAnalyzer:
                     'aspect': aspects[i],
                     'true_label': self.class_names[y_true[i]],
                     'pred_label': self.class_names[y_pred[i]],
-                    'error_type': f"{self.class_names[y_true[i]]}→{self.class_names[y_pred[i]]}"
+                    'error_type': f"{self.class_names[y_true[i]]}->{self.class_names[y_pred[i]]}"
                 })
         
         print(f"\nTotal errors: {len(errors)} / {len(texts)} ({len(errors)/len(texts)*100:.2f}%)")

@@ -11,7 +11,6 @@ import numpy as np
 class FocalLoss(nn.Module):
     """
     Focal Loss for addressing class imbalance
-    Paper: "Focal Loss for Dense Object Detection" (ICCV 2017)
     
     Args:
         alpha: Weighting factor for each class
@@ -54,7 +53,6 @@ class FocalLoss(nn.Module):
 class ClassBalancedLoss(nn.Module):
     """
     Class-Balanced Loss based on Effective Number of Samples
-    Paper: "Class-Balanced Loss Based on Effective Number of Samples" (CVPR 2019)
     
     Works better than standard weighted loss for extreme imbalance
     
@@ -86,7 +84,6 @@ class DiceLoss(nn.Module):
     """
     Dice Loss for imbalanced classification
     Directly optimizes F1-score (Dice coefficient)
-    Paper: "Dice Loss for Data-imbalanced NLP Tasks" (ACL 2020)
     
     Args:
         smooth: Smoothing factor to avoid division by zero
