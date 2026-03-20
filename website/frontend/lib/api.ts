@@ -60,8 +60,7 @@ export async function fetchPrediction(
 }
 
 export async function explain(req: { text: string; aspect: string; methods: string[]; msrEnabled: boolean; msrStrength: number; signal?: AbortSignal }) {
-  // Call Python backend directly to avoid Next.js dev server timeout limits
-  const res = await fetch(`http://localhost:8000/explain`, {
+  const res = await fetch(`${API_BASE}/explain`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({

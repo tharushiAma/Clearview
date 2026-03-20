@@ -1,0 +1,20 @@
+{
+  "pythonVersion": "3.11",
+  "pythonPlatform": "Windows",
+  "venvPath": "C:/Users/lucif/AppData/Local/Programs/Python",
+  "pythonPath": "C:/Users/lucif/AppData/Local/Programs/Python/Python311/python.exe",
+  "include": [
+    "website/backend",
+    "ml-research"
+  ],
+  "extraPaths": [
+    "website",
+    "website/backend",
+    "ml-research"
+  ],
+  "reportMissingImports": "warning",
+  "reportMissingModuleSource": "none",
+  "reportUnknownMemberType": "none",
+  "reportUnknownVariableType": "none",
+  "reportUnknownArgumentType": "none"
+}

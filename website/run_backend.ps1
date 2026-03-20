@@ -3,4 +3,5 @@ Write-Host "==============================" -ForegroundColor Yellow
 Write-Host "Starting Python Backend Server" -ForegroundColor Cyan
 Write-Host "==============================" -ForegroundColor Yellow
 Set-Location $PSScriptRoot
-python backend_server.py
+# Execute the script from the backend sub-folder
+python backend/backend_server.py

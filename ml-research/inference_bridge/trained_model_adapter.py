@@ -15,7 +15,7 @@ from typing import Dict, List
 
 # Project root (three levels up from ml-research/inference_bridge/) = Clearview/
 current_dir = os.path.dirname(os.path.abspath(__file__))
-project_root = os.path.abspath(os.path.join(current_dir, "..", "..", ".."))
+project_root = os.path.abspath(os.path.join(current_dir, "..", ".."))
 
 # inference.py lives inside ml-research/outputs/cosmetic_sentiment_v1/evaluation/
 # We also need ml-research/src on the path so inference.py can find models/model.py
