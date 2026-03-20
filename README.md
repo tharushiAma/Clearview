@@ -1,144 +1,67 @@
-# Clearview: Multi-aspect Sentiment Analysis with MSR
+# ClearView — Multi-Aspect Sentiment Analysis for Cosmetic Reviews
 
-An advanced Aspect-Based Sentiment Analysis (ABSA) system with Multi-aspect Sentiment Resolution (MSR) for cosmetic product reviews.
+My final year project. Classifies sentiment across 7 aspects of cosmetic product reviews (colour, smell, texture, price, stayingpower, packing, shipping) while handling severe class imbalance and resolving conflicting opinions within the same review.
 
-## Project Overview
+The core idea: a review like "I love the colour but the smell is awful" should be classified as `colour: positive, smell: negative` — not just "mixed". That sounds obvious but getting a model to actually do this correctly requires more than just a vanilla BERT fine-tune.
 
-Clearview addresses the challenge of analyzing customer reviews with conflicting sentiments across multiple product aspects (e.g., "The texture is good but the price is too high").
+## What's in here
 
-**Key Innovation**: MSR mechanism resolves sentiment conflicts across 7 product aspects while maintaining aspect-specific accuracy.
+**`ml-research/`** — the actual ML work: RoBERTa + aspect attention + dependency GCN, hybrid loss functions, ablation experiments, XAI methods. See [`ml-research/README.md`](ml-research/README.md) for setup.
 
-## Project Structure
+**`website/`** — a Next.js frontend + FastAPI backend that lets you type in a review and see the predictions and explanations. See [`DEPLOYMENT.md`](DEPLOYMENT.md) to host it.
 
-This repository contains two main components:
+**`thesis/`** — thesis chapters as markdown files.
 
-### 🔬 ML Research (`ml-research/`)
+**`docs/`** — research notes and data analysis reports.
 
-Python-based machine learning research codebase:
-- RoBERTa-based EAGLE architecture
-- MSR conflict resolution mechanism
-- Comprehensive evaluation suite with XAI
-- 8-configuration ablation study
+## Quick numbers
 
-**Quick Start**: See [`ml-research/README.md`](ml-research/README.md)
+| Metric | Score |
+| --- | --- |
+| Overall Accuracy | 92.14% |
+| Overall Macro-F1 | 0.7981 |
+| Weighted F1 | 0.9242 |
+| MCC | 0.7842 |
 
-### 🌐 Website (`website/`)
+Best gains from the full model (vs plain RoBERTa baseline): price aspect +9.57% F1, packing +15.81% F1. These were the worst-performing aspects due to extreme class imbalance (174:1 and 185:1 positive-to-negative ratio before augmentation).
 
-Next.js website for interactive demonstrations:
-- Real-time sentiment analysis
-- Multi-aspect visualization
-- XAI explanations (Integrated Gradients)
+## Running it locally
 
-**Quick Start**: See [`website/README.md`](website/README.md)
-
-### 📚 Documentation (`docs/`)
-
-Shared documentation and research logs:
-- Experiment logs
-- Research notes
-- Design decisions
-
-## Performance Highlights
-
-| Metric | Baseline | EAGLE+MSR | Gain |
-|:-------|:---------|:----------|:-----|
-| Macro-F1 | 0.6953 | 0.7241 | +2.88% |
-| MSR Error Reduction | 0 | 50 | +50 fixes |
-
-**Best Improvements**:
-- Price aspect: +9.57% F1
-- Packing aspect: +15.81% F1
-
-## Key Features
-
-✅ **4-Class ABSA**: Negative/Neutral/Positive/None per aspect
-✅ **MSR Mechanism**: Conflict-aware sentiment resolution  
-✅ **7 Product Aspects**: Texture, price, smell, colour, shipping, packing, staying power  
-✅ **XAI Suite**: Integrated Gradients, LIME, SHAP  
-✅ **Production-Ready**: End-to-end pipeline with GPU acceleration  
-
-## Technology Stack
-
-**ML Research**:
-- PyTorch 2.x
-- Transformers (HuggingFace)
-- RoBERTa-base (125M parameters)
-- Captum, SHAP, LIME for XAI
-
-**Website**:
-- Next.js (React + TypeScript)
-- Tailwind CSS
-- shadcn/ui components
-
-## Getting Started
-
-### ML Research
+**ML research:**
 
 ```bash
 cd ml-research
-python -m venv .venv
-.\.venv\Scripts\activate  # Windows
+python -m venv venv
+venv\Scripts\activate   # Windows
 pip install -r requirements.txt
-
-# Run training
-python src/models/train_roberta_improved.py --use_synthetic --use_sampler --msr_strength 0.3
+python -m spacy download en_core_web_sm
+jupyter lab notebooks/
 ```
 
-### Website (UI Demo)
+**Website (both frontend + backend):**
 
 ```bash
-cd website/ui_demo
+cd website
 ./run_all.ps1
 ```
 
-This starts:
-- **Frontend**: http://localhost:3000 (Next.js + shadcn/ui)
-- **Backend**: http://localhost:8000 (FastAPI + Uvicorn)
+Frontend at <http://localhost:3000>, backend at <http://localhost:8000>.
 
-Refer to [`website/ui_demo/README.md`](website/ui_demo/README.md) for manual startup.
+## Stack
 
-## Documentation
+ML: PyTorch, HuggingFace Transformers, RoBERTa-base, Captum, SHAP, LIME, spaCy
 
-- **Technical Methodology**: [`ml-research/METHODOLOGY.md`](ml-research/METHODOLOGY.md)
-- **4-Class Migration**: [`ml-research/MIGRATION_NOTE.md`](ml-research/MIGRATION_NOTE.md)
-- **ML README**: [`ml-research/README.md`](ml-research/README.md)
-- **Website README**: [`website/README.md`](website/README.md)
+Website: Next.js, TypeScript, Tailwind CSS, FastAPI, Uvicorn
 
-## Repository Structure
+## Structure
 
 ```
 Clearview/
-├── ml-research/       # ML/AI research code (Python)
-│   ├── src/          # Model code, evaluation, XAI
-│   ├── outputs/      # Results, checkpoints, reports
-│   ├── data/         # Dataset splits
-│   └── ...
-├── website/          # Frontend (Next.js/TypeScript)
-│   ├── app/          # Routes
-│   ├── components/   # UI components
-│   └── ...
-├── docs/             # Shared documentation
-└── README.md         # This file
+├── ml-research/      # ML code, notebooks, trained model
+├── website/
+│   ├── frontend/     # Next.js app
+│   └── backend/      # FastAPI server
+├── thesis/           # Thesis chapters
+├── docs/             # Research notes
+└── DEPLOYMENT.md     # Hosting guide
 ```
-
-## Citation
-
-If you use this code in your research, please cite:
-
-```
-[Your thesis citation details]
-```
-
-## License
-
-[Specify if applicable]
-
-## Contact
-
-[Your contact information]
-
----
-
-**Authors**: [Your Name/Team]  
-**Institution**: [Your University]  
-**Year**: 2026

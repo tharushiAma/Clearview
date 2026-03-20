@@ -1,381 +1,188 @@
-# ClearView: Methodology and Technical Architecture
+# ClearView — Methodology and Technical Architecture
 
-## Project Overview
+## Overview
 
-ClearView is an advanced Aspect-Based Sentiment Analysis (ABSA) system augmented with Multi-aspect Sentiment Resolution (MSR) for handling conflicting sentiments across multiple product aspects in customer reviews. The system addresses the critical challenge of reviews with mixed sentiments (e.g., "The texture is good but the price is too high").
+ClearView does multi-aspect sentiment analysis on cosmetic product reviews. The goal is to classify sentiment (positive, negative, neutral, or not mentioned) for 7 aspects simultaneously — stayingpower, texture, smell, price, colour, shipping, packing — while handling the fact that reviews often have conflicting opinions about different aspects in the same sentence.
 
-**Domain**: Cosmetic product reviews (makeup, skincare, beauty products)
-
-**Dataset**: Customer reviews from e-commerce platforms
-- Training set: ~8,000 reviews (after augmentation)
-- Validation set: ~1,200 reviews
-- Test set: ~1,200 reviews
-- Total unique reviews: ~3,500 (original)
-
+**Dataset:** Customer reviews from e-commerce cosmetic platforms. ~3,500 original reviews, ~8,000 after augmentation for training, ~1,200 each for val and test.
 
 ---
 
-## 1. Methodologies
+## 1. Aspect-Based Sentiment Analysis (ABSA)
 
-### 1.1 Aspect-Based Sentiment Analysis (ABSA)
+Each review gets classified per-aspect into 4 classes:
 
-**Approach**: Multi-label, multi-class classification targeting 7 product aspects:
-- `stayingpower`, `texture`, `smell`, `price`, `colour`, `shipping`, `packing`
+- **Negative (0)** — negative opinion about that aspect
+- **Neutral (1)** — mixed or ambivalent opinion
+- **Positive (2)** — positive opinion
+- **None/Null (3)** — aspect not mentioned in the review
 
-**Classification System**: 4-class per aspect
-- **Negative** (0): Critical or dissatisfied sentiment
-- **Neutral** (1): Ambivalent or mixed opinion
-- **Positive** (2): Satisfied or praising sentiment
-- **None/Null** (3): Aspect not mentioned in the review
+This is a multi-label, multi-class problem: 7 aspects × 4 classes, all predicted from a single forward pass.
 
-### 1.2 Multi-aspect Sentiment Resolution (MSR)
+## 2. Multi-Aspect Sentiment Resolution (MSR)
 
-**Problem Statement**: Traditional ABSA models struggle when multiple aspects have conflicting sentiments, leading to:
-- Sentiment leakage between aspects
-- Reduced confidence in predictions
-- Incorrect aspect-sentiment attribution
+The tricky part is when a single review says something like "The texture is good but the price is too high." A plain transformer tends to let signals bleed across aspects — the negative "price" token affects the "texture" prediction and vice versa.
 
-**Solution**: MSR introduces a **conflict-aware gating mechanism** that:
-1. Detects conflicting sentiment patterns across aspects
-2. Applies aspect-specific attention refinement
-3. Adjusts final predictions based on conflict probability
+MSR adds a conflict-aware gating mechanism that:
 
-**Key Innovation**: The MSR gate operates with tunable strength (λ = 0.3 in final model) to balance between:
-- Preserving original aspect predictions (λ = 0)
-- Aggressively resolving conflicts (λ = 1.0)
+1. Detects when multiple aspects have conflicting sentiments (the conflict detector outputs a probability)
+2. Uses that conflict signal to apply aspect-specific refinement to the predictions
+3. Has a tunable strength parameter λ (set to 0.3 in the final model)
 
-### 1.3 Class Imbalance Handling
+λ = 0 means no MSR adjustment, λ = 1.0 is maximum correction. 0.3 was chosen empirically — enough to improve minority aspects without hurting majority ones.
 
-**Challenge**: Real-world review datasets exhibit severe class imbalance
-- Majority class (Positive): ~70-80% of samples
-- Minority classes (Negative/Neutral): ~10-20% each
-- Null class: Varies by aspect relevance
+## 3. Class imbalance
 
-**Strategies Employed**:
+The raw data is massively skewed. Most cosmetic reviews are positive, especially for price and packing:
 
-1. **Adaptive Focal Loss**
-   - Dynamically reweights samples based on prediction confidence
-   - Formula: `FL(p_t) = -α_t(1-p_t)^γ log(p_t)`
-   - Focuses training on hard-to-classify examples
+| Aspect | Negative | Neutral | Positive | Pos:Neg Ratio |
+| --- | --- | --- | --- | --- |
+| Price | 17 | 15 | 2,244 | 132:1 |
+| Packing | 29 | 6 | 2,070 | 71:1 |
+| Smell | 51 | 17 | 872 | 17:1 |
+| Colour | 131 | 113 | 1,506 | 11:1 |
 
-2. **Weighted Random Sampling**
-   - Oversamples minority classes during training
-   - Ensures balanced exposure to all sentiment categories
+With standard cross-entropy, the model learns to predict "positive" for everything and gets 90%+ accuracy while completely failing on minority classes. Three strategies to fix this:
 
-3. **Synthetic Data Augmentation**
-   - Programmatically generates mixed-sentiment reviews
-   - Creates challenging examples for MSR training
-   - Example: Combines positive texture + negative price statements
+1. **LLM synthetic augmentation** — generated reviews targeting the worst minority classes. Brought price from 132:1 to ~11:1 before training even starts.
+2. **Hybrid loss** — Focal Loss + Class-Balanced Loss, with per-aspect γ and β tuned to the imbalance severity.
+3. **Two-phase stratified split** — standard stratified split fails when you only have 9 negative price samples. Reserved minority-class rows first, split them proportionally to val/test, then ran stratified split on the rest.
 
 ---
 
-## 2. Technologies and Architecture
+## 2. Model Architecture
 
-### 2.1 Core Technologies
-
-**Deep Learning Framework**
-- **PyTorch 2.x**: Primary ML framework
-- **Transformers (HuggingFace)**: Pre-trained language models
-- **CUDA**: GPU acceleration for training and inference
-
-**Language Model**
-- **RoBERTa-base** (125M parameters)
-  - Robustly optimized BERT approach
-  - Superior handling of context and nuance
-  - Pre-trained on 160GB of text
-
-**Architecture Components**
-- **Multi-head Attention**: Aspect-specific representation learning
-- **Cross-Aspect Interaction**: Self-attention mechanism for modeling aspect relationships
-- **Conflict Detector**: Binary classifier for identifying mixed-sentiment reviews
-
-**Explainability Libraries**
-- **Captum**: Integrated Gradients implementation
-- **SHAP**: Game-theory based attributions
-- **LIME**: Local interpretable explanations
-
-
-### 2.2 Model Architecture: Enhanced ABSA with MSR (ClearView EAGLE)
-
-**EAGLE**: **E**nhanced **A**spect-**G**ated ABSA with **L**earning-based MSR **E**valuation
-
-
-```
+```text
 Input Text
     ↓
-[RoBERTa Encoder]
+RoBERTa-base Encoder (768-dim)
     ↓
-Token Embeddings (768-dim)
+Aspect-Aware Attention (learnable aspect embeddings as queries, 8-head MHA)
     ↓
-[Aspect-Aware Attention]
+Aspect-Oriented Dependency GCN (2-layer, aspect-gated message passing)
     ↓
-Aspect-specific Representations (7 × 768-dim)
+7 Aspect-Specific Classifiers (768 → 384 → 3)
     ↓
-[Cross-Aspect Interaction (Self-Attention)]
+Conflict Detector → conflict probability
     ↓
-Refined Aspect Representations
+MSR Refinement (if enabled, λ=0.3)
     ↓
-[Multi-head Aspect Classifiers (7 parallel)]
-    ↓
-Raw Sentiment Logits (7 aspects × 4 classes)
-    ↓
-[Conflict Detector] ─→ Conflict Probability
-    ↓
-[MSR Refinement Layers (if enabled)]
-    ↓
-Final Predictions (7 aspects × 4 classes)
+Final predictions: 7 aspects × 4 classes
 ```
 
-**Key Components**:
+**Total parameters: ~132M** (RoBERTa-base 125M + GCN + heads)
 
-1. **RoBERTa Encoder**
-   - Tokenizes input (max 256 tokens)
-   - Generates contextualized embeddings
+### RoBERTa-base
 
-2. **Aspect-Aware Attention Module**
-   - Learnable aspect queries (7 × 768-dim parameters)
-   - Multi-head attention mechanism
-   - Extracts aspect-specific representations from token embeddings
+Using `roberta-base` from HuggingFace with full fine-tuning. I chose RoBERTa over BERT because it was trained longer on more data (160GB vs 16GB) and without the Next Sentence Prediction objective, which adds noise for sentiment tasks. Max 128 tokens.
 
-3. **Cross-Aspect Interaction Module**
-   - Self-attention over aspect representations
-   - Models dependencies and conflicts between aspects
-   - Feed-forward network for refinement
+### Aspect-Aware Attention
 
-4. **Aspect Classifiers** (7 parallel heads)
-   - Individual 4-class classifier per aspect
-   - Two-layer MLP: 768 → 384 → 4 logits
-   - GELU activation with dropout
+Instead of using the [CLS] token representation for classification, I use learnable aspect embeddings as the **query** in multi-head attention. The token hidden states are keys and values. This forces the model to attend specifically to what's relevant for the queried aspect rather than mixing everything together.
 
-5. **Conflict Detector**
-   - Analyzes sentiment distribution across aspects
-   - Features: probabilities + entropy + sentiment contrast
-   - Binary classifier outputting conflict probability ∈ [0, 1]
-
-6. **MSR Refinement Layers**
-   - Separate refinement network per aspect
-   - Takes aspect representation + conflict score as input
-   - Outputs adjusted logits when enabled
-   - Controlled by msr_strength parameter (λ = 0.3)
-
-### 2.3 Data Pipeline
-
-**Preprocessing**:
-1. Text cleaning (special characters, normalization)
-2. Label mapping to 4-class system
-3. Stratified train/val/test splitting (70/15/15)
-
-**Augmentation**:
-1. **Sampler-based**: Weighted oversampling of minority classes
-2. **Synthetic**: Programmatic generation of mixed-sentiment reviews
-
-**Final Training Set**: `train_aug.parquet`
-- Original samples: ~60%
-- Sampler-augmented: ~20%
-- Synthetic samples: ~20%
-
----
-
-## 3. Experimental Design: Ablation Study
-
-To isolate the contribution of each component, we conducted a **2×4 ablation matrix**:
-
-### Configurations
-
-| Config | Data Strategy | MSR Enabled | Description |
-|:-------|:--------------|:------------|:------------|
-| 1_base_base | Baseline (original only) | ❌ | Control group |
-| 1_base_msr | Baseline | ✅ | MSR impact alone |
-| 2_sampler_base | Weighted sampling | ❌ | Class balancing |
-| 2_sampler_msr | Weighted sampling | ✅ | Sampling + MSR |
-| 3_synth_base | Synthetic augmentation | ❌ | Synthetic data |
-| 3_synth_msr | Synthetic augmentation | ✅ | Synthetic + MSR |
-| **4_full_base** | **All augmentations** | ❌ | Data-only approach |
-| **4_full_msr** | **All augmentations** | ✅ | **Full EAGLE** |
-
-### Training Configuration
-
-- **Optimizer**: AdamW (lr=2e-5, weight_decay=0.01)
-- **Scheduler**: Linear warmup (10% steps) + cosine decay
-- **Batch Size**: 16 (effective: 64 with gradient accumulation)
-- **Epochs**: 10 (with early stopping, patience=3)
-- **Loss Function**: Adaptive Focal Loss (γ=2.0, α=class-weighted)
-- **Hardware**: NVIDIA GPU (CUDA-enabled), CPU fallback supported
-- **Seed**: 42 (for reproducibility)
-
----
-
-## 4. Evaluation Metrics
-
-### 4.1 ABSA Metrics (Per-Aspect)
-
-- **Precision**: Correctness of positive predictions
-- **Recall**: Coverage of true positives
-- **F1-Score**: Harmonic mean of precision and recall
-- **Macro-F1**: Unweighted average across all classes
-- **Balanced Accuracy**: Accounts for class imbalance
-
-### 4.2 Conflict Detection Metrics
-
-- **Conflict AUC**: Area under ROC curve for conflict detection
-- **Brier Score**: Calibration metric (lower is better)
-- **Separation**: Gap between conflict scores of mixed vs. clear reviews
-
-### 4.3 MSR-Specific Metrics
-
-- **MSR Error Reduction**: Number of incorrect predictions fixed by MSR
-  - Formula: `errors_before - errors_after`
-  - Measured on mixed-sentiment reviews only
-
----
-
-## 5. Results and Performance Gains
-
-### 5.1 Overall Performance (Main Results)
-
-| Model | Overall Macro-F1 | Conflict Detection AUC | MSR Error Reduction |
-|:------|:-----------------|:-----------------------|:--------------------|
-| **RoBERTa Baseline** | 0.6953 | 0.9405 | 0 |
-| **EAGLE (Full MSR)** | **0.7241** | **0.9454** | **50** |
-| **Improvement** | **+2.88%** | **+0.49%** | **+50 fixes** |
-
-### 5.2 Per-Aspect Performance
-
-| Aspect | Baseline F1 | EAGLE F1 | Gain |
-|:-------|:------------|:---------|:-----|
-| **Texture** | 0.7952 | 0.7923 | -0.29% |
-| **Price** | 0.3871 | 0.4828 | **+9.57%** |
-| **Smell** | 0.7195 | 0.7374 | +1.79% |
-| **Colour** | 0.8093 | 0.7611 | -4.82% |
-| **Shipping** | 0.7726 | 0.7553 | -1.73% |
-| **Stayingpower** | 0.8114 | 0.8099 | -0.15% |
-| **Packing** | 0.5717 | 0.7298 | **+15.81%** |
-
-**Key Insights**:
-- Largest gains in **minority aspects** (price, packing)
-- MSR particularly effective for **conflicting aspect pairs**
-- Minor degradation in dominant aspects due to MSR conservative tuning
-
-### 5.3 Ablation Study Findings
-
-From the 8-configuration matrix:
-
-| Config | Sentiment-F1 | MSR-Reduction | Key Insight |
-|:-------|:-------------|:--------------|:------------|
-| 1_base_base | 0.6256 | 0 | Baseline performance |
-| 1_base_msr | 0.6223 | -1 | MSR alone slightly degrades on balanced data |
-| 2_sampler_base | 0.6686 | 0 | Class balancing helps (+4.3%) |
-| 2_sampler_msr | 0.6426 | 8 | MSR reduces 8 errors with sampling |
-| 3_synth_base | 0.7220 | 0 | Synthetic data major boost (+9.6%) |
-| 3_synth_msr | 0.6511 | 41 | MSR fixes 41 errors with synthetic |
-| 4_full_base | 0.6843 | 0 | Combined data best for baseline |
-| **4_full_msr** | **0.7016** | **54** | **Best configuration overall** |
-
-**Conclusion**: MSR's effectiveness scales with **data complexity**. The more challenging the training examples (synthetic mixed-sentiment), the more MSR improves resolution.
-
-### 5.4 XAI Verification (Proof of Correctness)
-
-We validated MSR using Integrated Gradients on the test case:
-
-**Review**: *"The texture is good but the price is too high"*
-
-| Aspect | Predicted | Confidence (MSR) | Key Attribution Token | Verification |
-|:-------|:----------|:-----------------|:---------------------|:-------------|
-| **Texture** | Positive | 73.1% | "good" (+1.218) | ✅ Correct |
-| **Price** | Negative | 95.6% | "high" (+2.511) | ✅ Correct |
-| **Smell** | None | 81.9% | - | ✅ Not mentioned |
-| **Others** | None | >85% | - | ✅ Not mentioned |
-
-**Conflict Detection**: 48.0% probability (correctly flagged as mixed)
-
-**MSR Delta Analysis**:
-- Texture confidence: 62.9% → 73.1% (+10.2%)
-- Price confidence: 93.4% → 95.6% (+2.2%)
-- Both aspects showed **increased confidence** with MSR enabled
-
-This proves MSR correctly:
-1. Separates conflicting aspects
-2. Attributes sentiments to correct tokens
-3. Increases prediction confidence on mixed reviews
-
----
-
-## 6. Key Contributions
-
-1. **4-Class ABSA System**: Extended traditional 3-class to include "None" for aspect absence
-2. **MSR Mechanism**: Novel conflict-aware gating for multi-aspect sentiment resolution
-3. **Thesis-Grade Ablation Study**: Systematic isolation of component contributions
-4. **XAI Validation**: GPU-accelerated explanations proving mechanism correctness
-5. **Production-Ready Pipeline**: End-to-end system from raw data to interpretable predictions
-
----
-
-## 7. Reproducibility
-
-All experiments are reproducible via:
-
-```bash
-# Full ablation study
-.\run_final_ablations_4class.ps1
-
-# Single model training
-python src/models/train_roberta_improved.py --use_synthetic --use_sampler --msr_strength 0.3
-
-# Evaluation
-python src/evaluation/evaluate_and_log.py --ckpt outputs/gold_msr_4class/best_model.pt
-
-# XAI explanations
-python src/xai/Explainable.py --ckpt outputs/gold_msr_4class/best_model.pt --text "Your review" --aspect all
+```python
+aspect_query = self.aspect_embeddings(aspect_id)  # (batch, 768)
+attended, attn_weights = self.aspect_attention(
+    query=aspect_query.unsqueeze(1),
+    key=hidden_states,
+    value=hidden_states,
+    key_padding_mask=~attention_mask.bool()
+)
 ```
 
-**Environment**: Python 3.8+, PyTorch 2.0+, CUDA 11.8+ (GPU optional but recommended)
+The attention weights are also used for attention-based XAI visualization.
+
+Ablation A2 tests this by replacing with simple [CLS] pooling.
+
+### Dependency GCN
+
+spaCy parses the dependency tree for each review. The GCN does 2 rounds of message passing along those edges, with an aspect-specific gate controlling how much each token's representation is allowed to influence the target.
+
+```text
+gate = σ(W_gate × aspect_embedding)  # aspect-specific filter
+for each edge (src → dst):
+    messages[dst] += gate ⊙ H[src]   # gated message
+H_new = ReLU(messages) + H           # residual
+```
+
+The point is that "awful" in "Great colour but the smell is awful" is syntactically linked to "smell", not "colour". The aspect gate for "colour" should suppress the "awful" signal. Ablation A1 tests with/without GCN.
+
+### Classifier heads
+
+7 separate two-layer MLPs (768→384→3), one per aspect. Separate heads let each aspect learn its own decision boundary — "smells amazing" and "delivers fast" have different linguistic patterns even though both are positive. Ablation A5 tests a single shared head.
+
+### Conflict Detector
+
+A small classifier that takes the sentiment probability distributions across all 7 aspects, plus entropy and sentiment contrast features, and outputs a conflict probability in [0,1]. Reviews where multiple aspects have opposing sentiments should score high.
 
 ---
 
-## 8. Limitations and Considerations
+## 3. Data Pipeline
 
-### 8.1 Current Limitations
+**Preprocessing:** Unicode normalization, HTML/URL removal, repeated punctuation normalization, garbled token detection. Applied at preprocessing time AND replicated in `inference.py` to ensure train-test parity.
 
-1. **Language Constraint**: Currently supports English-only reviews
-   - Model requires retraining for other languages
-   - Multilingual transfer learning not yet implemented
+**Split:** 70/15/15. Two-phase to guarantee minority classes in val/test.
 
-2. **Domain Specificity**: Optimized for cosmetic product reviews
-   - Aspect categories are domain-specific (texture, staying power, etc.)
-   - May require adaptation for other product categories
+**Augmentation:** LLM-generated reviews for the most imbalanced classes. 923 generated, 810 kept after deduplication (113 removed). Also added light noise injection to make synthetic reviews less obviously clean.
 
-3. **Review Length**: Optimized for short-to-medium reviews (≤256 tokens)
-   - Longer reviews may be truncated
-   - May lose context in very long, multi-paragraph reviews
-
-4. **Computational Cost**: MSR adds inference overhead
-   - ~15-20% slower than baseline due to refinement layers
-   - GPU recommended for real-time applications
-
-5. **Data Dependency**: Requires labeled aspect-sentiment pairs for training
-   - Manual annotation is time-consuming and expensive
-   - Synthetic augmentation doesn't fully replace real data
-
-### 8.2 Ethical Considerations
-
-- **Bias Mitigation**: Model trained on publicly available reviews, but may inherit demographic biases from the dataset
-- **Transparency**: XAI suite provides explanations, but end-users should understand model limitations
-- **Commercial Use**: System should augment, not replace, human judgment in business decisions
+**Training set:** `train_augmented.csv` — 10,050 samples total.
 
 ---
 
-## 9. Future Work
+## 4. Ablation Study
 
-- **Multi-lingual Support**: Extend to non-English reviews using mBERT or XLM-RoBERTa
-- **Real-time Inference**: Model quantization and distillation for production deployment
-- **Domain Adaptation**: Transfer learning to other product categories (electronics, restaurants, hotels)
-- **MSR Strength Tuning**: Automated hyperparameter search for optimal λ per domain
-- **Active Learning**: Intelligent sample selection for efficient human annotation
-- **Temporal Analysis**: Track sentiment trends over time for product evolution insights
+8-configuration matrix isolating each component:
+
+| Config | Data | MSR | Description |
+| --- | --- | --- | --- |
+| 1_base_base | Original only | No | Control |
+| 1_base_msr | Original only | Yes | MSR alone |
+| 2_sampler_base | Weighted sampling | No | Class balancing only |
+| 2_sampler_msr | Weighted sampling | Yes | Sampling + MSR |
+| 3_synth_base | Synthetic augmentation | No | Synthetic data only |
+| 3_synth_msr | Synthetic augmentation | Yes | Synthetic + MSR |
+| 4_full_base | All augmentations | No | Data-only |
+| **4_full_msr** | **All augmentations** | **Yes** | **Full model** |
 
 ---
 
-**Authors**: [Your Name/Team]  
-**Institution**: [Your University]  
-**Date**: February 2026  
-**License**: [Specify if applicable]
+## 5. Results
+
+| Model | Overall Macro-F1 | MSR Error Reduction |
+| --- | --- | --- |
+| RoBERTa Baseline | 0.6953 | 0 |
+| Full EAGLE (MSR) | 0.7241 | 50 |
+
+Per-aspect:
+
+| Aspect | Baseline F1 | Full Model F1 | Gain |
+| --- | --- | --- | --- |
+| Texture | 0.7952 | 0.7923 | -0.29% |
+| Price | 0.3871 | 0.4828 | +9.57% |
+| Smell | 0.7195 | 0.7374 | +1.79% |
+| Colour | 0.8093 | 0.7611 | -4.82% |
+| Shipping | 0.7726 | 0.7553 | -1.73% |
+| Stayingpower | 0.8114 | 0.8099 | -0.15% |
+| Packing | 0.5717 | 0.7298 | +15.81% |
+
+The gains are concentrated in the minority aspects (price, packing) which were the worst before augmentation. Some majority aspects dropped slightly — the MSR λ=0.3 is a bit conservative to avoid hurting those. Could tune per-aspect in future work.
+
+---
+
+## 6. Evaluation
+
+Primary metric is **Macro-F1** — unweighted average across all classes. Critical for imbalanced data because accuracy is misleading (predicting "positive" for everything gives 90%+ accuracy).
+
+Also tracked: per-class F1, Weighted-F1, MCC (Matthews Correlation Coefficient), confusion matrices per aspect.
+
+For mixed sentiment specifically: `MixedSentimentEvaluator` identifies reviews where ≥2 aspects have conflicting predicted sentiments and checks if they were resolved correctly against ground truth.
+
+---
+
+## 7. Limitations
+
+- English only — would need retraining or multilingual backbone for other languages
+- Cosmetic-specific aspects — adapting to other product categories needs new annotations
+- Max 128 tokens — very long reviews get truncated
+- MSR adds ~15-20% inference overhead
+- Still needs real labeled data to train; synthetic helps but doesn't replace
