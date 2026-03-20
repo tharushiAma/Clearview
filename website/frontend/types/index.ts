@@ -57,10 +57,6 @@ export interface ExplanationResponse {
       ig_aspect: {
         top_tokens: [string, number][];
       };
-      msr_delta?: {
-        prob_before: number[];
-        prob_after: number[];
-      };
     };
   };
 }

@@ -180,25 +180,6 @@ export function ExplainTab({
                     )}
                   </div>
                 </div>
-                {data.msr_delta && (
-                  <div>
-                    <h4 className="text-sm font-semibold mb-2">MSR Impact (Delta)</h4>
-                    <div className="text-xs space-y-1">
-                      <div className="flex justify-between">
-                        <span>Before Prob:</span>
-                        <span className="font-mono">
-                          {JSON.stringify(data.msr_delta.prob_before.map((n) => Number(n.toFixed(2))))}
-                        </span>
-                      </div>
-                      <div className="flex justify-between font-bold">
-                        <span>After Prob:</span>
-                        <span className="font-mono">
-                          {JSON.stringify(data.msr_delta.prob_after.map((n) => Number(n.toFixed(2))))}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                )}
               </CardContent>
             </Card>
           ))}

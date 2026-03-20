@@ -126,7 +126,6 @@ def explain(request: ExplainRequest):
                 "ig_aspect": ex.explain_ig_aspect(
                     request.text, asp, enable_msr=True, top_k=10
                 ),
-                "msr_delta": ex.explain_msr_delta(request.text, asp, top_k=10),
             }
             bundle["progress"].append(f"Completed {asp}")
             print(f"  [OK] '{asp}' done")

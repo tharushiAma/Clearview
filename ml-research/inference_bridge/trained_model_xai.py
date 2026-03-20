@@ -164,43 +164,6 @@ class TrainedModelXAI:
             "task":       "conflict",
         }
 
-    def explain_msr_delta(self, text: str, aspect: str, top_k: int = 10) -> dict:
-        """
-        Show the probability distribution before/after MSR.
-        Since our model doesn't have a separate MSR pass, we show the raw
-        prediction probabilities as 'after' and a softened version as 'before'.
-
-        Returns: {"prob_before": [neg, neu, pos], "prob_after": [neg, neu, pos],
-                  "method": "msr_delta", "task": "aspect"}
-        """
-        # Raw (unscaled) prediction = "before MSR"
-        raw_result = self.predictor.predict(text, aspect)
-        probs_after = [
-            raw_result["probabilities"]["negative"],
-            raw_result["probabilities"]["neutral"],
-            raw_result["probabilities"]["positive"],
-        ]
-
-        # Simulate "before" with lower temperature (less confident)
-        original_temp = self.predictor.temperature
-        self.predictor.temperature = 1.0   # flat without scaling
-        try:
-            before_result = self.predictor.predict(text, aspect)
-            probs_before = [
-                before_result["probabilities"]["negative"],
-                before_result["probabilities"]["neutral"],
-                before_result["probabilities"]["positive"],
-            ]
-        finally:
-            self.predictor.temperature = original_temp
-
-        return {
-            "prob_before": [round(p, 4) for p in probs_before],
-            "prob_after":  [round(p, 4) for p in probs_after],
-            "method":      "msr_delta",
-            "task":        "aspect:{}".format(aspect),
-        }
-
     def explain_lime_aspect(self, text: str, aspect: str, num_samples: int = 100, top_k: int = 10) -> dict:
         """
         Explain sentiment prediction using LIME (Local Interpretable Model-agnostic Explanations).
@@ -397,10 +360,6 @@ if __name__ == "__main__":
         ig = xai.explain_ig_aspect(text, asp)
         print("  predicted: {} (conf={:.3f})".format(ig["predicted"], ig["confidence"]))
         print("  top tokens: {}".format(ig["top_tokens"][:5]))
-
-        delta = xai.explain_msr_delta(text, asp)
-        print("  prob_before: {}".format(delta["prob_before"]))
-        print("  prob_after:  {}".format(delta["prob_after"]))
 
     print("\n--- Conflict ---")
     conflict = xai.explain_ig_conflict(text)

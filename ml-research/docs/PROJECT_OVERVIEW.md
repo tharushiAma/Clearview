@@ -30,8 +30,7 @@ ml-research/
 ├── src/
 │   ├── models/
 │   │   ├── model.py                   # Full model architecture
-│   │   ├── losses.py                  # Loss functions for imbalance
-│   │   └── train.py                   # Training loop
+│   │   └── losses.py                  # Loss functions for imbalance
 │   ├── experiments/
 │   │   ├── ablation_configs.py        # Ablation config generators
 │   │   └── baseline_models.py         # Baseline model classes
@@ -82,15 +81,6 @@ Three classes:
 - `HybridLoss` — combines all three
 - `AspectSpecificLossManager` — auto-configures one HybridLoss per aspect from class counts in config. price and packing get γ=3.0, β=0.9999; smell gets γ=2.5; others γ=2.0.
 
-### `src/models/train.py`
-
-Full training pipeline. Mixed precision (AMP), gradient clipping, linear LR schedule, early stopping on validation Macro-F1 at epoch end only (not mid-epoch — that was a bug). Saves `model_state_dict`, `config`, `epoch`, `best_val_metric`.
-
-```bash
-python src/models/train.py --config configs/config.yaml
-python src/models/train.py --config configs/config.yaml --resume outputs/.../best_model.pt
-```
-
 ### `src/utils/data_utils.py`
 
 - `CosmeticReviewDataset` — reads CSV, tokenizes, optionally runs spaCy dependency parsing, returns edge_index for GCN
@@ -115,13 +105,6 @@ python src/models/train.py --config configs/config.yaml --resume outputs/.../bes
 | `explain_with_lime(text, aspect)` | Word contribution scores |
 | `explain_with_shap(text, aspect)` | SHAP token attributions |
 | `explain_with_integrated_gradients(text, aspect)` | Captum IG — completeness axiom |
-| `explain_msr_delta(text, focus_aspect)` | Per-token confidence delta + cross-aspect summary |
-
-```bash
-python inference.py --checkpoint best_model.pt \
-    --text "Love the colour, smell is awful" --aspect colour \
-    --explain all --save-path output.png
-```
 
 ### `inference_bridge/`
 
@@ -133,8 +116,8 @@ The website backend imports `trained_model_adapter.py` and `trained_model_xai.py
 | --- | --- |
 | `baseline_models.py` | PlainRoBERTa, CrossEntropyLossWrapper, BERTBaseline, TFIDFSVMBaseline |
 | `ablation_configs.py` | Config generators for all ablation variants |
-| `experiment_runner.py` | CLI: `--list`, `--experiment <id>`, `--group baselines\|ablations\|all` |
-| `results_analyzer.py` | Generates experiment_report.md, LaTeX .tex, bar charts |
+
+Experiments are run interactively via `notebooks/12_experiment_runner.ipynb` and results are analysed via `notebooks/13_results_analyzer.ipynb`.
 
 ---
 

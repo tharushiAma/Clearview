@@ -11,6 +11,8 @@ import sys
 import os
 import matplotlib.pyplot as plt
 import seaborn as sns
+from tqdm.auto import tqdm
+import time
 
 _this_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(_this_dir)
@@ -268,13 +270,15 @@ class SentimentPredictor:
         """
         predictions = {}
         
-        for aspect in self.aspect_names:
+        print(f"⌛ Starting: Predicting for all {len(self.aspect_names)} aspects...")
+        for aspect in tqdm(self.aspect_names, desc="Predicting aspects"):
             try:
                 pred = self.predict(text, aspect)
                 predictions[aspect] = pred
             except Exception as e:
-                print(f"Error predicting {aspect}: {e}")
+                print(f"❌ Error predicting {aspect}: {e}")
                 predictions[aspect] = None
+        print(f"✅ Completed: Predicting for all aspects.")
         
         return predictions
     
@@ -341,6 +345,7 @@ class SentimentPredictor:
             random_state=42
         )
         
+        print(f"⌛ Starting: Generating LIME explanation (samples={num_samples})...")
         # Define prediction function for LIME
         def predict_proba(texts):
             """Wrapper for model prediction compatible with LIME.
@@ -351,7 +356,7 @@ class SentimentPredictor:
             what the model actually outputs to the user.
             """
             probs = []
-            for t in texts:
+            for t in tqdm(texts, desc="LIME samples", leave=False):
                 # Tokenize
                 encoding = self.tokenizer(
                     t,
@@ -387,6 +392,7 @@ class SentimentPredictor:
             num_samples=num_samples,
             top_labels=3
         )
+        print("✅ Completed: LIME explanation generated.")
         
         return explanation
     
@@ -484,6 +490,7 @@ class SentimentPredictor:
         valid_length = attention_mask[0].sum().item()
         tokens = tokens[:valid_length]
         
+        print(f"⌛ Starting: Generating SHAP explanation...")
         # Create a wrapper function for SHAP
         def model_predict(input_ids_list):
             """Wrapper for SHAP predictions.
@@ -494,7 +501,7 @@ class SentimentPredictor:
             """
             empty_edge = [torch.zeros(2, 0, dtype=torch.long).to(self.device)]
             outputs = []
-            for ids in input_ids_list:
+            for ids in tqdm(input_ids_list, desc="SHAP evaluations", leave=False):
                 ids_tensor = torch.tensor([ids], dtype=torch.long).to(self.device)
                 mask = (ids_tensor != self.tokenizer.pad_token_id).long()
                 
@@ -662,8 +669,9 @@ class SentimentPredictor:
         # Accumulator for gradients
         total_gradients = torch.zeros_like(real_embeds).to(self.device)
 
+        print(f"⌛ Starting: Computing Integrated Gradients (steps={n_steps})...")
         # Manual Integrated Gradients Loop (Riemann Sum)
-        for i in range(1, n_steps + 1):
+        for i in tqdm(range(1, n_steps + 1), desc="IG steps"):
             alpha = i / n_steps
             # Linear interpolation step
             interpolated_embeds = baseline_embeds + alpha * (real_embeds - baseline_embeds)
@@ -773,159 +781,6 @@ class SentimentPredictor:
             'confidence':   result['confidence']
         }
 
-    # ─────────────────────────────────────────────────────────────────────
-    # MSR Delta — Mixed Sentiment Resolution Explainability
-    # ─────────────────────────────────────────────────────────────────────
-    def explain_msr_delta(self, text, focus_aspect, top_k=10, save_path=None):
-        """
-        MSR (Mixed Sentiment Resolution) Delta Explanation.
-
-        For a review that mentions MULTIPLE aspects (e.g. positive colour,
-        negative smell), this method shows HOW MUCH each OTHER aspect's
-        tokens shift the model's confidence for the focus_aspect prediction.
-
-        Method:
-          1. Get baseline prediction for focus_aspect on the full text.
-          2. For each token, mask it (replace with [MASK]) and re-predict.
-          3. The delta = baseline_confidence - masked_confidence.
-             - Large positive delta → token SUPPORTS the prediction
-             - Large negative delta → token OPPOSES the prediction
-          4. Group deltas by aspect-keyword overlap to show cross-aspect influence.
-
-        This directly demonstrates Mixed Sentiment Resolution: tokens from
-        aspect B (e.g. smell) should ideally have LOW delta on aspect A
-        (e.g. colour), proving the model separates aspects correctly.
-
-        Args:
-            text:         Input review text
-            focus_aspect: The aspect whose prediction we are examining
-            top_k:        Number of top delta tokens to display
-            save_path:    Optional path to save the output PNG
-
-        Returns:
-            dict with keys:
-                'tokens':           All tokens (no padding)
-                'deltas':           Per-token confidence delta (float, one per token)
-                'baseline':         Baseline prediction dict
-                'focus_aspect':     The aspect being explained
-        """
-        if focus_aspect not in self.aspect_to_id:
-            raise ValueError(f"Invalid aspect. Must be one of: {', '.join(self.aspect_names)}")
-
-        # Tokenise once
-        encoding = self.tokenizer(
-            text,
-            add_special_tokens=True,
-            max_length=self.config['data']['max_seq_length'],
-            padding='max_length',
-            truncation=True,
-            return_tensors='pt'
-        )
-        input_ids      = encoding['input_ids'].to(self.device)
-        attention_mask = encoding['attention_mask'].to(self.device)
-        aspect_id_t    = torch.tensor(
-            [self.aspect_to_id[focus_aspect]], dtype=torch.long
-        ).to(self.device)
-        empty_edge     = [torch.zeros(2, 0, dtype=torch.long).to(self.device)]
-
-        valid_length = attention_mask[0].sum().item()
-        tokens       = self.tokenizer.convert_ids_to_tokens(input_ids[0])[:valid_length]
-
-        # Baseline confidence for the focus aspect
-        with torch.no_grad():
-            logits   = self.model(input_ids, attention_mask, aspect_id_t, edge_index=empty_edge)
-            scaled   = (logits / self.temperature)
-            baseline_probs = torch.softmax(scaled, dim=1)[0].cpu().numpy()
-
-        baseline_pred_idx = int(np.argmax(baseline_probs))
-        baseline_conf     = float(baseline_probs[baseline_pred_idx])
-        baseline_label    = self.label_names[baseline_pred_idx]
-
-        # Per-token masking
-        mask_token_id = self.tokenizer.mask_token_id
-        deltas = np.zeros(valid_length)
-
-        for i in range(1, valid_length - 1):       # skip [CLS] and [SEP]
-            masked_ids = input_ids.clone()
-            masked_ids[0, i] = mask_token_id
-
-            with torch.no_grad():
-                logits_m = self.model(
-                    masked_ids, attention_mask, aspect_id_t, edge_index=empty_edge
-                )
-                probs_m  = torch.softmax(logits_m / self.temperature, dim=1)[0].cpu().numpy()
-
-            # Delta = drop in confidence for the baseline predicted class
-            deltas[i] = baseline_conf - float(probs_m[baseline_pred_idx])
-
-        # Normalise
-        max_abs    = np.abs(deltas).max() + 1e-9
-        deltas_norm = deltas / max_abs
-
-        # ── Print ─────────────────────────────────────────────────────────
-        print(f"\n{'='*70}")
-        print(f"MSR Delta Explanation  (Mixed Sentiment Resolution)")
-        print(f"{'='*70}")
-        print(f"Text:          {text}")
-        print(f"Focus aspect:  {focus_aspect}")
-        print(f"Baseline pred: {baseline_label}  (confidence {baseline_conf:.2%})")
-        print(f"{'='*70}")
-        print(f"\nToken influence on [{focus_aspect}] prediction (positive = supports, "
-              f"negative = contradicts):")
-        print("-" * 70)
-
-        ranked = sorted(
-            [(tok, d, dn) for tok, d, dn in zip(tokens, deltas, deltas_norm)
-             if tok not in ('<s>', '</s>', '<pad>', '<mask>')],
-            key=lambda x: abs(x[1]), reverse=True
-        )
-        for tok, d, dn in ranked[:top_k]:
-            influence = "supports" if d > 0 else "opposes"
-            bar = '█' * int(abs(dn) * 28)
-            sign = '+' if d > 0 else '-'
-            print(f"  {tok:20s} [{sign}] {bar:<28s} delta={d:+.4f}")
-
-        # Cross-aspect summary: which prediction for OTHER aspects correlates
-        # with the biggest deltas? This reveals mixed-sentiment behaviour.
-        print(f"\nCross-aspect influence summary (other predictions on this review):")
-        other_aspects = [a for a in self.aspect_names if a != focus_aspect]
-        for other in other_aspects:
-            other_result = self.predict(text, other)
-            print(f"  {other:15s} → {other_result['sentiment']:8s}  "
-                  f"(confidence {other_result['confidence']:.2%})")
-
-        # ── Visualise ─────────────────────────────────────────────────────
-        fig, ax = plt.subplots(figsize=(12, max(4, valid_length * 0.22)))
-        colors  = ['#27ae60' if d > 0 else '#c0392b' for d in deltas_norm]
-        y_pos   = np.arange(valid_length)
-        ax.barh(y_pos, deltas_norm, color=colors, alpha=0.75, edgecolor='white')
-        ax.set_yticks(y_pos)
-        ax.set_yticklabels(tokens, fontsize=7)
-        ax.set_xlabel('Normalised Confidence Delta (mask-out effect)', fontsize=11)
-        ax.set_title(
-            f'MSR Delta — Focus: [{focus_aspect}] — Baseline: {baseline_label}\n'
-            f'"{text[:60]}{"…" if len(text) > 60 else ""}"',
-            fontsize=11, fontweight='bold'
-        )
-        ax.axvline(x=0, color='black', linestyle='--', linewidth=0.8)
-        ax.grid(axis='x', alpha=0.3)
-        plt.tight_layout()
-        if save_path:
-            plt.savefig(save_path, dpi=300, bbox_inches='tight')
-            print(f"\nVisualization saved to: {save_path}")
-        else:
-            plt.show()
-        plt.close()
-
-        return {
-            'tokens':       tokens,
-            'deltas':       deltas.tolist(),
-            'deltas_norm':  deltas_norm.tolist(),
-            'baseline':     {'sentiment': baseline_label, 'confidence': baseline_conf},
-            'focus_aspect': focus_aspect,
-        }
-
-
 def main():
     """Interactive inference demo"""
     import argparse
@@ -999,14 +854,6 @@ def main():
                 args.text, args.aspect, save_path=save_path
             )
         
-        if args.explain in ['msr', 'all']:
-            save_path = args.save_path if args.save_path else None
-            if save_path and args.explain == 'all':
-                save_path = save_path.replace('.', '_msr.')
-            predictor.explain_msr_delta(
-                args.text, args.aspect, save_path=save_path
-            )
-    
     else:
         # Interactive mode
         print("\n" + "="*70)

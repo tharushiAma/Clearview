@@ -43,7 +43,6 @@ export type ExplanationMethod = "ig" | "lime" | "shap";
 export interface TokenAttribution {
   token: string;
   attribution: number;
-  msrDelta?: number;
 }
 
 export interface AspectExplanation {

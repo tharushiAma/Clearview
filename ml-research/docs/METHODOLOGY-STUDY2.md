@@ -11,7 +11,7 @@ This project builds a multi-aspect sentiment analysis system for cosmetic produc
 - Multi-aspect classification across 7 aspects: stayingpower, texture, smell, price, colour, shipping, packing
 - Severe class imbalance — up to 185:1 positive-to-negative ratio before augmentation
 - Mixed sentiment resolution — separating conflicting opinions within the same review
-- Multi-level explainability through attention, LIME, SHAP, Integrated Gradients, and MSR Delta
+- Multi-level explainability through attention, LIME, SHAP, and Integrated Gradients
 
 The model is RoBERTa-base with Aspect-Aware Multi-Head Attention, an Aspect-Oriented Dependency GCN, and Hybrid Loss (Focal + Class-Balanced), augmented with LLM-generated synthetic data for minority classes.
 
@@ -218,18 +218,6 @@ Formula: `IG(x) = (x − x') · ∫₀¹ ∂F(x' + α(x − x'))/∂x dα`
 
 Baseline is all-PAD embeddings. Satisfies the completeness axiom — attribution scores sum exactly to the output change. Implemented via Captum's `LayerIntegratedGradients` on RoBERTa's embedding layer, 50 interpolation steps. This is the most rigorous method and the one I use for most XAI figures in the thesis.
 
-### MSR Delta
-
-The most interesting one for this project specifically. It directly shows whether the model is correctly separating aspect signals:
-
-1. Predict baseline confidence for `focus_aspect` on the full review
-2. For each token, replace it with `[MASK]` and re-predict
-3. `delta[i] = baseline_conf − masked_conf`
-
-Large positive delta → token actively supports the focus aspect prediction. Near-zero delta → token is irrelevant to this aspect even if it expresses opinion about another aspect.
-
-For "Great colour but the smell is awful" with `focus_aspect = colour`: "great" and "colour" should have high delta; "awful" and "smell" should be near zero. That's the proof that the model isn't conflating the two aspects.
-
 ---
 
 ## 7. Training Strategy
@@ -320,12 +308,7 @@ Mixed sentiment resolution accuracy: computed by `MixedSentimentEvaluator` — p
 
 ### Running experiments
 
-```bash
-python src/experiments/experiment_runner.py --list
-python src/experiments/experiment_runner.py --group baselines
-python src/experiments/experiment_runner.py --experiment A3_focal_only
-python src/experiments/results_analyzer.py
-```
+Experiments are run interactively via `notebooks/12_experiment_runner.ipynb`. Results are analysed and charts/LaTeX tables generated via `notebooks/13_results_analyzer.ipynb`.
 
 ---
 

@@ -1,7 +1,6 @@
 # Class Imbalance Analysis
 
 Project: Class balanced aspect base mixed sentiment resolution with XAI
-Date: 2026-03-04 09:10:19
 
 ## Cleaning pipeline
 
@@ -11,8 +10,7 @@ Date: 2026-03-04 09:10:19
 | 2 | HTML tag & entity removal | Strip `<br>`, `&amp;`, `&#39;` etc. |
 | 3 | URL / e-mail removal | Free up token budget |
 | 4 | Translation artifact normalisation | Fix vi→en MT filler & punctuation |
-| 5 | Garbled / keyboard-spam removal | Drop incoherent tokens |
-| 6 | Whitespace collapse | Clean token boundaries |
+| 5 | Whitespace collapse | Clean token boundaries |
 
 ## Dataset split
 

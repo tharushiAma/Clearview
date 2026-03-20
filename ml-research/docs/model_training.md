@@ -40,7 +40,7 @@ For a review like "The shipping was slow but the packing was elegant":
 
 1. spaCy parses the dependency tree — "slow" links to "shipping", "elegant" to "packing"
 2. The GCN's aspect-oriented gate suppresses cross-aspect signals based on which aspect is being queried
-3. MSR Delta XAI (`explain_msr_delta` in `inference.py`) proves this works by measuring per-token confidence drop under token masking — tokens relevant to one aspect should barely affect another aspect's prediction
+3. The Integrated Gradients XAI (`explain_with_integrated_gradients` in `inference.py`) proves this works by showing that tokens linked to one aspect have high attribution for that aspect and near-zero attribution for unrelated aspects
 
 ---
 
@@ -54,7 +54,7 @@ For a review like "The shipping was slow but the packing was elegant":
 | Packing | 185:1 | ~12:1 |
 | Smell | 17:1 | ~6:1 |
 
-Script: `data/data_layer/create_train_aug.py` → `data/splits/train_augmented.csv` (10,050 samples)
+Notebook: `notebooks/03_create_train_aug` → `data/splits/train_augmented.csv` (10,050 samples)
 
 **Hybrid Loss** (`src/models/losses.py`):
 
@@ -72,7 +72,7 @@ Per-aspect parameters (auto-set by `AspectSpecificLossManager`):
 | smell | 2.5 | 0.999 |
 | others | 2.0 | 0.999 |
 
-**Stratified Split** — two-phase split in `data/data_layer/preprocess_and_split.py`. Reserves rare-class rows first, splits them to val/test proportionally, then does standard stratified split on the rest. Ensures rare aspects (price-neg, packing-neu) actually appear in val/test.
+**Stratified Split** — two-phase split in `notebooks/02_preprocess_and_split.ipynb`. Reserves rare-class rows first, splits them to val/test proportionally, then does standard stratified split on the rest. Ensures rare aspects (price-neg, packing-neu) actually appear in val/test.
 
 ---
 
@@ -90,13 +90,7 @@ Per-aspect parameters (auto-set by `AspectSpecificLossManager`):
 | Gradient Clipping | max_norm=1.0 |
 | Early Stopping Metric | Validation Macro-F1 |
 
-```bash
-python src/models/train.py --config configs/config.yaml
-
-# Resume from checkpoint
-python src/models/train.py --config configs/config.yaml \
-    --resume outputs/cosmetic_sentiment_v1/best_model.pt
-```
+Training is run interactively via `notebooks/09_train.ipynb`. Instantiate `Trainer('configs/config.yaml')` and call `.train()`. To resume from a checkpoint, call `.load_checkpoint(path)` before `.train()`.
 
 ---
 
@@ -127,31 +121,20 @@ Per-aspect Macro-F1:
 
 All implemented in `outputs/cosmetic_sentiment_v1/evaluation/inference.py`:
 
-| Method | Flag | Notes |
-| --- | --- | --- |
-| Attention heatmap | `--explain attention` | Fast, always available |
-| LIME | `--explain lime` | Word-level contribution |
-| SHAP | `--explain shap` | Shapley values |
-| Integrated Gradients | `--explain ig` | Satisfies completeness axiom; most rigorous |
-| MSR Delta | `--explain msr` | Proves mixed sentiment separation |
+| Method | Notes |
+| --- | --- |
+| Attention heatmap | Fast, always available |
+| LIME | Word-level contribution |
+| SHAP | Shapley values |
+| Integrated Gradients | Satisfies completeness axiom; most rigorous |
 
-```bash
-python outputs/cosmetic_sentiment_v1/evaluation/inference.py \
-    --checkpoint outputs/cosmetic_sentiment_v1/best_model.pt \
-    --text "Great colour but the smell is awful" \
-    --aspect colour --explain all --save-path results/xai.png
-```
+XAI is run interactively via `notebooks/14_inference.ipynb` (single predictions) or `notebooks/17_trained_model_xai.ipynb` (full XAI bridge).
 
 ---
 
 ## Ablation Experiments
 
-```bash
-python src/experiments/experiment_runner.py --list
-python src/experiments/experiment_runner.py --group ablations
-python src/experiments/experiment_runner.py --group baselines
-python src/experiments/results_analyzer.py   # generate tables + charts
-```
+Experiments are run interactively via `notebooks/12_experiment_runner.ipynb` and results are analysed via `notebooks/13_results_analyzer.ipynb`.
 
 | Group | IDs | What it tests |
 | --- | --- | --- |

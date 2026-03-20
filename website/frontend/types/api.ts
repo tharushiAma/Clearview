@@ -36,7 +36,6 @@ export interface XAIMethodResult {
 
 export interface AspectExplanation {
   ig_aspect: XAIMethodResult;
-  msr_delta: XAIMethodResult;
 }
 
 export interface ExplainResponse {

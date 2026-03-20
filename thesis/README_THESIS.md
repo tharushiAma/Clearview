@@ -19,13 +19,9 @@
 | [10_conclusion.md](10_conclusion.md) | 10 | Conclusion, limitations, future work |
 | [REFERENCES.md](REFERENCES.md) | Refs | Full bibliography |
 
-## Key Contributions
+## What this covers
 
-1. Three-pronged class imbalance framework (LLM augmentation + Hybrid Loss + two-phase split)
-2. Aspect-Oriented Dependency GCN with aspect-specific gating
-3. MSR Delta analysis - novel XAI for mixed sentiment resolution evidence
-4. 19-experiment ablation study (6 component studies + 4 baselines)
-5. ClearView web system - deployable ABSA demo with interactive XAI
+The main things I worked on: handling extreme class imbalance (price was 132:1 before augmentation — nothing was going to learn from that), separating conflicting aspect opinions within the same review, and making the model's decisions interpretable. The MSR Delta method I wrote specifically to prove the model isn't mixing up signals from different aspects in the same sentence. There's also a web demo that runs live predictions with XAI.
 
 ## Dataset Summary
 
