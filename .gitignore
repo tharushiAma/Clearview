@@ -2,6 +2,7 @@
 __pycache__/
 *.pyc
 *.pyo
+*.pyd
 .venv/
 venv/
 
@@ -49,9 +50,22 @@ website/frontend/tsc_errors.log
 
 # ── Website / Backend (FastAPI) ───────────────────────────────────────────────
 # (Python __pycache__ is already caught globally above)
-# Debug/error logs generated at runtime — do not commit
+# Runtime-generated logs and debug files — never commit
+website/backend_error.log
+website/debug_hook_log.txt
+website/error_log.txt
 website/backend/debug_hook_log.txt
 website/backend/error_log.txt
+
+# ── TypeScript build artifacts ─────────────────────────────────────────────────
+tsconfig.tsbuildinfo
+*.tsbuildinfo
+tsc_errors.log
+
+# ── Temporary / scratch files ─────────────────────────────────────────────────
+tmp_*.py
+tmp_*.ipynb
+evidence.html
 
 # Misc
 .claude/
