@@ -40,6 +40,7 @@ ml-research/outputs/logs/
 # ── Website / Frontend (Next.js) ─────────────────────────────────────────────
 node_modules/
 website/node_modules/
+website/.next/
 website/frontend/node_modules/
 website/frontend/.next/
 website/frontend/out/
