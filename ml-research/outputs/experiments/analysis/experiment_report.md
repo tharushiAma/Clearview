@@ -97,6 +97,7 @@ Generated from 22 experiments
 | Hybrid Loss (Focal + CB + Dice) | 0.9236 | **0.7856** | 0.9221 | 0.7838 | 0.61 min |
 | Focal Loss only | 0.9178 | **0.7725** | 0.9166 | 0.7731 | 0.60 min |
 | Class-Balanced Loss only | 0.9250 | **0.7911** | 0.9246 | 0.7939 | 0.60 min |
+| Dice Loss only | 0.7823 | **0.2926** | 0.6868 | 0.0000 | 44.51 min |
 | Cross-Entropy Loss (no imbalance handling) | 0.9250 | **0.7911** | 0.9246 | 0.7939 | 93.48 min |
 
 
@@ -107,6 +108,7 @@ Generated from 22 experiments
 | Hybrid Loss (Focal + CB + Dice) | 0.7989 | 0.8104 | 0.7561 | 0.4062 | 0.7234 | 0.8011 | 0.7426 | 0.7198 |
 | Focal Loss only | 0.8106 | 0.7653 | 0.7516 | 0.4718 | 0.7381 | 0.7707 | 0.5985 | 0.7009 |
 | Class-Balanced Loss only | 0.8338 | 0.7988 | 0.7295 | 0.4223 | 0.7689 | 0.7819 | 0.7077 | 0.7204 |
+| Dice Loss only | 0.2375 | 0.2827 | 0.3006 | 0.3278 | 0.3050 | 0.2580 | 0.3243 | 0.2909 |
 | Cross-Entropy Loss (no imbalance handling) | 0.8338 | 0.7988 | 0.7295 | 0.4223 | 0.7689 | 0.7819 | 0.7077 | 0.7204 |
 
 
@@ -117,6 +119,7 @@ Generated from 22 experiments
 | Hybrid Loss (Focal + CB + Dice) | 0.0000 | 0.2353 | 0.4000 | 0.4390 |
 | Focal Loss only | 0.2000 | 0.2353 | 0.0000 | 0.4211 |
 | Class-Balanced Loss only | 0.2857 | 0.0000 | 0.2857 | 0.3636 |
+| Dice Loss only | 0.0000 | 0.0000 | 0.0000 | 0.0000 |
 | Cross-Entropy Loss (no imbalance handling) | 0.2857 | 0.0000 | 0.2857 | 0.3636 |
 
 

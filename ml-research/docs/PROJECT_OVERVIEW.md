@@ -97,6 +97,8 @@ Three classes:
 
 `SentimentPredictor` class — wraps the trained model for prediction and all XAI methods:
 
+| Method | Description |
+| --- | --- |
 | `predict(text, aspect)` | Sentiment + confidence + probabilities |
 | `predict_all_aspects(text)` | All 7 aspects at once |
 | `explain_with_lime(text, aspect)` | Word contribution scores |

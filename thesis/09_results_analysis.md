@@ -79,15 +79,17 @@ Replacing aspect-guided MHA with CLS pooling causes a −25.3% Macro-F1 collapse
 
 | Loss Configuration | Macro-F1 | Weighted-F1 | MCC |
 | --- | --- | --- | --- |
-| Hybrid (Focal + CB, original) | 0.7856 | 0.9221 | 0.7838 |
+| Hybrid (Focal + CB + Dice, original) | 0.7856 | 0.9221 | 0.7838 |
 | Focal Loss only | 0.7725 | 0.9166 | 0.7731 |
 | Class-Balanced Loss only | 0.7911 | 0.9246 | 0.7939 |
+| Dice Loss only | 0.2926 | 0.6868 | 0.0000 |
 | Cross-Entropy (no imbalance handling) | 0.7911 | 0.9246 | 0.7939 |
 
 **Key findings:**
 
+- **Dice Loss alone collapses** to Macro-F1 = 0.2926 and MCC = 0.000 — the F1-surrogate loss alone is unable to train the model stably in this extreme imbalance setting.
 - CB-only and CE yield identical overall Macro-F1 (0.7911) but per-aspect minority class F1 differs in favour of CB for the most imbalanced aspects.
-- The A7 configuration (Focal 1.0 + CB 0.5) achieves the best overall result (0.7944) — see §6.5 for the updated hybrid formula.
+- The A7 configuration (Focal 1.0 + CB 0.5 + Dice 0.0) achieves the best overall result (0.7944), confirming that Dice weight = 0.0 is optimal — see §6.5 for the updated hybrid formula.
 
 ### A4: LLM Augmentation
 
@@ -152,7 +154,7 @@ The dominant error pattern is **neutral class misclassification** — the model 
 ## 9.6 Answering Research Questions
 
 **RQ1 — Does the Hybrid Loss outperform individual loss functions for extreme class imbalance?**
-Partially confirmed. The final model uses Focal + CB after ablation. CB-only and CE achieve the same overall Macro-F1 (0.7911) but the Focal+CB combination (A7: 0.7944) outperforms all single-loss and full-hybrid configurations. The key finding is that Focal+CB complementarity (hard-example focusing + principled reweighting) is what matters.
+Partially confirmed. The final model uses Focal + CB (Dice weight = 0.0) after ablation. CB-only and CE achieve the same overall Macro-F1 (0.7911) but the Focal+CB combination (A7: 0.7944) outperforms all single-loss and full-hybrid configurations. Dice Loss alone collapses to 0.2926, confirming it cannot be used in isolation for this task. The key finding is that Focal+CB complementarity (hard-example focusing + principled reweighting) is what matters, not Dice.
 
 **RQ2 — Does the Dependency GCN improve mixed sentiment resolution?**
 Confirmed. Removing GCN causes the largest single ablation drop: −9.9% Macro-F1 (0.7856 → 0.6863). The model's 87.55% aspect-level accuracy on mixed reviews drops significantly without GCN, as cross-aspect signal contamination increases.
