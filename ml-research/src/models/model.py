@@ -290,7 +290,7 @@ class MultiAspectSentimentModel(nn.Module):
         # Apply GCN to each sample in batch
         gcn_outputs = []
         for i in range(input_ids.size(0)):
-            if edge_index is not None and i < len(edge_index) and edge_index[i].size(1) > 0:
+            if edge_index is not None and i < len(edge_index) and edge_index[i] is not None and edge_index[i].size(1) > 0:
                 # Get aspect embedding for this sample
                 aspect_emb = self.aspect_aware_roberta.aspect_embeddings(aspect_id[i])
                 

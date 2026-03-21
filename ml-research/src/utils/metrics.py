@@ -4,7 +4,8 @@ Evaluation metrics for multi-aspect sentiment analysis
 
 from sklearn.metrics import (
     accuracy_score, precision_recall_fscore_support,
-    confusion_matrix, matthews_corrcoef, classification_report
+    confusion_matrix, matthews_corrcoef, classification_report,
+    roc_auc_score, roc_curve
 )
 import numpy as np
 import matplotlib.pyplot as plt
@@ -22,10 +23,11 @@ class AspectSentimentEvaluator:
         self.results = {}
         print(f"[Evaluator] AspectSentimentEvaluator ready — tracking {len(aspect_names)} aspects: {aspect_names}")
 
-    def evaluate_aspect(self, y_true, y_pred, aspect_name):
+    def evaluate_aspect(self, y_true, y_pred, aspect_name, y_prob=None):
         """
         Compute comprehensive metrics for a single aspect.
         Primary metric is Macro-F1 (weights all classes equally — critical for imbalanced data).
+        y_prob: (Optional) raw probabilities for each class [n_samples, 3] for ROC/AUC.
         """
         n = len(y_true)
         print(f"\n[Evaluator] Evaluating aspect: '{aspect_name}'  ({n} samples)")
@@ -43,6 +45,15 @@ class AspectSentimentEvaluator:
         )
         mcc = matthews_corrcoef(y_true, y_pred)
         cm  = confusion_matrix(y_true, y_pred, labels=[0, 1, 2])
+        
+        # ROC AUC (One-vs-Rest)
+        roc_auc = None
+        if y_prob is not None:
+            try:
+                # multi_class='ovr' handles the 3-class sentiment problem
+                roc_auc = roc_auc_score(y_true, y_prob, labels=[0, 1, 2], multi_class='ovr', average='macro')
+            except Exception as e:
+                print(f"[Evaluator] WARNING: Could not compute ROC AUC for {aspect_name}: {e}")
 
         self.results[aspect_name] = {
             'accuracy'          : accuracy,
@@ -58,10 +69,15 @@ class AspectSentimentEvaluator:
             'per_class_f1'      : f1,
             'support'           : support,
             'confusion_matrix'  : cm,
+            'roc_auc'           : roc_auc,
+            'y_true'            : y_true,
+            'y_prob'            : y_prob,
         }
 
         print(f"  Accuracy: {accuracy:.4f}  |  Macro-F1: {macro_f1:.4f}  |  "
               f"Weighted-F1: {weighted_f1:.4f}  |  MCC: {mcc:.4f}")
+        if roc_auc:
+            print(f"  ROC AUC (OvR Macro): {roc_auc:.4f}")
         print(f"  Per-class F1 — neg: {f1[0]:.4f}  neu: {f1[1]:.4f}  pos: {f1[2]:.4f}")
         print(f"  Support      — neg: {int(support[0])}  neu: {int(support[1])}  pos: {int(support[2])}")
 
@@ -79,6 +95,8 @@ class AspectSentimentEvaluator:
         print(f"{'='*70}")
         print(f"Accuracy:      {results['accuracy']:.4f}")
         print(f"Macro F1:      {results['macro_f1']:.4f}")
+        if results.get('roc_auc'):
+            print(f"ROC AUC:       {results['roc_auc']:.4f}")
         print(f"Weighted F1:   {results['weighted_f1']:.4f}")
         print(f"MCC:           {results['mcc']:.4f}")
 
@@ -146,6 +164,96 @@ class AspectSentimentEvaluator:
             save_path = Path(save_dir) / 'all_confusion_matrices.png'
             plt.savefig(save_path, dpi=300, bbox_inches='tight')
             print(f"[Evaluator] All confusion matrices saved to {save_path}")
+        else:
+            plt.show()
+        plt.close()
+
+    def plot_roc_curve(self, aspect_name, save_path=None):
+        """Plot multiclass ROC curve (One-vs-Rest) for a single aspect."""
+        if aspect_name not in self.results or self.results[aspect_name].get('y_prob') is None:
+            print(f"[Evaluator] No probability results for '{aspect_name}'")
+            return
+        
+        info = self.results[aspect_name]
+        y_true, y_prob = info['y_true'], info['y_prob']
+        class_names = ['Negative', 'Neutral', 'Positive']
+        colors = ['red', 'gray', 'green']
+        
+        plt.figure(figsize=(10, 8))
+        for i in range(3):
+            # One-vs-Rest: Treat current class as positive, all others as negative
+            y_true_binary = (np.array(y_true) == i).astype(int)
+            # Only calculate if there's at least one instance of the class
+            if np.sum(y_true_binary) > 0:
+                fpr, tpr, _ = roc_curve(y_true_binary, y_prob[:, i])
+                from sklearn.metrics import auc
+                roc_auc = auc(fpr, tpr)
+                plt.plot(fpr, tpr, color=colors[i], lw=2, label=f'{class_names[i]} (AUC = {roc_auc:.2f})')
+            
+        plt.plot([0, 1], [0, 1], 'k--', lw=2)
+        plt.xlim([0.0, 1.0])
+        plt.ylim([0.0, 1.05])
+        plt.xlabel('False Positive Rate')
+        plt.ylabel('True Positive Rate')
+        plt.title(f'ROC Curve — {aspect_name}')
+        plt.legend(loc="lower right")
+        plt.grid(alpha=0.3)
+        
+        if save_path:
+            plt.savefig(save_path, dpi=300, bbox_inches='tight')
+            print(f"[Evaluator] ROC curve saved to {save_path}")
+        else:
+            plt.show()
+        plt.close()
+
+    def plot_all_roc_curves(self, save_dir=None):
+        """Plot a grid of ROC curves for all aspects."""
+        if not self.results:
+            return
+        
+        prob_aspects = [asp for asp, res in self.results.items() if res.get('y_prob') is not None]
+        n_aspects = len(prob_aspects)
+        if n_aspects == 0:
+            print("[Evaluator] No probability results found for ROC analysis")
+            return
+            
+        n_cols = 3
+        n_rows = (n_aspects + n_cols - 1) // n_cols
+        fig, axes = plt.subplots(n_rows, n_cols, figsize=(18, 6 * n_rows))
+        axes = axes.flatten() if n_aspects > 1 else [axes]
+        
+        colors = ['red', 'gray', 'green']
+        class_names = ['Neg', 'Neu', 'Pos']
+        
+        plot_idx = 0
+        for aspect_name in prob_aspects:
+            res = self.results[aspect_name]
+            y_true, y_prob = res['y_true'], res['y_prob']
+            ax = axes[plot_idx]
+            
+            for i in range(3):
+                y_true_binary = (np.array(y_true) == i).astype(int)
+                if np.sum(y_true_binary) > 0:
+                    fpr, tpr, _ = roc_curve(y_true_binary, y_prob[:, i])
+                    from sklearn.metrics import auc
+                    roc_auc = auc(fpr, tpr)
+                    ax.plot(fpr, tpr, color=colors[i], label=f'{class_names[i]}: {roc_auc:.2f}')
+                
+            ax.plot([0, 1], [0, 1], 'k--', alpha=0.5)
+            ax.set_title(f'ROC: {aspect_name}')
+            ax.set_ylim([0, 1.05])
+            ax.legend(fontsize=8)
+            ax.grid(alpha=0.2)
+            plot_idx += 1
+            
+        for i in range(plot_idx, len(axes)):
+            axes[i].axis('off')
+            
+        plt.tight_layout()
+        if save_dir:
+            save_path = Path(save_dir) / 'all_roc_curves.png'
+            plt.savefig(save_path, dpi=300, bbox_inches='tight')
+            print(f"[Evaluator] All ROC curves saved to {save_path}")
         else:
             plt.show()
         plt.close()
