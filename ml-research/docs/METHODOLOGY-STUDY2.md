@@ -317,7 +317,7 @@ Experiments are run interactively via `notebooks/12_experiment_runner.ipynb`. Re
 1. RoBERTa: Liu et al., "RoBERTa: A Robustly Optimized BERT Pretraining Approach", 2019
 2. Focal Loss: Lin et al., "Focal Loss for Dense Object Detection", ICCV 2017
 3. Class-Balanced Loss: Cui et al., "Class-Balanced Loss Based on Effective Number of Samples", CVPR 2019
-4. Dice Loss for NLP: Li et al., "Dice Loss for Data-imbalanced NLP Tasks", ACL 2020
+4. Focal Loss: Lin et al., "Focal Loss for Dense Object Detection", ICCV 2017
 5. LIME: Ribeiro et al., "Why Should I Trust You?", KDD 2016
 6. Integrated Gradients: Sundararajan et al., "Axiomatic Attribution for Deep Networks", ICML 2017
 7. SHAP: Lundberg & Lee, "A Unified Approach to Interpreting Model Predictions", NeurIPS 2017

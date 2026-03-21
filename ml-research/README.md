@@ -42,10 +42,10 @@ ml-research/
 │   ├── 14_inference                   # SentimentPredictor: inference + XAI methods
 │   ├── 15_evaluate                    # Full test-set evaluation + confusion matrices
 │   ├── 16_trained_model_adapter       # Website bridge: TrainedModelAdapter
-│   ├── 17_trained_model_xai           # Website XAI bridge: IG, LIME, SHAP, MSR Delta
+│   ├── 17_trained_model_xai           # Website XAI bridge: IG, LIME, SHAP
 │   ├── 18_test_model_components       # Unit tests — no checkpoint required
 │   ├── 19_test_integration            # Integration test: adapter output format
-│   ├── 20_comprehensive_test          # Full diagnostic: predictions + MSR + XAI
+│   ├── 20_comprehensive_test          # Full diagnostic: predictions + XAI
 │   └── 21_test_api                    # Live HTTP tests against running backend
 │
 ├── src/
@@ -256,7 +256,7 @@ The actual bridge files (`inference_bridge/*.py`) are used by the website backen
 | Notebook                    | What it shows                                   |
 | --------------------------- | ----------------------------------------------- |
 | 16 trained_model_adapter    | How the website calls the model for predictions |
-| 17 trained_model_xai        | How the website calls IG, LIME, SHAP, MSR Delta |
+| 17 trained_model_xai        | How the website calls IG, LIME, SHAP |
 
 ---
 
@@ -338,7 +338,7 @@ Sentiment: Negative / Neutral / Positive
 | LIME                    | Local perturbation-based word contributions                                         |
 | SHAP                    | Shapley value attributions                                                          |
 | Integrated Gradients    | Meets completeness axiom; most rigorous for transformers. Requires `captum`         |
-| MSR Delta               | Shows probability shift between conflicting aspects                                 |
+
 
 All methods are demonstrated in `notebooks/14_inference` and `notebooks/17_trained_model_xai`.
 
@@ -350,7 +350,7 @@ All methods are demonstrated in `notebooks/14_inference` and `notebooks/17_train
 | --- | --- | --- |
 | A1 | Dependency GCN | Full model vs. No GCN |
 | A2 | Aspect Attention | MHA attention vs. CLS pooling |
-| A3 | Loss Function | Hybrid / Focal only / CB only / Dice only / CE |
+| A3 | Loss Function | Hybrid / Focal only / CB only / CE |
 | A4 | Data Augmentation | With LLM synthetic / Without |
 | A5 | Classifier Head | 7 aspect-specific heads / 1 shared head |
 | A6 | Mixed Sentiment Resolution | Full model + GCN vs. No GCN |

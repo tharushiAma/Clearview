@@ -19,23 +19,23 @@ This research addresses: How can a deep learning system simultaneously perform a
 ## 1.3 Research Objectives
 
 - **O1 - Multi-Aspect Classification:** Simultaneously classify sentiment for all 7 aspects (stayingpower, texture, smell, price, colour, shipping, packing).
-- **O2 - Class Imbalance Handling:** A three-pronged strategy using LLM augmentation, Hybrid Loss (Focal + Class-Balanced + Dice), and a two-phase stratified split.
+- **O2 - Class Imbalance Handling:** A two-pronged strategy using LLM augmentation, Hybrid Loss (Focal + Class-Balanced), and a two-phase stratified split.
 - **O3 - Mixed Sentiment Resolution:** An Aspect-Oriented Dependency GCN with aspect-gated message passing.
-- **O4 - Explainability:** Attention, LIME, SHAP, Integrated Gradients, and novel MSR Delta analysis.
+- **O4 - Explainability:** Attention, LIME, SHAP, and Integrated Gradients.
 - **O5 - System Deployment:** A web-based ClearView demonstration with real-time ABSA and interactive XAI.
 
 ## 1.4 Research Questions
 
-- **RQ1:** To what extent does a Hybrid Loss (Focal + Class-Balanced + Dice) outperform individual loss functions for extreme class imbalance in ABSA?
+- **RQ1:** To what extent does a Hybrid Loss (Focal + Class-Balanced) outperform individual loss functions for extreme class imbalance in ABSA?
 - **RQ2:** Does an Aspect-Oriented Dependency GCN improve mixed sentiment resolution accuracy compared to transformer attention alone?
 - **RQ3:** What is the contribution of LLM-generated synthetic augmentation to minority class recall, and does it affect majority class performance?
-- **RQ4:** Can Integrated Gradients and MSR Delta provide evidence that the model correctly attributes sentiment to the appropriate aspect in mixed-sentiment reviews?
+- **RQ4:** Can Integrated Gradients provide evidence that the model correctly attributes sentiment to the appropriate aspect in mixed-sentiment reviews?
 
 ## 1.5 Original Contributions
 
 1. **Three-pronged class imbalance framework** combining LLM synthetic augmentation, per-aspect Hybrid Loss configuration, and a two-phase stratified split guaranteeing minority class representation.
 2. **Aspect-Oriented Dependency GCN** integrating spaCy parse trees with aspect-specific gating into a RoBERTa-based ABSA model.
-3. **MSR Delta analysis** - a novel XAI method demonstrating mixed sentiment resolution by measuring per-token confidence changes for a focus aspect under token masking.
+3. **Integrated Gradients analysis** - an XAI method demonstrating mixed sentiment resolution by measuring per-token confidence changes for a focus aspect under token masking.
 4. **Comprehensive ablation study** across 6 components with 4 baselines (19 experiments total).
 5. **ClearView web system** - open-source deployable ABSA demo with interactive XAI.
 
@@ -54,7 +54,7 @@ This research addresses: How can a deep learning system simultaneously perform a
 | 4 | Data pipeline: collection, preprocessing, augmentation |
 | 5 | Model architecture: RoBERTa + Aspect Attention + Dependency GCN |
 | 6 | Class imbalance handling: loss functions and split strategy |
-| 7 | Explainability: LIME, SHAP, Integrated Gradients, MSR Delta |
+| 7 | Explainability: LIME, SHAP, Integrated Gradients |
 | 8 | Experiments: baselines and ablation studies |
 | 9 | Results and discussion |
 | 10 | Conclusion, limitations, future work |

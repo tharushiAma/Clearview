@@ -62,7 +62,6 @@ Notebook: `notebooks/03_create_train_aug` → `data/splits/train_augmented.csv` 
 | --- | --- | --- |
 | Focal Loss (γ per aspect) | Focus on hard/minority examples | 1.0 |
 | Class-Balanced Loss (β per aspect) | Reweight by effective sample count | 0.5 |
-| Dice Loss | Directly optimize F1-score | 0.3 |
 
 Per-aspect parameters (auto-set by `AspectSpecificLossManager`):
 

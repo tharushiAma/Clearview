@@ -52,7 +52,7 @@ RoBERTa BPE tokenizer (Hugging Face transformers library). Max sequence length 1
 ## 4.3 Two-Phase Stratified Split
 
 ### 4.3.1 Motivation
-Standard train_test_split with stratification over a composite label fails for aspects with very few minority samples. With only 17 negative price reviews total, a 10% test set would contain approximately 1-2 negative price samples - statistically unreliable for evaluation.
+Standard train_test_split with stratification over a composite label fails for aspects with very few minority samples. With only 17 negative price reviews total, a 15% test set contains approximately 2-3 negative price samples - which risk being unrepresentative for evaluation.
 
 ### 4.3.2 Algorithm
 
@@ -64,7 +64,7 @@ Phase 1 (Rare Class Guarantee):
   split rare rows proportionally into val/test
 
 Phase 2 (Standard Stratification):
-  perform standard stratified split on remaining non-rare rows
+  perform standard stratified split on remaining non-rare rows (70/15/15)
   combine with Phase 1 val/test allocations
 ```
 
@@ -72,9 +72,9 @@ Phase 2 (Standard Stratification):
 
 | Split | Samples | Source |
 |-------|---------|--------|
-| train.csv | ~9,280 | 80% after Phase 2 |
-| val.csv | ~810 | 10% after Phases 1+2 |
-| test.csv | ~810 | 10% after Phases 1+2 |
+| train.csv | ~9,240 | 70% after Phase 2 |
+| val.csv | ~1,994 | 15% after Phases 1+2 |
+| test.csv | ~1,994 | 15% after Phases 1+2 |
 
 All minority classes guaranteed at least 5 samples in val and test.
 

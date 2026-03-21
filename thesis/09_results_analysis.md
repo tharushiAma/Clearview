@@ -123,19 +123,19 @@ Of the 1,994 test reviews:
 
 The model achieves **68.15% review-level accuracy** on mixed reviews (all aspects correct for a given review) and **87.55% aspect-level accuracy** (individual aspect predictions correct within mixed reviews). The gap between review-level and aspect-level accuracy reflects the difficulty of achieving perfect predictions across all active aspects simultaneously.
 
-### MSR Delta Case Study
+### Integrated Gradients Case Study
 
 Review: *"Great colour and beautiful texture, but the smell is terrible and the price is way too high."*
 
 Model predictions: colour=positive, texture=positive, smell=negative, price=negative ✓
 
-MSR Delta analysis (masking each token and measuring confidence change for the focus aspect):
+Integrated Gradients analysis (computing attribution scores for each token relative to the focus aspect):
 
-**Focus aspect = colour:** High positive delta on *great, colour, beautiful* → near-zero delta on *terrible, smell, price, high*
+**Focus aspect = colour:** High positive attribution on *great, colour, beautiful* → near-zero attribution on *terrible, smell, price, high*
 
-**Focus aspect = smell:** High positive delta on *terrible, smell* → near-zero delta on *great, colour, beautiful*
+**Focus aspect = smell:** High positive attribution on *terrible, smell* → near-zero attribution on *great, colour, beautiful*
 
-This orthogonal delta pattern provides direct evidence that the Dependency GCN with aspect-gating successfully separates aspect-specific token signals. Tokens contributing to colour sentiment have negligible influence on smell sentiment, demonstrating true aspect-level resolution rather than global sentiment averaging.
+This orthogonal attribution pattern provides direct evidence that the Dependency GCN with aspect-gating successfully separates aspect-specific token signals. Tokens contributing to colour sentiment have negligible influence on smell sentiment, demonstrating true aspect-level resolution rather than global sentiment averaging.
 
 ## 9.5 Error Analysis
 
@@ -162,5 +162,5 @@ Confirmed. Removing GCN causes the largest single ablation drop: −9.9% Macro-F
 **RQ3 — Does LLM augmentation improve minority class performance?**
 Partially confirmed. Augmentation shows negligible overall Macro-F1 effect (−0.16%) because the most extreme cases (price: 9 negative samples, packing neutral: 3 samples) remain too sparse even after augmentation. The benefit is localised to moderately imbalanced aspects where the ratio was reduced from ~10:1 to ~5:1.
 
-**RQ4 — Does MSR Delta provide interpretable evidence of aspect-specific signal separation?**
-Confirmed. The orthogonal delta patterns across focus aspects in mixed-sentiment reviews demonstrate that the model assigns token attribution independently per aspect. The case study and systematic aspect-level accuracy (87.55%) together validate the GCN's aspect-gating mechanism as the driver of mixed sentiment resolution.
+**RQ4 — Does Integrated Gradients provide interpretable evidence of aspect-specific signal separation?**
+Confirmed. The orthogonal attribution patterns across focus aspects in mixed-sentiment reviews demonstrate that the model assigns token attribution independently per aspect. The case study and systematic aspect-level accuracy (87.55%) together validate the GCN's aspect-gating mechanism as the driver of mixed sentiment resolution.
