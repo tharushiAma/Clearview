@@ -88,7 +88,7 @@ The Focal+CB combination outperforms every single-loss condition. The CE baselin
 
 As described in Chapter 4, the two-phase split guarantees minority class samples in val and test. This is critical for evaluation reliability:
 
-With only 17 negative price reviews and a 10% test set, naive stratification would produce approximately 1-2 test samples for the negative price class. This is statistically unreliable (Macro-F1 computed from 2 samples has no meaningful variance). The two-phase split guarantees at least 5 negative price samples in both val and test.
+With only 17 negative price reviews and a 15% test set, naive stratification would produce approximately 2-3 test samples for the negative price class. This is statistically unreliable (Macro-F1 computed from 2-3 samples has no meaningful variance). The two-phase split guarantees adequate samples (min 5 per eval set) in both val and test.
 
 ## 6.8 Interaction Between Prongs
 
