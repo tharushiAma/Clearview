@@ -77,7 +77,6 @@ Three classes:
 
 - `FocalLoss` — focuses on hard minority examples, γ controls intensity
 - `ClassBalancedLoss` — reweights by effective sample count, β controls tightness
-- `DiceLoss` — directly optimizes F1-score
 - `HybridLoss` — combines all three
 - `AspectSpecificLossManager` — auto-configures one HybridLoss per aspect from class counts in config. price and packing get γ=3.0, β=0.9999; smell gets γ=2.5; others γ=2.0.
 
@@ -98,8 +97,6 @@ Three classes:
 
 `SentimentPredictor` class — wraps the trained model for prediction and all XAI methods:
 
-| Method | Description |
-| --- | --- |
 | `predict(text, aspect)` | Sentiment + confidence + probabilities |
 | `predict_all_aspects(text)` | All 7 aspects at once |
 | `explain_with_lime(text, aspect)` | Word contribution scores |

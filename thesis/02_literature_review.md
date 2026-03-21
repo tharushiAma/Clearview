@@ -35,9 +35,7 @@ Focal Loss (Lin et al., 2017): FL(p_t) = -alpha_t * (1-p_t)^gamma * log(p_t). Do
 
 Class-Balanced Loss (Cui et al., 2019): w_c = (1-beta)/(1-beta^n_c). More principled than inverse-frequency weighting.
 
-Dice Loss (Li et al., 2020): Directly optimizes F1-equivalent Dice coefficient.
-
-Research Gap: No prior work combines all three in an aspect-specific hybrid adapting gamma per-aspect based on individual imbalance severity.
+Research Gap: No prior work combines all these in an aspect-specific hybrid adapting gamma per-aspect based on individual imbalance severity.
 
 ## 2.3 Graph Convolutional Networks for NLP
 
@@ -55,8 +53,6 @@ SHAP (Lundberg and Lee, 2017): Shapley values from game theory. Satisfies effici
 
 Integrated Gradients (Sundararajan et al., 2017): Satisfies Sensitivity and Implementation Invariance. Completeness axiom: attributions sum to F(x) - F(x_baseline). Most theoretically rigorous - preferred for research claims.
 
-MSR Delta (Novel Contribution): No prior work proposes explanation specifically for mixed sentiment resolution. MSR Delta measures per-token confidence changes under masking for a focus aspect, providing direct experimental evidence of aspect signal separation.
-
 ## 2.5 Cosmetic Domain Sentiment Analysis
 
 Prior work (Sezgin and Akalin, 2020; Yusof et al., 2019; Kobia and Limbasiya, 2020; Nandini et al., 2021) addresses binary or coarse-grained sentiment without extreme imbalance handling, mixed sentiment resolution, or multi-method explainability.
@@ -66,7 +62,7 @@ Prior work (Sezgin and Akalin, 2020; Yusof et al., 2019; Kobia and Limbasiya, 20
 | Dimension | Prior Work | This Work |
 |-----------|-----------|-----------|
 | Aspects | Single aspect per pass | 7 simultaneously |
-| Class Imbalance | CE or single strategy | Three-pronged hybrid |
-| Mixed Sentiment | Implicit in attention | Explicit GCN + MSR Delta |
-| Explainability | Single method | 5 complementary methods |
+| Class Imbalance | CE or single strategy | Two-pronged hybrid |
+| Mixed Sentiment | Implicit in attention | Explicit GCN |
+| Explainability | Single method | 4 complementary methods |
 | Domain | General/restaurant/laptop | Cosmetic (domain-specific) |

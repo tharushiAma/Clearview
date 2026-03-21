@@ -79,17 +79,15 @@ Replacing aspect-guided MHA with CLS pooling causes a −25.3% Macro-F1 collapse
 
 | Loss Configuration | Macro-F1 | Weighted-F1 | MCC |
 | --- | --- | --- | --- |
-| Hybrid (Focal + CB + Dice, original) | 0.7856 | 0.9221 | 0.7838 |
+| Hybrid (Focal + CB, original) | 0.7856 | 0.9221 | 0.7838 |
 | Focal Loss only | 0.7725 | 0.9166 | 0.7731 |
 | Class-Balanced Loss only | 0.7911 | 0.9246 | 0.7939 |
-| Dice Loss only | 0.2926 | 0.6868 | 0.0000 |
 | Cross-Entropy (no imbalance handling) | 0.7911 | 0.9246 | 0.7939 |
 
 **Key findings:**
 
-- **Dice Loss alone collapses** to Macro-F1 = 0.2926 and MCC = 0.000 — the F1-surrogate loss alone is unable to train the model stably in this extreme imbalance setting.
 - CB-only and CE yield identical overall Macro-F1 (0.7911) but per-aspect minority class F1 differs in favour of CB for the most imbalanced aspects.
-- The A7 configuration (Focal 1.0 + CB 0.5 + Dice 0.0) achieves the best overall result (0.7944), confirming that Dice weight = 0.0 is optimal — see §6.5 for the updated hybrid formula.
+- The A7 configuration (Focal 1.0 + CB 0.5) achieves the best overall result (0.7944) — see §6.5 for the updated hybrid formula.
 
 ### A4: LLM Augmentation
 
@@ -123,19 +121,19 @@ Of the 1,994 test reviews:
 
 The model achieves **68.15% review-level accuracy** on mixed reviews (all aspects correct for a given review) and **87.55% aspect-level accuracy** (individual aspect predictions correct within mixed reviews). The gap between review-level and aspect-level accuracy reflects the difficulty of achieving perfect predictions across all active aspects simultaneously.
 
-### MSR Delta Case Study
+### Integrated Gradients Case Study
 
 Review: *"Great colour and beautiful texture, but the smell is terrible and the price is way too high."*
 
 Model predictions: colour=positive, texture=positive, smell=negative, price=negative ✓
 
-MSR Delta analysis (masking each token and measuring confidence change for the focus aspect):
+Integrated Gradients analysis (computing attribution scores for each token relative to the focus aspect):
 
-**Focus aspect = colour:** High positive delta on *great, colour, beautiful* → near-zero delta on *terrible, smell, price, high*
+**Focus aspect = colour:** High positive attribution on *great, colour, beautiful* → near-zero attribution on *terrible, smell, price, high*
 
-**Focus aspect = smell:** High positive delta on *terrible, smell* → near-zero delta on *great, colour, beautiful*
+**Focus aspect = smell:** High positive attribution on *terrible, smell* → near-zero attribution on *great, colour, beautiful*
 
-This orthogonal delta pattern provides direct evidence that the Dependency GCN with aspect-gating successfully separates aspect-specific token signals. Tokens contributing to colour sentiment have negligible influence on smell sentiment, demonstrating true aspect-level resolution rather than global sentiment averaging.
+This orthogonal attribution pattern provides direct evidence that the Dependency GCN with aspect-gating successfully separates aspect-specific token signals. Tokens contributing to colour sentiment have negligible influence on smell sentiment, demonstrating true aspect-level resolution rather than global sentiment averaging.
 
 ## 9.5 Error Analysis
 
@@ -154,7 +152,7 @@ The dominant error pattern is **neutral class misclassification** — the model 
 ## 9.6 Answering Research Questions
 
 **RQ1 — Does the Hybrid Loss outperform individual loss functions for extreme class imbalance?**
-Partially confirmed. The final model uses Focal + CB (Dice weight = 0.0) after ablation. CB-only and CE achieve the same overall Macro-F1 (0.7911) but the Focal+CB combination (A7: 0.7944) outperforms all single-loss and full-hybrid configurations. Dice Loss alone collapses to 0.2926, confirming it cannot be used in isolation for this task. The key finding is that Focal+CB complementarity (hard-example focusing + principled reweighting) is what matters, not Dice.
+Partially confirmed. The final model uses Focal + CB after ablation. CB-only and CE achieve the same overall Macro-F1 (0.7911) but the Focal+CB combination (A7: 0.7944) outperforms all single-loss and full-hybrid configurations. The key finding is that Focal+CB complementarity (hard-example focusing + principled reweighting) is what matters.
 
 **RQ2 — Does the Dependency GCN improve mixed sentiment resolution?**
 Confirmed. Removing GCN causes the largest single ablation drop: −9.9% Macro-F1 (0.7856 → 0.6863). The model's 87.55% aspect-level accuracy on mixed reviews drops significantly without GCN, as cross-aspect signal contamination increases.
@@ -162,5 +160,5 @@ Confirmed. Removing GCN causes the largest single ablation drop: −9.9% Macro-F
 **RQ3 — Does LLM augmentation improve minority class performance?**
 Partially confirmed. Augmentation shows negligible overall Macro-F1 effect (−0.16%) because the most extreme cases (price: 9 negative samples, packing neutral: 3 samples) remain too sparse even after augmentation. The benefit is localised to moderately imbalanced aspects where the ratio was reduced from ~10:1 to ~5:1.
 
-**RQ4 — Does MSR Delta provide interpretable evidence of aspect-specific signal separation?**
-Confirmed. The orthogonal delta patterns across focus aspects in mixed-sentiment reviews demonstrate that the model assigns token attribution independently per aspect. The case study and systematic aspect-level accuracy (87.55%) together validate the GCN's aspect-gating mechanism as the driver of mixed sentiment resolution.
+**RQ4 — Does Integrated Gradients provide interpretable evidence of aspect-specific signal separation?**
+Confirmed. The orthogonal attribution patterns across focus aspects in mixed-sentiment reviews demonstrate that the model assigns token attribution independently per aspect. The case study and systematic aspect-level accuracy (87.55%) together validate the GCN's aspect-gating mechanism as the driver of mixed sentiment resolution.

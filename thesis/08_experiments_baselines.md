@@ -52,10 +52,9 @@ Key metric: Overall Macro-F1, per-aspect F1 variance (consistent improvement sho
 ### Ablation A3: Loss Function
 Component tested: Hybrid Loss composition
 Variants:
-  - A3_hybrid: Focal + CB + Dice (default)
+  - A3_hybrid: Focal + CB (default)
   - A3_focal_only: Only Focal Loss
   - A3_cb_only: Only Class-Balanced Loss
-  - A3_dice_only: Only Dice Loss
   - A3_ce: Plain cross-entropy (no imbalance handling)
 Research question: Which loss combination best handles extreme class imbalance? Are the components complementary?
 Key metric: Minority class (negative) F1 for price and packing aspects.

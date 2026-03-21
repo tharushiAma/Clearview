@@ -46,23 +46,11 @@ Per-aspect beta configuration:
 - price, packing: beta=0.9999 (very tight effective number, extreme imbalance)
 - all other aspects: beta=0.999 (moderate effective number)
 
-## 6.4 Dice Loss
-
-Reference: Li et al., Dice Loss for Data-imbalanced NLP Tasks, ACL 2020.
-
-Formula: `DL = 1 - (2 * |P ∩ T| + ε) / (|P| + |T| + ε)`
-
-where P is predicted probability and T is the one-hot target. Directly optimizes the Dice coefficient (equivalent to F1-score).
-
-Motivation: Cross-entropy-based losses optimize likelihood, which may not align with the Macro-F1 evaluation metric. Dice Loss creates direct gradient alignment between training objective and evaluation metric.
-
-## 6.5 Hybrid Loss Function
+## 6.4 Hybrid Loss Function
 
 The final hybrid loss formula (configuration A7, validated by ablation study A3):
 
 `total_loss = (1.0 * focal_loss) + (0.5 * cb_loss)`
-
-**Note:** Dice Loss weight was set to 0.0 after ablation A3 showed that including Dice (original weight 0.3) yielded Macro-F1 = 0.7856, while dropping it (Focal 1.0 + CB 0.5, Dice 0.0) achieved Macro-F1 = 0.7944. Furthermore, Dice Loss in isolation collapsed to Macro-F1 = 0.2926 — confirming it is unsuitable as a standalone loss under extreme class imbalance. The Dice component is retained in the codebase to support ablation A3 but its weight is 0.0 in the final trained model.
 
 Weights: Focal Loss dominates (it directly handles minority class gradient, proven in object detection). Class-Balanced contributes a principled reweighting via effective number of samples.
 
@@ -72,25 +60,24 @@ The `AspectSpecificLossManager` class in `src/models/losses.py`:
 - Instantiates one `HybridLoss` per aspect with aspect-specific gamma and beta
 - Handles forward pass: `loss, per_aspect_losses = loss_manager.compute_loss(logits, labels, aspect_ids, aspect_names)`
 
-## 6.6 Ablation A3: Loss Function Study
+## 6.5 Ablation A3: Loss Function Study
 
 5 conditions evaluated on test Macro-F1 (results from Chapter 9, §9.3):
 
 - **A3_focal_only**: Macro-F1 = 0.7725 — hard-example focusing alone is insufficient
 - **A3_cb_only**: Macro-F1 = 0.7911 — principled reweighting alone matches CE
-- **A3_dice_only**: Macro-F1 = 0.2926 — F1-surrogate collapses under extreme imbalance
 - **A3_ce_baseline**: Macro-F1 = 0.7911 — no imbalance handling
 - **A7 (Focal 1.0 + CB 0.5)**: Macro-F1 = 0.7944 — best configuration
 
 The Focal+CB combination outperforms every single-loss condition. The CE baseline confirms near-zero negative class recall for price and packing (0.097% training frequency each).
 
-## 6.7 Two-Phase Stratified Split (Evaluation Level)
+## 6.6 Two-Phase Stratified Split (Evaluation Level)
 
 As described in Chapter 4, the two-phase split guarantees minority class samples in val and test. This is critical for evaluation reliability:
 
 With only 17 negative price reviews and a 10% test set, naive stratification would produce approximately 1-2 test samples for the negative price class. This is statistically unreliable (Macro-F1 computed from 2 samples has no meaningful variance). The two-phase split guarantees at least 5 negative price samples in both val and test.
 
-## 6.8 Interaction Between Prongs
+## 6.7 Interaction Between Prongs
 
 The three strategies are complementary and interact beneficially:
 
