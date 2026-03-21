@@ -52,7 +52,7 @@ fi
 # Create necessary directories
 echo -e "\n6. Creating project directories..."
 mkdir -p data
-mkdir -p results
+mkdir -p outputs
 mkdir -p notebooks
 mkdir -p experiments
 echo "✓ Directories created"
