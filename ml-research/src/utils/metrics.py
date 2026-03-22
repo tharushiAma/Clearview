@@ -195,7 +195,9 @@ class AspectSentimentEvaluator:
         plt.ylim([0.0, 1.05])
         plt.xlabel('False Positive Rate')
         plt.ylabel('True Positive Rate')
-        plt.title(f'ROC Curve — {aspect_name}')
+        
+        macro_auc = info.get('roc_auc', 0)
+        plt.title(f'ROC Curve — {aspect_name} (Macro AUC: {macro_auc:.3f})')
         plt.legend(loc="lower right")
         plt.grid(alpha=0.3)
         
@@ -240,7 +242,8 @@ class AspectSentimentEvaluator:
                     ax.plot(fpr, tpr, color=colors[i], label=f'{class_names[i]}: {roc_auc:.2f}')
                 
             ax.plot([0, 1], [0, 1], 'k--', alpha=0.5)
-            ax.set_title(f'ROC: {aspect_name}')
+            macro_auc = res.get('roc_auc', 0)
+            ax.set_title(f'ROC: {aspect_name} (AUC: {macro_auc:.3f})')
             ax.set_ylim([0, 1.05])
             ax.legend(fontsize=8)
             ax.grid(alpha=0.2)

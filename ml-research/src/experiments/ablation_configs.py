@@ -21,6 +21,38 @@ from typing import Dict, List, Tuple
 ExperimentSpec = Tuple[str, str, dict]  # (experiment_id, description, config_override)
 
 
+def _assert_config_differs(exp_id: str, modified: dict, base: dict, keys: list):
+    """
+    Warn loudly if an ablation variant is accidentally identical to base_config
+    on the keys it is supposed to change.  Call this inside every ablation
+    function that produces a 'with feature X' variant so the problem surfaces at
+    config-load time, not after hours of wasted GPU time.
+
+    Args:
+        exp_id:   experiment name (for the error message)
+        modified: the deep-copied + modified config dict
+        base:     the original base_config
+        keys:     list of dotted key paths that MUST differ, e.g. ['data.train_path']
+    """
+    import warnings
+
+    def _get(d, dotted_key):
+        parts = dotted_key.split('.')
+        for p in parts:
+            d = d.get(p, {})
+        return d
+
+    for key in keys:
+        if _get(modified, key) == _get(base, key):
+            warnings.warn(
+                f"\n[ablation_configs] WARNING: {exp_id}: config key '{key}' is "
+                f"identical to base_config ({_get(base, key)!r}). "
+                f"This experiment would duplicate A1_full_model and waste GPU time. "
+                f"Use A1_full_model's result for this ablation row instead.",
+                stacklevel=3,
+            )
+
+
 def get_all_ablation_specs(base_config: dict) -> List[ExperimentSpec]:
     """
     Returns all ablation experiment specs as a list of:
@@ -97,6 +129,10 @@ def ablation_3_loss_function(base_config: dict) -> List[ExperimentSpec]:
 
     hybrid    = make_cfg('A3_hybrid_loss',
                          {'focal': 1.0, 'cb': 0.5, 'dice': 0.3})
+    # Guard: A3_hybrid_loss must differ from base on loss_weights (dice component added)
+    _assert_config_differs('A3_hybrid_loss', hybrid, base_config,
+                           ['training.loss_weights'])
+
     focal_only  = make_cfg('A3_focal_only',
                            {'focal': 1.0, 'cb': 0.0, 'dice': 0.0})
     cb_only     = make_cfg('A3_cb_only',
@@ -132,6 +168,11 @@ def ablation_4_augmentation(base_config: dict) -> List[ExperimentSpec]:
     no_aug['data']['train_path'] = 'data/splits/train.csv'
     no_aug['experiment']['name'] = 'A4_no_augmentation'
 
+    # Guard: if base_config already points at the augmented file, A4_with_augmentation
+    # would be identical to A1_full_model and waste 100+ minutes of GPU time.
+    _assert_config_differs('A4_with_augmentation', with_aug, base_config,
+                           ['data.train_path'])
+
     return [
         ('A4_with_augmentation', 'With LLM synthetic augmentation (10,050 samples)', with_aug),
         ('A4_no_augmentation',   'Without augmentation (9,240 samples)',              no_aug),
@@ -152,6 +193,21 @@ def ablation_5_classifier_head(base_config: dict) -> List[ExperimentSpec]:
     shared = copy.deepcopy(base_config)
     shared['model']['use_shared_classifier'] = True
     shared['experiment']['name'] = 'A5_shared_head'
+
+    # Guard: create_model() defaults use_shared_classifier=False, so if base_config
+    # doesn't set it (or sets it False), A5_aspect_specific_heads == A1_full_model.
+    # In that case, A1_full_model IS the aspect-specific result — use it directly
+    # in your ablation table instead of re-running.
+    base_shared = base_config.get('model', {}).get('use_shared_classifier', False)
+    if not base_shared:
+        import warnings
+        warnings.warn(
+            "[ablation_configs] A5_aspect_specific_heads: base_config already uses "
+            "use_shared_classifier=False (the default). A5_aspect_specific_heads is "
+            "identical to A1_full_model. Use A1's result for the 'aspect-specific' "
+            "row in your ablation table — do NOT re-run A5_aspect_specific_heads.",
+            stacklevel=2,
+        )
 
     return [
         ('A5_aspect_specific_heads', '7 aspect-specific classifier heads', aspect_specific),
