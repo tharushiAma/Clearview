@@ -307,24 +307,6 @@ def get_all_baseline_specs(base_config: dict) -> List[ExperimentSpec]:
                   'Classical TF-IDF + LinearSVC — no deep learning',
                   b4))
 
-    # B5: Flat ABSA RoBERTa (standard ABSA approach — mirrors prior work e.g. MAFESA)
-    # Uses RoBERTa + aspect attention (aspect-aware) BUT:
-    #   - No Dependency GCN            (use_dependency_gcn=False)
-    #   - Single shared classifier head (use_shared_classifier=True)
-    #   - Plain Cross-Entropy loss      (use_ce_loss=True)
-    # This is the strongest "prior-art style" baseline: it has aspect awareness
-    # but lacks your three main architectural contributions (GCN, per-aspect heads,
-    # hybrid loss). A gap between B5 and the full model proves all three matter.
-    b5 = copy.deepcopy(base_config)
-    b5['model']['use_dependency_gcn']    = False
-    b5['model']['use_shared_classifier'] = True
-    b5['data']['use_dependency_parsing'] = False
-    b5['training']['use_ce_loss']        = True
-    b5['experiment']['name'] = 'B5_flat_absa'
-    specs.append(('B5_flat_absa',
-                  'Flat ABSA RoBERTa — aspect attention, shared head, CE loss (no GCN/hybrid loss)',
-                  b5))
-
     return specs
 
 
