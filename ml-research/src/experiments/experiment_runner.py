@@ -1,7 +1,14 @@
 """
 experiment_runner.py
-Unified runner for all ablation studies and baseline comparisons.
+Orchestrates the execution of multiple experiments and ablation studies.
 
+Core Features:
+  - Sequence Execution: Runs a batch of experiments defined in ablation_configs.py.
+  - Automatic Redundancy Skipping: Detects experiments identical to 'A1_full_model'
+    and reuses existing results to save GPU hours.
+  - Result Management: Saves metrics, ROC/PR curves, and predictions for each run.
+  - State Persistence: Resumes from last finished experiment if interrupted.
+"""
 Usage:
     # Run a specific experiment
     python src/experiments/experiment_runner.py --experiment A1_no_gcn
@@ -542,12 +549,57 @@ def run_experiments(exp_ids: list, base_config: dict, results_dir: Path) -> dict
         except Exception as e:
             print(f"Could not load existing {out_path}: {e}")
 
+    # ─── Robust Redundancy Skipping ────────────────────────────────
+    # To save GPU hours, we check if an experiment's canonical config 
+    # (its architecture/data/hyperparams) matches A1_full_model exactly.
+    # If it does, we skip training and simply clone A1's results.
+    def _get_canonical(cfg):
+        import json
+        c = copy.deepcopy(cfg)
+        # We strip out name and evaluation-only flags to get the core training config
+        c.get('experiment', {}).pop('name', None)
+        c.get('experiment', {}).pop('evaluate_msr', None)
+        return json.dumps(c, sort_keys=True)
+
+    # Get the "Fingerprint" of the full model to use as a reference
+    full_model_key = None
+    if 'A1_full_model' in all_specs:
+        full_model_key = _get_canonical(all_specs['A1_full_model'][2])
+
     for exp_id in exp_ids:
         if exp_id not in all_specs:
             print(f"  Warning: unknown experiment '{exp_id}' — skipping")
             continue
 
         exp_id, desc, config = all_specs[exp_id]
+        
+        # --- Check for Redundancy before starting any GPU work ---
+        if full_model_key and exp_id != 'A1_full_model':
+            if _get_canonical(config) == full_model_key:
+                print(f"\n{'='*70}")
+                print(f"SKIPPING REDUNDANT RUN: [{exp_id}]  {desc}")
+                print(f"Reason: This config is identical to [A1_full_model].")
+                print(f"Action: Reusing A1 results to save GPU time.")
+                print(f"{'='*70}")
+                
+                # We can only reuse results if A1 has already been run and is in the results dict
+                if 'A1_full_model' in results:
+                    # Clone the A1 metrics but keep the current exp_id/description
+                    results[exp_id] = copy.deepcopy(results['A1_full_model'])
+                    results[exp_id]['experiment_id'] = exp_id
+                    results[exp_id]['description']   = desc
+                else:
+                    # If A1 hasn't run yet, we can't clone it. 
+                    # The user should run A1 first to enable this skipping.
+                    print(f"  Warning: A1_full_model hasn't run yet. Please run A1 first to enable auto-reuse.")
+                    results[exp_id] = empty_result(exp_id, desc)
+                    results[exp_id]['status'] = 'skipped (run A1 first)'
+                
+                # Save the updated results file and move to next experiment
+                with open(out_path, 'w') as f:
+                    json.dump(results, f, indent=2)
+                continue
+
         print(f"\n{'='*65}")
         print(f"Running: [{exp_id}]  {desc}")
         print(f"{'='*65}")

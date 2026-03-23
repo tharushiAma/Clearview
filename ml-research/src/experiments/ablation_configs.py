@@ -11,7 +11,13 @@ Ablations:
   A3  — Loss function variants (Hybrid / Focal / CB / CE)
   A4  — Data augmentation on/off
   A5  — Aspect-specific vs shared classifier
-  A6  — Mixed Sentiment Resolution evaluation (GCN with/without MSR eval)
+  A6  — Mixed Sentiment Resolution evaluation (GCN with/without MSR)
+  A7  — Hybrid Loss weight fine-tuning
+  A8  — Class-Balanced Cross-Entropy (CBCE) standalone loss
+
+Redundancy Management:
+  Includes 'validate_ablation' to identify any experiment identical to the 
+  Full Model (A1), alerting the user before GPU time is wasted.
 """
 
 import copy
@@ -21,36 +27,65 @@ from typing import Dict, List, Tuple
 ExperimentSpec = Tuple[str, str, dict]  # (experiment_id, description, config_override)
 
 
-def _assert_config_differs(exp_id: str, modified: dict, base: dict, keys: list):
+def validate_ablation(exp_id: str, modified: dict, base: dict, keys: list = None):
     """
-    Warn loudly if an ablation variant is accidentally identical to base_config
-    on the keys it is supposed to change.  Call this inside every ablation
-    function that produces a 'with feature X' variant so the problem surfaces at
-    config-load time, not after hours of wasted GPU time.
+    Checks if an ablation variant is accidentally identical to the base_config
+    (the Full Model). If so, prints a NOTE to the user.
+    
+    This function acts as an 'Early Warning' system during config generation.
+    Enforcement (skipping) happens later in experiment_runner.py.
 
     Args:
-        exp_id:   experiment name (for the error message)
-        modified: the deep-copied + modified config dict
-        base:     the original base_config
-        keys:     list of dotted key paths that MUST differ, e.g. ['data.train_path']
+        exp_id:   The unique ID of the experiment (e.g., 'A2_aspect_attention')
+        modified: The deep-copied and potentially modified configuration dict
+        base:     The base_config (A1_full_model reference) for comparison
+        keys:     Optional list of key paths (e.g., ['data.train_path']) that are 
+                  EXPECTED to differ. If they don't, a WARNING is issued.
     """
     import warnings
+    import json
 
     def _get(d, dotted_key):
+        """Helper to navigate nested dictionaries with dotted keys."""
         parts = dotted_key.split('.')
         for p in parts:
             d = d.get(p, {})
         return d
 
-    for key in keys:
-        if _get(modified, key) == _get(base, key):
-            warnings.warn(
-                f"\n[ablation_configs] WARNING: {exp_id}: config key '{key}' is "
-                f"identical to base_config ({_get(base, key)!r}). "
-                f"This experiment would duplicate A1_full_model and waste GPU time. "
-                f"Use A1_full_model's result for this ablation row instead.",
-                stacklevel=3,
-            )
+    def _canonical(cfg):
+        """
+        Creates a 'fingerprint' of a config by stripping out name-specific
+        and evaluation-specific fields (like 'name' and 'evaluate_msr').
+        This allows us to see if the core logic (architecture/data) is duplicate.
+        """
+        import copy
+        c = copy.deepcopy(cfg)
+        c.get('experiment', {}).pop('name', None)
+        c.get('experiment', {}).pop('evaluate_msr', None)
+        return json.dumps(c, sort_keys=True)
+
+    # 1. Global Redundancy Check (Canonical comparison)
+    # If the stripped-down configs match, they are effectively the same model.
+    if _canonical(modified) == _canonical(base):
+        if exp_id != 'A1_full_model':
+            # This is an "Info" message to inform the user that training
+            # is not required and results will be reused.
+            print(f"[ablation_configs] NOTE: '{exp_id}' is identical to the "
+                  f"base Full Model. The runner will automatically reuse A1 "
+                  f"results for this row to save GPU time.")
+        return
+
+    # 2. Specific key checks (Validation for intended changes)
+    # If the user specified that certain keys MUST change (e.g., a path),
+    # we double-check that they actually did change.
+    if keys:
+        for key in keys:
+            if _get(modified, key) == _get(base, key):
+                warnings.warn(
+                    f"\n[ablation_configs] WARNING: '{exp_id}' key '{key}' is "
+                    f"identical to base_config. This ablation may not behave as intended or might be redundant.",
+                    stacklevel=2
+                )
 
 
 def get_all_ablation_specs(base_config: dict) -> List[ExperimentSpec]:
@@ -71,7 +106,7 @@ def get_all_ablation_specs(base_config: dict) -> List[ExperimentSpec]:
     specs.extend(ablation_4_augmentation(base_config))
     specs.extend(ablation_5_classifier_head(base_config))
     specs.extend(ablation_6_mixed_sentiment(base_config))
-    specs.extend(ablation_7_hybrid_weights(base_config))
+    specs.extend(ablation_8_cbce(base_config))
     return specs
 
 
@@ -83,6 +118,7 @@ def ablation_1_gcn(base_config: dict) -> List[ExperimentSpec]:
     """
     full = copy.deepcopy(base_config)
     full['experiment']['name'] = 'A1_full_model'
+    validate_ablation('A1_full_model', full, base_config)
 
     no_gcn = copy.deepcopy(base_config)
     no_gcn['model']['use_dependency_gcn'] = False
@@ -104,6 +140,7 @@ def ablation_2_aspect_attention(base_config: dict) -> List[ExperimentSpec]:
     """
     attention = copy.deepcopy(base_config)
     attention['experiment']['name'] = 'A2_aspect_attention'
+    validate_ablation('A2_aspect_attention', attention, base_config)
 
     cls_only = copy.deepcopy(base_config)
     cls_only['model']['use_aspect_attention'] = False
@@ -130,8 +167,8 @@ def ablation_3_loss_function(base_config: dict) -> List[ExperimentSpec]:
     hybrid    = make_cfg('A3_hybrid_loss',
                          {'focal': 1.0, 'cb': 0.5, 'dice': 0.3})
     # Guard: A3_hybrid_loss must differ from base on loss_weights (dice component added)
-    _assert_config_differs('A3_hybrid_loss', hybrid, base_config,
-                           ['training.loss_weights'])
+    validate_ablation('A3_hybrid_loss', hybrid, base_config,
+                      ['training.loss_weights'])
 
     focal_only  = make_cfg('A3_focal_only',
                            {'focal': 1.0, 'cb': 0.0, 'dice': 0.0})
@@ -163,15 +200,12 @@ def ablation_4_augmentation(base_config: dict) -> List[ExperimentSpec]:
     with_aug = copy.deepcopy(base_config)
     with_aug['data']['train_path'] = 'data/splits/train_augmented.csv'
     with_aug['experiment']['name'] = 'A4_with_augmentation'
+    validate_ablation('A4_with_augmentation', with_aug, base_config,
+                      ['data.train_path'])
 
     no_aug = copy.deepcopy(base_config)
     no_aug['data']['train_path'] = 'data/splits/train.csv'
     no_aug['experiment']['name'] = 'A4_no_augmentation'
-
-    # Guard: if base_config already points at the augmented file, A4_with_augmentation
-    # would be identical to A1_full_model and waste 100+ minutes of GPU time.
-    _assert_config_differs('A4_with_augmentation', with_aug, base_config,
-                           ['data.train_path'])
 
     return [
         ('A4_with_augmentation', 'With LLM synthetic augmentation (10,050 samples)', with_aug),
@@ -189,6 +223,7 @@ def ablation_5_classifier_head(base_config: dict) -> List[ExperimentSpec]:
     aspect_specific = copy.deepcopy(base_config)
     aspect_specific['model']['use_shared_classifier'] = False
     aspect_specific['experiment']['name'] = 'A5_aspect_specific_heads'
+    validate_ablation('A5_aspect_specific_heads', aspect_specific, base_config)
 
     shared = copy.deepcopy(base_config)
     shared['model']['use_shared_classifier'] = True
@@ -238,6 +273,7 @@ def ablation_6_mixed_sentiment(base_config: dict) -> List[ExperimentSpec]:
     with_gcn = copy.deepcopy(base_config)
     with_gcn['experiment']['name']         = 'A6_msr_with_gcn'
     with_gcn['experiment']['evaluate_msr'] = True  # Signal runner to run MSR eval
+    validate_ablation('A6_msr_with_gcn', with_gcn, base_config)
 
     no_gcn = copy.deepcopy(base_config)
     no_gcn['model']['use_dependency_gcn']    = False
@@ -263,11 +299,28 @@ def ablation_7_hybrid_weights(base_config: dict) -> List[ExperimentSpec]:
         return cfg
 
     cb_05 = make_cfg('A7_hybrid_cb_05', {'focal': 1.0, 'cb': 0.5, 'dice': 0.0})
+    validate_ablation('A7_hybrid_cb_05', cb_05, base_config)
+    
     cb_10 = make_cfg('A7_hybrid_cb_10', {'focal': 1.0, 'cb': 1.0, 'dice': 0.0})
 
     return [
         ('A7_hybrid_cb_05', 'Hybrid Loss (Focal 1.0 + CB 0.5 + Dice 0.0)', cb_05),
         ('A7_hybrid_cb_10', 'Hybrid Loss (Focal 1.0 + CB 1.0 + Dice 0.0)', cb_10),
+    ]
+
+
+# ─── Ablation 8: Class-Balanced Cross-Entropy (CBCE) ──────────────────────────
+def ablation_8_cbce(base_config: dict) -> List[ExperimentSpec]:
+    """
+    Tests the Class-Balanced Cross-Entropy (CBCE) loss function as a standalone
+    replacement for the default Hybrid loss logic.
+    """
+    cbce_only = copy.deepcopy(base_config)
+    cbce_only['training']['loss_weights'] = {'focal': 0.0, 'cb': 0.0, 'dice': 0.0, 'cbce': 1.0}
+    cbce_only['experiment']['name'] = 'A8_cbce_only'
+
+    return [
+        ('A8_cbce_only', 'Class-Balanced Cross-Entropy (CBCE) Loss only', cbce_only),
     ]
 
 
