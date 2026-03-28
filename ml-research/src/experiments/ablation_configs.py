@@ -317,6 +317,7 @@ def get_all_baseline_specs(base_config: dict) -> List[ExperimentSpec]:
     # B1: Plain RoBERTa
     b1 = copy.deepcopy(base_config)
     b1['experiment']['name'] = 'B1_plain_roberta'
+    b1['experiment']['evaluate_msr'] = True
     specs.append(('B1_plain_roberta',
                   'Plain RoBERTa — [CLS] head, no aspect awareness, CE loss',
                   b1))
@@ -325,6 +326,7 @@ def get_all_baseline_specs(base_config: dict) -> List[ExperimentSpec]:
     b2 = copy.deepcopy(base_config)
     b2['training']['use_ce_loss'] = True
     b2['experiment']['name'] = 'B2_roberta_ce'
+    b2['experiment']['evaluate_msr'] = True
     specs.append(('B2_roberta_ce',
                   'RoBERTa + Aspect Attention + GCN + CrossEntropy (no hybrid loss)',
                   b2))
@@ -333,6 +335,7 @@ def get_all_baseline_specs(base_config: dict) -> List[ExperimentSpec]:
     b3 = copy.deepcopy(base_config)
     b3['model']['roberta_model'] = 'bert-base-uncased'
     b3['experiment']['name'] = 'B3_bert_base'
+    b3['experiment']['evaluate_msr'] = True
     specs.append(('B3_bert_base',
                   'BERT-base-uncased — [CLS] head, aspect-unaware, CE loss',
                   b3))
