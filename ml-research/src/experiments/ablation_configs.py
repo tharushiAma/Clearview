@@ -13,7 +13,6 @@ Ablations:
   A5  — Aspect-specific vs shared classifier
   A6  — Mixed Sentiment Resolution evaluation (GCN with/without MSR)
   A7  — Hybrid Loss weight fine-tuning
-  A8  — Class-Balanced Cross-Entropy (CBCE) standalone loss
 
 Redundancy Management:
   Includes 'validate_ablation' to identify any experiment identical to the 
@@ -106,7 +105,6 @@ def get_all_ablation_specs(base_config: dict) -> List[ExperimentSpec]:
     specs.extend(ablation_4_augmentation(base_config))
     specs.extend(ablation_5_classifier_head(base_config))
     specs.extend(ablation_6_mixed_sentiment(base_config))
-    specs.extend(ablation_8_cbce(base_config))
     return specs
 
 
@@ -309,19 +307,6 @@ def ablation_7_hybrid_weights(base_config: dict) -> List[ExperimentSpec]:
     ]
 
 
-# ─── Ablation 8: Class-Balanced Cross-Entropy (CBCE) ──────────────────────────
-def ablation_8_cbce(base_config: dict) -> List[ExperimentSpec]:
-    """
-    Tests the Class-Balanced Cross-Entropy (CBCE) loss function as a standalone
-    replacement for the default Hybrid loss logic.
-    """
-    cbce_only = copy.deepcopy(base_config)
-    cbce_only['training']['loss_weights'] = {'focal': 0.0, 'cb': 0.0, 'dice': 0.0, 'cbce': 1.0}
-    cbce_only['experiment']['name'] = 'A8_cbce_only'
-
-    return [
-        ('A8_cbce_only', 'Class-Balanced Cross-Entropy (CBCE) Loss only', cbce_only),
-    ]
 
 
 # ─── Summary ──────────────────────────────────────────────────────────────────

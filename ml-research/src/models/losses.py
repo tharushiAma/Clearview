@@ -86,42 +86,7 @@ class ClassBalancedLoss(nn.Module):
         return F.cross_entropy(inputs, targets, weight=self.weights, reduction=self.reduction)
 
 
-class CBCELoss(nn.Module):
-    """
-    Class-Balanced Cross-Entropy (CBCE) Loss
-    
-    A modified version of weighted binary cross-entropy that adds a 
-    coefficient (1 - beta) to the negative class, or more generally,
-    weights classes by (Total - Count) / Total.
-    
-    Args:
-        samples_per_class: List of sample counts for each class
-        reduction: 'mean', 'sum', or 'none'
-    """
-    def __init__(self, samples_per_class, reduction='mean'):
-        super(CBCELoss, self).__init__()
-        samples_per_class = np.array(samples_per_class)
-        total_samples = np.sum(samples_per_class)
-        
-        # beta_j = (Total - Count_j) / Total
-        # This gives higher weight to minority classes.
-        weights = (total_samples - samples_per_class) / total_samples
-        
-        # Normalize weights so they sum to the number of classes (standard practice)
-        weights = weights / weights.sum() * len(weights)
-        
-        self.weights = torch.tensor(weights, dtype=torch.float32)
-        self.reduction = reduction
-        
-    def forward(self, inputs, targets):
-        """
-        Args:
-            inputs: (batch_size, num_classes) logits
-            targets: (batch_size,) class labels
-        """
-        if self.weights.device != inputs.device:
-            self.weights = self.weights.to(inputs.device)
-        return F.cross_entropy(inputs, targets, weight=self.weights, reduction=self.reduction)
+
 
 
 class DiceLoss(nn.Module):
@@ -175,7 +140,6 @@ class HybridLoss(nn.Module):
         
         self.focal_loss = FocalLoss(alpha=focal_alpha, gamma=focal_gamma)
         self.cb_loss = ClassBalancedLoss(samples_per_class, beta=cb_beta)
-        self.cbce_loss = CBCELoss(samples_per_class)
         self.dice_loss = DiceLoss()
         self.weights = weights
         
@@ -191,18 +155,15 @@ class HybridLoss(nn.Module):
         """
         loss_focal = self.focal_loss(inputs, targets)
         loss_cb = self.cb_loss(inputs, targets)
-        loss_cbce = self.cbce_loss(inputs, targets)
         loss_dice = self.dice_loss(inputs, targets)
         
         total_loss = (self.weights.get('focal', 0.0) * loss_focal + 
                      self.weights.get('cb', 0.0) * loss_cb + 
-                     self.weights.get('cbce', 0.0) * loss_cbce + 
                      self.weights.get('dice', 0.0) * loss_dice)
         
         loss_dict = {
             'focal': loss_focal.item(),
             'cb': loss_cb.item(),
-            'cbce': loss_cbce.item(),
             'dice': loss_dice.item(),
             'total': total_loss.item()
         }
