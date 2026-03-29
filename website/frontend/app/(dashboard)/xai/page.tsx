@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -18,24 +18,60 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { Spinner } from "@/components/ui/spinner";
-import { explain } from "@/lib/api";
+import { predict, explain } from "@/lib/api";
 import { ASPECTS, type Aspect, type ExplanationBundle, type ExplanationMethod } from "@/lib/types";
-import { Sparkles, ChevronDown } from "lucide-react";
+import { Sparkles, ChevronDown, Zap } from "lucide-react";
 
 export default function XAIPage() {
   const [text, setText] = useState(
-    "This lipstick has amazing staying power and the color is beautiful, but the smell is too strong."
+    "The color is beautiful as same as the picture, but the smell is bit strong for a lipstick and this is more expensive compared to other stores"
   );
   const [selectedAspect, setSelectedAspect] = useState<Aspect | "all">("all");
   const [selectedMethod, setSelectedMethod] = useState<ExplanationMethod>("ig");
   const [loading, setLoading] = useState(false);
+  const [fastLoading, setFastLoading] = useState(false);
   const [result, setResult] = useState<ExplanationBundle | null>(null);
+  const [fastTokens, setFastTokens] = useState<{ aspect: string; tokens: { token: string; attribution: number }[] }[]>([]);
   const [jsonOpen, setJsonOpen] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
   }, []);
+
+  // Fast attribution: uses top_tokens from /predict (attention-based, instant)
+  const handleFastAttribution = useCallback(async (reviewText: string) => {
+    if (!reviewText.trim()) return;
+    setFastLoading(true);
+    setFastTokens([]);
+    try {
+      const res = await predict({ text: reviewText, msrEnabled: true, msrStrength: 0.5 });
+      const tokens = (res.predictions || [])
+        .filter((p: any) => p.topTokens && p.topTokens.length > 0)
+        .map((p: any) => ({
+          aspect: p.aspect,
+          // top_tokens from /predict are plain strings ["word1", "word2", ...]
+          // We assign decreasing attribution scores (1.0, 0.8, 0.6...) to rank them
+          tokens: (p.topTokens as any[]).map((t: any, idx: number) => ({
+            token: typeof t === "string" ? t : (t[0] ?? t.token ?? String(t)),
+            attribution: typeof t === "string"
+              ? 1.0 - idx * 0.1          // descending importance for plain strings
+              : (Number(t[1] ?? t.attribution) || 0),
+          })),
+        }));
+      setFastTokens(tokens);
+    } catch {
+      setFastTokens([]);
+    } finally {
+      setFastLoading(false);
+    }
+  }, []);
+
+  // Run fast attribution on mount
+  useEffect(() => {
+    if (isMounted) handleFastAttribution(text);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isMounted]);
 
   const handleExplain = async () => {
     setLoading(true);
@@ -96,66 +132,98 @@ export default function XAIPage() {
               />
             </div>
 
-            <div className="space-y-2">
-              <Label>Aspect</Label>
-              <Select
-                value={selectedAspect}
-                onValueChange={(v) => setSelectedAspect(v as Aspect | "all")}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All aspects</SelectItem>
-                  {ASPECTS.map((aspect) => (
-                    <SelectItem key={aspect} value={aspect} className="capitalize">
-                      {aspect}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Explanation Method</Label>
-              <Select
-                value={selectedMethod}
-                onValueChange={(v) => setSelectedMethod(v as ExplanationMethod)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ig">Integrated Gradients (Captum)</SelectItem>
-                  <SelectItem value="lime">LIME Text</SelectItem>
-                  <SelectItem value="shap">SHAP Partitions</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
+            {/* Fast attribution button */}
             <Button
-              onClick={handleExplain}
-              disabled={!text.trim() || loading}
+              variant="secondary"
+              onClick={() => handleFastAttribution(text)}
+              disabled={!text.trim() || fastLoading}
               className="w-full"
             >
-              {loading ? (
+              {fastLoading ? (
                 <>
                   <Spinner className="h-4 w-4 mr-2" />
-                  Generating...
+                  Loading...
                 </>
               ) : (
                 <>
-                  <Sparkles className="h-4 w-4 mr-2" />
-                  Generate Explanations
+                  <Zap className="h-4 w-4 mr-2" />
+                  Show Attribution Tokens
                 </>
               )}
             </Button>
+            <p className="text-xs text-muted-foreground text-center -mt-2">
+              Fast · attention-based · runs instantly
+            </p>
 
-            {loading && (
-              <p className="text-xs text-muted-foreground text-center">
-                This may take few minutes depending on the method…
-              </p>
-            )}
+            <div className="border-t pt-4 space-y-3">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Advanced Methods</p>
+
+              <div className="space-y-2">
+                <Label>Aspect</Label>
+                <Select
+                  value={selectedAspect}
+                  onValueChange={(v) => setSelectedAspect(v as Aspect | "all")}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All aspects</SelectItem>
+                    {ASPECTS.map((aspect) => (
+                      <SelectItem key={aspect} value={aspect} className="capitalize">
+                        {aspect}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Explanation Method</Label>
+                <Select
+                  value={selectedMethod}
+                  onValueChange={(v) => setSelectedMethod(v as ExplanationMethod)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ig">Integrated Gradients (Captum)</SelectItem>
+                    <SelectItem value="lime">LIME Text</SelectItem>
+                    <SelectItem value="shap">SHAP Partitions</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <Button
+                onClick={handleExplain}
+                disabled={!text.trim() || loading}
+                className="w-full"
+              >
+                {loading ? (
+                  <>
+                    <Spinner className="h-4 w-4 mr-2" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    Generate Explanations
+                  </>
+                )}
+              </Button>
+
+              {loading && (
+                <p className="text-xs text-muted-foreground text-center">
+                  This may take a few minutes…
+                </p>
+              )}
+              {!loading && (
+                <p className="text-xs text-muted-foreground text-center">
+                  ⏱ XAI analysis takes 1–2 min per aspect. Select one aspect for faster results.
+                </p>
+              )}
+            </div>
           </CardContent>
         </Card>
 
@@ -164,10 +232,32 @@ export default function XAIPage() {
           <CardHeader>
             <CardTitle className="text-base">Attribution Results</CardTitle>
             <p className="text-sm text-muted-foreground">
-              Token importance scores. Green = supports predicted sentiment · Red = opposes it.
+              For signed attribution (green/red), use the Advanced Methods below.
             </p>
           </CardHeader>
           <CardContent>
+            {/* Fast (attention) tokens — default */}
+            {fastTokens.length > 0 && !result && (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Zap className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Key Words Detected</span>
+                </div>
+                {fastTokens.map((asp) => (
+                  <div key={asp.aspect} className="space-y-2 border rounded-lg p-4 bg-card shadow-sm">
+                    <h4 className="text-sm font-semibold capitalize bg-primary/10 text-primary px-2.5 py-1 rounded-md inline-block">
+                      Aspect: {asp.aspect}
+                    </h4>
+                    <KeywordViewer tokens={asp.tokens} />
+                  </div>
+                ))}
+                <p className="text-xs text-muted-foreground pt-1">
+                  ⚡ These are the most relevant words detected for each aspect. For full signed attribution (green = supports · red = opposes), use the Advanced Methods.
+                </p>
+              </div>
+            )}
+
+            {/* Advanced (IG/LIME/SHAP) results */}
             {result && result.explanations && result.explanations.length > 0 ? (
               <div className="space-y-6 mt-4">
                 {result.explanations.map((exp) => (
@@ -188,11 +278,15 @@ export default function XAIPage() {
               <div className="h-32 flex items-center justify-center text-muted-foreground text-sm">
                 No attribution data returned.
               </div>
-            ) : (
+            ) : fastTokens.length === 0 && !fastLoading ? (
               <div className="h-48 flex items-center justify-center text-muted-foreground text-sm">
-                Generate explanations to view attributions
+                Click "Show Attribution Tokens" to begin
               </div>
-            )}
+            ) : fastLoading ? (
+              <div className="h-48 flex items-center justify-center gap-2 text-muted-foreground text-sm">
+                <Spinner className="h-4 w-4" /> Loading attribution tokens…
+              </div>
+            ) : null}
           </CardContent>
         </Card>
       </div>
@@ -230,12 +324,13 @@ function TokenHighlightViewer({
 }: {
   tokens: { token: string; attribution: number }[];
 }) {
-  const maxAttr = Math.max(...(tokens || []).map((t) => Math.abs(t.attribution || 0)), 0.001);
+  const maxAttr = Math.max(...(tokens || []).map((t) => Math.abs(Number(t.attribution) || 0)), 0.001);
 
   return (
     <div className="flex flex-wrap gap-1 p-3 rounded-lg bg-muted/50">
       {(tokens || []).map((t, i) => {
-        const normalizedAttr = (t.attribution || 0) / maxAttr;
+        const attr = Number(t.attribution) || 0;
+        const normalizedAttr = attr / maxAttr;
         const isPositive = normalizedAttr > 0;
         const intensity = Math.abs(normalizedAttr);
 
@@ -253,11 +348,30 @@ function TokenHighlightViewer({
             {t.token}
             {/* Tooltip on hover */}
             <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 text-xs rounded bg-popover text-popover-foreground shadow-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
-              attribution: {t.attribution.toFixed(3)}
+              attribution: {attr.toFixed(3)}
             </span>
           </span>
         );
       })}
+    </div>
+  );
+}
+
+function KeywordViewer({
+  tokens,
+}: {
+  tokens: { token: string; attribution: number }[];
+}) {
+  return (
+    <div className="flex flex-wrap gap-2 p-3 rounded-lg bg-muted/30">
+      {(tokens || []).map((t, i) => (
+        <span
+          key={i}
+          className="px-2.5 py-1 rounded-md text-sm font-medium bg-muted text-muted-foreground border shadow-sm cursor-default"
+        >
+          {t.token}
+        </span>
+      ))}
     </div>
   );
 }
