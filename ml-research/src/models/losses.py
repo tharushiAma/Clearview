@@ -11,7 +11,6 @@ import numpy as np
 class FocalLoss(nn.Module):
     """
     Focal Loss for addressing class imbalance
-    Paper: "Focal Loss for Dense Object Detection" (ICCV 2017)
     
     Args:
         alpha: Weighting factor for each class
@@ -35,11 +34,14 @@ class FocalLoss(nn.Module):
         focal_loss = (1 - pt) ** self.gamma * ce_loss
         
         if self.alpha is not None:
+            # alpha can be passed as a Python list, numpy array, torch Tensor, or a scalar.
+            # In all cases we index by target class to get per-sample weights (alpha_t).
             if isinstance(self.alpha, (list, np.ndarray)):
                 alpha_t = torch.tensor(self.alpha, device=inputs.device, dtype=torch.float)[targets]
             elif isinstance(self.alpha, torch.Tensor):
                 alpha_t = self.alpha.to(inputs.device)[targets]
             else:
+                # Scalar alpha — same weight applied to every sample
                 alpha_t = self.alpha
             focal_loss = alpha_t * focal_loss
             
@@ -54,7 +56,6 @@ class FocalLoss(nn.Module):
 class ClassBalancedLoss(nn.Module):
     """
     Class-Balanced Loss based on Effective Number of Samples
-    Paper: "Class-Balanced Loss Based on Effective Number of Samples" (CVPR 2019)
     
     Works better than standard weighted loss for extreme imbalance
     
@@ -65,8 +66,11 @@ class ClassBalancedLoss(nn.Module):
     """
     def __init__(self, samples_per_class, beta=0.9999, reduction='mean'):
         super(ClassBalancedLoss, self).__init__()
+        # Effective number = (1 - beta^n) / (1 - beta).  As n → ∞, EN → 1/(1-beta).
+        # Dividing by EN rather than raw count avoids over-penalising very small classes.
         effective_num = 1.0 - np.power(beta, samples_per_class)
         weights = (1.0 - beta) / np.array(effective_num)
+        # Re-normalise so weights average to 1.0 (preserves the loss scale)
         weights = weights / weights.sum() * len(weights)
         self.weights = torch.tensor(weights, dtype=torch.float32)
         self.reduction = reduction
@@ -82,11 +86,13 @@ class ClassBalancedLoss(nn.Module):
         return F.cross_entropy(inputs, targets, weight=self.weights, reduction=self.reduction)
 
 
+
+
+
 class DiceLoss(nn.Module):
     """
     Dice Loss for imbalanced classification
     Directly optimizes F1-score (Dice coefficient)
-    Paper: "Dice Loss for Data-imbalanced NLP Tasks" (ACL 2020)
     
     Args:
         smooth: Smoothing factor to avoid division by zero
@@ -128,6 +134,8 @@ class HybridLoss(nn.Module):
         super(HybridLoss, self).__init__()
         
         if weights is None:
+            # Default matches ablation A3 exploration; the A7 winning config
+            # sets dice=0.0 (passed explicitly via config.yaml loss_weights).
             weights = {'focal': 1.0, 'cb': 0.5, 'dice': 0.3}
         
         self.focal_loss = FocalLoss(alpha=focal_alpha, gamma=focal_gamma)
@@ -149,9 +157,9 @@ class HybridLoss(nn.Module):
         loss_cb = self.cb_loss(inputs, targets)
         loss_dice = self.dice_loss(inputs, targets)
         
-        total_loss = (self.weights['focal'] * loss_focal + 
-                     self.weights['cb'] * loss_cb + 
-                     self.weights['dice'] * loss_dice)
+        total_loss = (self.weights.get('focal', 0.0) * loss_focal + 
+                     self.weights.get('cb', 0.0) * loss_cb + 
+                     self.weights.get('dice', 0.0) * loss_dice)
         
         loss_dict = {
             'focal': loss_focal.item(),
@@ -212,7 +220,7 @@ class AspectSpecificLossManager:
                 focal_alpha=focal_alpha,
                 focal_gamma=gamma,
                 cb_beta=beta,
-                weights=config.get('loss_weights', {'focal': 1.0, 'cb': 0.5, 'dice': 0.3})
+                weights=config.get('loss_weights', {'focal': 1.0, 'cb': 0.5})
             )
             
             print(f"Initialized loss for {aspect}:")

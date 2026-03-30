@@ -1,194 +1,194 @@
-data,stayingpower,texture,smell,price,colour,shipping,packing,text_clean,signature
-"The lipstick texture is smooth and easy to apply, and for the price it feels reasonable.",,positive,,neutral,,,,"the lipstick texture is smooth and easy to apply, and for the price it feels reasonable.",stayingpower:na|texture:positive|smell:na|price:neutral|colour:na|shipping:na|packing:na
-"The color is wearable and simple, and the price matches what the product offers.",,,,neutral,positive,,,"the color is wearable and simple, and the price matches what the product offers.",stayingpower:na|texture:na|smell:na|price:neutral|colour:positive|shipping:na|packing:na
-"It does not last very long on the lips, but for the price this is acceptable.",negative,,,neutral,,,,"it does not last very long on the lips, but for the price this is acceptable.",stayingpower:negative|texture:na|smell:na|price:neutral|colour:na|shipping:na|packing:na
-"The smell is light and not disturbing, you get what you pay for at this price.",,,neutral,neutral,,,,"the smell is light and not disturbing, you get what you pay for at this price.",stayingpower:na|texture:na|smell:neutral|price:neutral|colour:na|shipping:na|packing:na
-"The lipstick feels slightly dry, but the price is fair for this quality.",,negative,,neutral,,,,"the lipstick feels slightly dry, but the price is fair for this quality.",stayingpower:na|texture:negative|smell:na|price:neutral|colour:na|shipping:na|packing:na
-"The shade looks nice on the lips, and the price feels normal for a daily lipstick.",,,,neutral,positive,,,"the shade looks nice on the lips, and the price feels normal for a daily lipstick.",stayingpower:na|texture:na|smell:na|price:neutral|colour:positive|shipping:na|packing:na
-"Shipping took about a week, and considering the price it is fine.",,,,neutral,,neutral,,"shipping took about a week, and considering the price it is fine.",stayingpower:na|texture:na|smell:na|price:neutral|colour:na|shipping:neutral|packing:na
-"The packaging is simple and neat, and the price matches the overall product.",,,,neutral,,,neutral,"the packaging is simple and neat, and the price matches the overall product.",stayingpower:na|texture:na|smell:na|price:neutral|colour:na|shipping:na|packing:neutral
-The lipstick applies evenly and for the price it performs as expected.,,positive,,neutral,,,,the lipstick applies evenly and for the price it performs as expected.,stayingpower:na|texture:positive|smell:na|price:neutral|colour:na|shipping:na|packing:na
-"The color payoff is average, and the price feels standard.",,,,neutral,neutral,,,"the color payoff is average, and the price feels standard.",stayingpower:na|texture:na|smell:na|price:neutral|colour:neutral|shipping:na|packing:na
-"It fades a bit after eating, but at this price that is understandable.",negative,,,neutral,,,,"it fades a bit after eating, but at this price that is understandable.",stayingpower:negative|texture:na|smell:na|price:neutral|colour:na|shipping:na|packing:na
-"The texture is okay and not sticky, and the price is just normal.",,neutral,,neutral,,,,"the texture is okay and not sticky, and the price is just normal.",stayingpower:na|texture:neutral|smell:na|price:neutral|colour:na|shipping:na|packing:na
-"The smell is pleasant but not strong, and the price seems fair.",,,positive,neutral,,,,"the smell is pleasant but not strong, and the price seems fair.",stayingpower:na|texture:na|smell:positive|price:neutral|colour:na|shipping:na|packing:na
-"Shipping was a little slow, but considering the price it is acceptable.",,,,neutral,,negative,,"shipping was a little slow, but considering the price it is acceptable.",stayingpower:na|texture:na|smell:na|price:neutral|colour:na|shipping:negative|packing:na
-"The lipstick feels light on the lips, and the price fits the quality.",,positive,,neutral,,,,"the lipstick feels light on the lips, and the price fits the quality.",stayingpower:na|texture:positive|smell:na|price:neutral|colour:na|shipping:na|packing:na
-"The color is soft and natural, and the price is what I expected.",,,,neutral,positive,,,"the color is soft and natural, and the price is what i expected.",stayingpower:na|texture:na|smell:na|price:neutral|colour:positive|shipping:na|packing:na
-"The packaging is basic, but the price matches the presentation.",,,,neutral,,,neutral,"the packaging is basic, but the price matches the presentation.",stayingpower:na|texture:na|smell:na|price:neutral|colour:na|shipping:na|packing:neutral
-"There is almost no smell, and at this price that is fine.",,,neutral,neutral,,,,"there is almost no smell, and at this price that is fine.",stayingpower:na|texture:na|smell:neutral|price:neutral|colour:na|shipping:na|packing:na
-"The lipstick feels a bit heavy, but the price seems reasonable.",,negative,,neutral,,,,"the lipstick feels a bit heavy, but the price seems reasonable.",stayingpower:na|texture:negative|smell:na|price:neutral|colour:na|shipping:na|packing:na
-"The shade is suitable for daily use, and the price is fair.",,,,neutral,positive,,,"the shade is suitable for daily use, and the price is fair.",stayingpower:na|texture:na|smell:na|price:neutral|colour:positive|shipping:na|packing:na
-"The product arrived safely, and for the price it is okay.",,,,neutral,,neutral,positive,"the product arrived safely, and for the price it is okay.",stayingpower:na|texture:na|smell:na|price:neutral|colour:na|shipping:neutral|packing:positive
-"The staying power is average, which is acceptable for this price.",neutral,,,neutral,,,,"the staying power is average, which is acceptable for this price.",stayingpower:neutral|texture:na|smell:na|price:neutral|colour:na|shipping:na|packing:na
-"It does not stay very long, but you get what you pay for.",negative,,,neutral,,,,"it does not stay very long, but you get what you pay for.",stayingpower:negative|texture:na|smell:na|price:neutral|colour:na|shipping:na|packing:na
-"The texture feels soft, and the price seems fair to me.",,positive,,neutral,,,,"the texture feels soft, and the price seems fair to me.",stayingpower:na|texture:positive|smell:na|price:neutral|colour:na|shipping:na|packing:na
-"The smell is not very nice, but at this price it is acceptable.",,,negative,neutral,,,,"the smell is not very nice, but at this price it is acceptable.",stayingpower:na|texture:na|smell:negative|price:neutral|colour:na|shipping:na|packing:na
-"The lipstick looks fine overall, and the price is just average.",,,,neutral,neutral,,,"the lipstick looks fine overall, and the price is just average.",stayingpower:na|texture:na|smell:na|price:neutral|colour:neutral|shipping:na|packing:na
-"Shipping was fast, and the price feels reasonable.",,,,neutral,,positive,,"shipping was fast, and the price feels reasonable.",stayingpower:na|texture:na|smell:na|price:neutral|colour:na|shipping:positive|packing:na
-"The texture feels dry after some time, but the price explains it.",,negative,,neutral,,,,"the texture feels dry after some time, but the price explains it.",stayingpower:na|texture:negative|smell:na|price:neutral|colour:na|shipping:na|packing:na
-"The color matches the photos, and the price is fair.",,,,neutral,positive,,,"the color matches the photos, and the price is fair.",stayingpower:na|texture:na|smell:na|price:neutral|colour:positive|shipping:na|packing:na
-"The packaging is simple, and the price feels standard.",,,,neutral,,,neutral,"the packaging is simple, and the price feels standard.",stayingpower:na|texture:na|smell:na|price:neutral|colour:na|shipping:na|packing:neutral
-"There is no noticeable smell, which is fine for this price.",,,neutral,neutral,,,,"there is no noticeable smell, which is fine for this price.",stayingpower:na|texture:na|smell:neutral|price:neutral|colour:na|shipping:na|packing:na
-"The lipstick applies smoothly, and the price seems reasonable.",,positive,,neutral,,,,"the lipstick applies smoothly, and the price seems reasonable.",stayingpower:na|texture:positive|smell:na|price:neutral|colour:na|shipping:na|packing:na
-"The staying power is not strong, but the price is fair.",negative,,,neutral,,,,"the staying power is not strong, but the price is fair.",stayingpower:negative|texture:na|smell:na|price:neutral|colour:na|shipping:na|packing:na
-"The smell is okay, and you get what you pay for.",,,neutral,neutral,,,,"the smell is okay, and you get what you pay for.",stayingpower:na|texture:na|smell:neutral|price:neutral|colour:na|shipping:na|packing:na
-"The lipstick looks good at first, and the price is normal.",,,,neutral,positive,,,"the lipstick looks good at first, and the price is normal.",stayingpower:na|texture:na|smell:na|price:neutral|colour:positive|shipping:na|packing:na
-"Shipping took some time, but for the price it is acceptable.",,,,neutral,,neutral,,"shipping took some time, but for the price it is acceptable.",stayingpower:na|texture:na|smell:na|price:neutral|colour:na|shipping:neutral|packing:na
-"The texture feels average, and the price is just okay.",,neutral,,neutral,,,,"the texture feels average, and the price is just okay.",stayingpower:na|texture:neutral|smell:na|price:neutral|colour:na|shipping:na|packing:na
-"The color is simple and wearable, and the price matches it.",,,,neutral,positive,,,"the color is simple and wearable, and the price matches it.",stayingpower:na|texture:na|smell:na|price:neutral|colour:positive|shipping:na|packing:na
-"It wears off after a few hours, but that is expected at this price.",negative,,,neutral,,,,"it wears off after a few hours, but that is expected at this price.",stayingpower:negative|texture:na|smell:na|price:neutral|colour:na|shipping:na|packing:na
-"The lipstick feels comfortable, and the price seems fair.",,positive,,neutral,,,,"the lipstick feels comfortable, and the price seems fair.",stayingpower:na|texture:positive|smell:na|price:neutral|colour:na|shipping:na|packing:na
-"The smell is not special, but the price is reasonable.",,,neutral,neutral,,,,"the smell is not special, but the price is reasonable.",stayingpower:na|texture:na|smell:neutral|price:neutral|colour:na|shipping:na|packing:na
-"The lipstick feels a bit rough, but the price explains the quality.",,negative,,neutral,,,,"the lipstick feels a bit rough, but the price explains the quality.",stayingpower:na|texture:negative|smell:na|price:neutral|colour:na|shipping:na|packing:na
-"The packaging is neat, and the price is fair overall.",,,,neutral,,,positive,"the packaging is neat, and the price is fair overall.",stayingpower:na|texture:na|smell:na|price:neutral|colour:na|shipping:na|packing:positive
-"The shade is fine for casual use, and the price is acceptable.",,,,neutral,positive,,,"the shade is fine for casual use, and the price is acceptable.",stayingpower:na|texture:na|smell:na|price:neutral|colour:positive|shipping:na|packing:na
-"The lipstick arrived without issues, and the price feels normal.",,,,neutral,,neutral,positive,"the lipstick arrived without issues, and the price feels normal.",stayingpower:na|texture:na|smell:na|price:neutral|colour:na|shipping:neutral|packing:positive
-"The staying power is weak, but you get what you pay for.",negative,,,neutral,,,,"the staying power is weak, but you get what you pay for.",stayingpower:negative|texture:na|smell:na|price:neutral|colour:na|shipping:na|packing:na
-"The lipstick feels light, and the price is reasonable.",,positive,,neutral,,,,"the lipstick feels light, and the price is reasonable.",stayingpower:na|texture:positive|smell:na|price:neutral|colour:na|shipping:na|packing:na
-"The lipstick is a bit dry on the lips, but for this price, you get what you pay for.",,negative,,neutral,,,,"the lipstick is a bit dry on the lips, but for this price, you get what you pay for.",stayingpower:na|texture:negative|smell:na|price:neutral|colour:na|shipping:na|packing:na
-"The color is standard, nothing special. The price is reasonable for the quality provided.",,,,neutral,neutral,,,"the color is standard, nothing special. the price is reasonable for the quality provided.",stayingpower:na|texture:na|smell:na|price:neutral|colour:neutral|shipping:na|packing:na
-"Shipping took about 5 days which is normal. The price is okay, neither cheap nor expensive.",,,,neutral,,neutral,,"shipping took about 5 days which is normal. the price is okay, neither cheap nor expensive.",stayingpower:na|texture:na|smell:na|price:neutral|colour:na|shipping:neutral|packing:na
-The smell is quite strong and chemical. I guess at this price point I shouldn't expect a high-end fragrance.,,,negative,neutral,,,,the smell is quite strong and chemical. i guess at this price point i shouldn't expect a high-end fragrance.,stayingpower:na|texture:na|smell:negative|price:neutral|colour:na|shipping:na|packing:na
-"It fades after eating, but considering the cost, it is an acceptable daily lipstick.",neutral,,,neutral,,,,"it fades after eating, but considering the cost, it is an acceptable daily lipstick.",stayingpower:neutral|texture:na|smell:na|price:neutral|colour:na|shipping:na|packing:na
-"The packaging is simple plastic. It is a standard budget product, so the price matches what you receive.",,,,neutral,,,neutral,"the packaging is simple plastic. it is a standard budget product, so the price matches what you receive.",stayingpower:na|texture:na|smell:na|price:neutral|colour:na|shipping:na|packing:neutral
-The color is beautiful and bright. The price is the same as in the store.,,,,neutral,positive,,,the color is beautiful and bright. the price is the same as in the store.,stayingpower:na|texture:na|smell:na|price:neutral|colour:positive|shipping:na|packing:na
-Texture is smooth but the stick is small. The price is fair for the amount of grams.,,positive,,neutral,,,,texture is smooth but the stick is small. the price is fair for the amount of grams.,stayingpower:na|texture:positive|smell:na|price:neutral|colour:na|shipping:na|packing:na
-"I bought it to try, the quality is average. The price is acceptable.",,,,neutral,,,,"i bought it to try, the quality is average. the price is acceptable.",stayingpower:na|texture:na|smell:na|price:neutral|colour:na|shipping:na|packing:na
-Delivery was fast. The price is consistent with other shops selling this brand.,,,,neutral,,positive,,delivery was fast. the price is consistent with other shops selling this brand.,stayingpower:na|texture:na|smell:na|price:neutral|colour:na|shipping:positive|packing:na
-The box was slightly dented. It's a cheap product so I didn't expect luxury packing anyway.,,,,neutral,,,negative,the box was slightly dented. it's a cheap product so i didn't expect luxury packing anyway.,stayingpower:na|texture:na|smell:na|price:neutral|colour:na|shipping:na|packing:negative
-The scent is nice like peach. The price is standard for a student budget.,,,positive,neutral,,,,the scent is nice like peach. the price is standard for a student budget.,stayingpower:na|texture:na|smell:positive|price:neutral|colour:na|shipping:na|packing:na
-"It doesn't stay on long, maybe 2 hours. But for 50k, it's fine to just reapply.",neutral,,,neutral,,,,"it doesn't stay on long, maybe 2 hours. but for 50k, it's fine to just reapply.",stayingpower:neutral|texture:na|smell:na|price:neutral|colour:na|shipping:na|packing:na
-The texture is a bit powdery. You get what you pay for essentially.,,negative,,neutral,,,,the texture is a bit powdery. you get what you pay for essentially.,stayingpower:na|texture:negative|smell:na|price:neutral|colour:na|shipping:na|packing:na
-"It is not a fake, the quality is decent. The price is market rate.",,,,neutral,,,,"it is not a fake, the quality is decent. the price is market rate.",stayingpower:na|texture:na|smell:na|price:neutral|colour:na|shipping:na|packing:na
-"Bought 2 colors, they look okay. The price is normal, not a steal but not a rip-off.",,,,neutral,neutral,,,"bought 2 colors, they look okay. the price is normal, not a steal but not a rip-off.",stayingpower:na|texture:na|smell:na|price:neutral|colour:neutral|shipping:na|packing:na
-Shipping took forever. The lipstick is okay for the money.,,,,neutral,,negative,,shipping took forever. the lipstick is okay for the money.,stayingpower:na|texture:na|smell:na|price:neutral|colour:na|shipping:negative|packing:na
-The packaging is cute. Price is about right for a domestic brand.,,,,neutral,,,positive,the packaging is cute. price is about right for a domestic brand.,stayingpower:na|texture:na|smell:na|price:neutral|colour:na|shipping:na|packing:positive
-The color is lighter than the picture. It's a cheap lipstick so I can't complain too much.,,,,neutral,negative,,,the color is lighter than the picture. it's a cheap lipstick so i can't complain too much.,stayingpower:na|texture:na|smell:na|price:neutral|colour:negative|shipping:na|packing:na
-It feels sticky on the lips. Quality is commensurate with the low price.,,negative,,neutral,,,,it feels sticky on the lips. quality is commensurate with the low price.,stayingpower:na|texture:negative|smell:na|price:neutral|colour:na|shipping:na|packing:na
-Standard shipping speed. The price is average for this type of matte tint.,,,,neutral,,neutral,,standard shipping speed. the price is average for this type of matte tint.,stayingpower:na|texture:na|smell:na|price:neutral|colour:na|shipping:neutral|packing:na
-"It smells like candy, very sweet. Price is okay, I bought it with free shipping coupon.",,,positive,neutral,,,,"it smells like candy, very sweet. price is okay, i bought it with free shipping coupon.",stayingpower:na|texture:na|smell:positive|price:neutral|colour:na|shipping:na|packing:na
-"The staying power is weak. But for a few dollars, it is acceptable for taking photos.",negative,,,neutral,,,,"the staying power is weak. but for a few dollars, it is acceptable for taking photos.",stayingpower:negative|texture:na|smell:na|price:neutral|colour:na|shipping:na|packing:na
-Nice color but drying. The price is standard.,,negative,,neutral,positive,,,nice color but drying. the price is standard.,stayingpower:na|texture:negative|smell:na|price:neutral|colour:positive|shipping:na|packing:na
-I ordered the wrong shade. The price is fair so I will just give it to my sister.,,,,neutral,,,,i ordered the wrong shade. the price is fair so i will just give it to my sister.,stayingpower:na|texture:na|smell:na|price:neutral|colour:na|shipping:na|packing:na
-"The bottle is glass, feels sturdy. Price is expected for this quality.",,,,neutral,,,positive,"the bottle is glass, feels sturdy. price is expected for this quality.",stayingpower:na|texture:na|smell:na|price:neutral|colour:na|shipping:na|packing:positive
-Nothing special about the texture. You pay a standard price for a standard product.,,neutral,,neutral,,,,nothing special about the texture. you pay a standard price for a standard product.,stayingpower:na|texture:neutral|smell:na|price:neutral|colour:na|shipping:na|packing:na
-The smell is a bit weird. Price is consistent with the market.,,,negative,neutral,,,,the smell is a bit weird. price is consistent with the market.,stayingpower:na|texture:na|smell:negative|price:neutral|colour:na|shipping:na|packing:na
-It arrived safely wrapped in bubble wrap. The cost is reasonable.,,,,neutral,,,positive,it arrived safely wrapped in bubble wrap. the cost is reasonable.,stayingpower:na|texture:na|smell:na|price:neutral|colour:na|shipping:na|packing:positive
-The pigment is okay. It's a budget lipstick so don't expect high-end performance.,,,,neutral,neutral,,,the pigment is okay. it's a budget lipstick so don't expect high-end performance.,stayingpower:na|texture:na|smell:na|price:neutral|colour:neutral|shipping:na|packing:na
-"Shipping was a bit slow. The price is average, nothing to shout about.",,,,neutral,,negative,,"shipping was a bit slow. the price is average, nothing to shout about.",stayingpower:na|texture:na|smell:na|price:neutral|colour:na|shipping:negative|packing:na
-Texture is creamy. Price is fine.,,positive,,neutral,,,,texture is creamy. price is fine.,stayingpower:na|texture:positive|smell:na|price:neutral|colour:na|shipping:na|packing:na
-"It is what it is, a cheap lip gloss. The price reflects the basic quality.",,,,neutral,,,,"it is what it is, a cheap lip gloss. the price reflects the basic quality.",stayingpower:na|texture:na|smell:na|price:neutral|colour:na|shipping:na|packing:na
-The color is vibrant. I bought it because the price is just right.,,,,neutral,positive,,,the color is vibrant. i bought it because the price is just right.,stayingpower:na|texture:na|smell:na|price:neutral|colour:positive|shipping:na|packing:na
-"The lipstick broke easily. But for this money, I can't be too angry.",,,,neutral,,,negative,"the lipstick broke easily. but for this money, i can't be too angry.",stayingpower:na|texture:na|smell:na|price:neutral|colour:na|shipping:na|packing:negative
-Smells like chocolate. The price is typical for this brand.,,,positive,neutral,,,,smells like chocolate. the price is typical for this brand.,stayingpower:na|texture:na|smell:positive|price:neutral|colour:na|shipping:na|packing:na
-It dries quickly on the lips. The price is suitable for teenagers.,,,,neutral,,,,it dries quickly on the lips. the price is suitable for teenagers.,stayingpower:na|texture:na|smell:na|price:neutral|colour:na|shipping:na|packing:na
-Standard delivery time. The price is neither high nor low.,,,,neutral,,neutral,,standard delivery time. the price is neither high nor low.,stayingpower:na|texture:na|smell:na|price:neutral|colour:na|shipping:neutral|packing:na
-The color matches the ad. Price is fair.,,,,neutral,positive,,,the color matches the ad. price is fair.,stayingpower:na|texture:na|smell:na|price:neutral|colour:positive|shipping:na|packing:na
-"Packaging is just a cardboard box. You pay for the product, not the box, so the price is fine.",,,,neutral,,,neutral,"packaging is just a cardboard box. you pay for the product, not the box, so the price is fine.",stayingpower:na|texture:na|smell:na|price:neutral|colour:na|shipping:na|packing:neutral
-It lasts about 4 hours. Good enough for the price.,neutral,,,neutral,,,,it lasts about 4 hours. good enough for the price.,stayingpower:neutral|texture:na|smell:na|price:neutral|colour:na|shipping:na|packing:na
-The texture is a bit thick. But it is a cheap buy so it's acceptable.,,neutral,,neutral,,,,the texture is a bit thick. but it is a cheap buy so it's acceptable.,stayingpower:na|texture:neutral|smell:na|price:neutral|colour:na|shipping:na|packing:na
-"No smell, which is good. The price is standard retail price.",,,positive,neutral,,,,"no smell, which is good. the price is standard retail price.",stayingpower:na|texture:na|smell:positive|price:neutral|colour:na|shipping:na|packing:na
-"I bought it on a small sale, but the price is basically the usual amount.",,,,neutral,,,,"i bought it on a small sale, but the price is basically the usual amount.",stayingpower:na|texture:na|smell:na|price:neutral|colour:na|shipping:na|packing:na
-The color is not very pigmented. It is appropriate quality for the low price.,,,,neutral,negative,,,the color is not very pigmented. it is appropriate quality for the low price.,stayingpower:na|texture:na|smell:na|price:neutral|colour:negative|shipping:na|packing:na
-Shipping was fast and packed well. Price is reasonable.,,,,neutral,,positive,positive,shipping was fast and packed well. price is reasonable.,stayingpower:na|texture:na|smell:na|price:neutral|colour:na|shipping:positive|packing:positive
-It feels light on lips. The price is justifiable.,,positive,,neutral,,,,it feels light on lips. the price is justifiable.,stayingpower:na|texture:positive|smell:na|price:neutral|colour:na|shipping:na|packing:na
-"The cap is loose. For the price, I suppose defects happen.",,,,neutral,,,negative,"the cap is loose. for the price, i suppose defects happen.",stayingpower:na|texture:na|smell:na|price:neutral|colour:na|shipping:na|packing:negative
-Staying power is okay. The price is average.,neutral,,,neutral,,,,staying power is okay. the price is average.,stayingpower:neutral|texture:na|smell:na|price:neutral|colour:na|shipping:na|packing:na
-Pretty color. The price is what you would expect for a local brand.,,,,neutral,positive,,,pretty color. the price is what you would expect for a local brand.,stayingpower:na|texture:na|smell:na|price:neutral|colour:positive|shipping:na|packing:na
-"The lipstick color looks fine on the lips, the texture is smooth, and for this price it feels reasonable.",,positive,,neutral,neutral,,,"the lipstick color looks fine on the lips, the texture is smooth, and for this price it feels reasonable.",stayingpower:na|texture:positive|smell:na|price:neutral|colour:neutral|shipping:na|packing:na
-"The smell is a bit strong for me, but you get what you pay for at this price.",,,negative,neutral,,,,"the smell is a bit strong for me, but you get what you pay for at this price.",stayingpower:na|texture:na|smell:negative|price:neutral|colour:na|shipping:na|packing:na
-"The color is nice but it does not last very long, which is understandable for this price.",negative,,,neutral,positive,,,"the color is nice but it does not last very long, which is understandable for this price.",stayingpower:negative|texture:na|smell:na|price:neutral|colour:positive|shipping:na|packing:na
-"The lipstick feels a bit dry on the lips, but the price matches the quality.",,negative,,neutral,,,,"the lipstick feels a bit dry on the lips, but the price matches the quality.",stayingpower:na|texture:negative|smell:na|price:neutral|colour:na|shipping:na|packing:na
-"The color payoff is average, and for the price it is acceptable.",,,,neutral,neutral,,,"the color payoff is average, and for the price it is acceptable.",stayingpower:na|texture:na|smell:na|price:neutral|colour:neutral|shipping:na|packing:na
-"The smell is light and pleasant, and you get what you pay for at this price.",,,positive,neutral,,,,"the smell is light and pleasant, and you get what you pay for at this price.",stayingpower:na|texture:na|smell:positive|price:neutral|colour:na|shipping:na|packing:na
-"The lipstick applies evenly, the price is okay, but the staying power is just average.",neutral,positive,,neutral,,,,"the lipstick applies evenly, the price is okay, but the staying power is just average.",stayingpower:neutral|texture:positive|smell:na|price:neutral|colour:na|shipping:na|packing:na
-"Shipping took about a week, the packaging was fine, and the price is fair.",,,,neutral,,neutral,neutral,"shipping took about a week, the packaging was fine, and the price is fair.",stayingpower:na|texture:na|smell:na|price:neutral|colour:na|shipping:neutral|packing:neutral
-"The lipstick color is pretty, the texture is okay, and the price feels normal.",,neutral,,neutral,positive,,,"the lipstick color is pretty, the texture is okay, and the price feels normal.",stayingpower:na|texture:neutral|smell:na|price:neutral|colour:positive|shipping:na|packing:na
-"The smell is not very nice, but at this price it is acceptable.",,,negative,neutral,,,,"the smell is not very nice, but at this price it is acceptable.",stayingpower:na|texture:na|smell:negative|price:neutral|colour:na|shipping:na|packing:na
-"The lipstick fades after eating, but you get what you pay for at this price.",negative,,,neutral,,,,"the lipstick fades after eating, but you get what you pay for at this price.",stayingpower:negative|texture:na|smell:na|price:neutral|colour:na|shipping:na|packing:na
-"The texture feels soft, the color is okay, and the price is reasonable.",,positive,,neutral,neutral,,,"the texture feels soft, the color is okay, and the price is reasonable.",stayingpower:na|texture:positive|smell:na|price:neutral|colour:neutral|shipping:na|packing:na
-"The lipstick has almost no smell, and for this price that is fine.",,,neutral,neutral,,,,"the lipstick has almost no smell, and for this price that is fine.",stayingpower:na|texture:na|smell:neutral|price:neutral|colour:na|shipping:na|packing:na
-"The color looks different from the picture, but the price is still fair.",,,,neutral,negative,,,"the color looks different from the picture, but the price is still fair.",stayingpower:na|texture:na|smell:na|price:neutral|colour:negative|shipping:na|packing:na
-"The lipstick feels a bit heavy on the lips, but you get what you pay for.",,negative,,neutral,,,,"the lipstick feels a bit heavy on the lips, but you get what you pay for.",stayingpower:na|texture:negative|smell:na|price:neutral|colour:na|shipping:na|packing:na
-"Shipping was fast, the lipstick arrived safely, and the price feels okay.",,,,neutral,,positive,positive,"shipping was fast, the lipstick arrived safely, and the price feels okay.",stayingpower:na|texture:na|smell:na|price:neutral|colour:na|shipping:positive|packing:positive
-"The lipstick texture is average, the color is fine, and the price is acceptable.",,neutral,,neutral,neutral,,,"the lipstick texture is average, the color is fine, and the price is acceptable.",stayingpower:na|texture:neutral|smell:na|price:neutral|colour:neutral|shipping:na|packing:na
-"The smell is pleasant, but the lipstick does not last long, which is expected at this price.",negative,,positive,neutral,,,,"the smell is pleasant, but the lipstick does not last long, which is expected at this price.",stayingpower:negative|texture:na|smell:positive|price:neutral|colour:na|shipping:na|packing:na
-"The color is suitable for daily use, and the price feels reasonable.",,,,neutral,positive,,,"the color is suitable for daily use, and the price feels reasonable.",stayingpower:na|texture:na|smell:na|price:neutral|colour:positive|shipping:na|packing:na
-"The lipstick dries my lips a little, but you get what you pay for.",,negative,,neutral,,,,"the lipstick dries my lips a little, but you get what you pay for.",stayingpower:na|texture:negative|smell:na|price:neutral|colour:na|shipping:na|packing:na
-"The packaging is simple, shipping was okay, and the price is normal.",,,,neutral,,neutral,neutral,"the packaging is simple, shipping was okay, and the price is normal.",stayingpower:na|texture:na|smell:na|price:neutral|colour:na|shipping:neutral|packing:neutral
-"The lipstick applies smoothly, but the color payoff is just average for this price.",,positive,,neutral,neutral,,,"the lipstick applies smoothly, but the color payoff is just average for this price.",stayingpower:na|texture:positive|smell:na|price:neutral|colour:neutral|shipping:na|packing:na
-"The smell is a bit strange at first, but considering the price it is fine.",,,negative,neutral,,,,"the smell is a bit strange at first, but considering the price it is fine.",stayingpower:na|texture:na|smell:negative|price:neutral|colour:na|shipping:na|packing:na
-"The lipstick does not stay all day, but that is expected at this price.",negative,,,neutral,,,,"the lipstick does not stay all day, but that is expected at this price.",stayingpower:negative|texture:na|smell:na|price:neutral|colour:na|shipping:na|packing:na
-"The texture is comfortable on the lips, and the price feels fair.",,positive,,neutral,,,,"the texture is comfortable on the lips, and the price feels fair.",stayingpower:na|texture:positive|smell:na|price:neutral|colour:na|shipping:na|packing:na
-"The color is not very bright, but you get what you pay for.",,,,neutral,negative,,,"the color is not very bright, but you get what you pay for.",stayingpower:na|texture:na|smell:na|price:neutral|colour:negative|shipping:na|packing:na
-"Shipping took a little longer, but the price is still reasonable.",,,,neutral,,negative,,"shipping took a little longer, but the price is still reasonable.",stayingpower:na|texture:na|smell:na|price:neutral|colour:na|shipping:negative|packing:na
-"The lipstick smells fine, the texture is okay, and the price is acceptable.",,neutral,neutral,neutral,,,,"the lipstick smells fine, the texture is okay, and the price is acceptable.",stayingpower:na|texture:neutral|smell:neutral|price:neutral|colour:na|shipping:na|packing:na
-"The color is beautiful, and for this price I think it is worth it.",,,,neutral,positive,,,"the color is beautiful, and for this price i think it is worth it.",stayingpower:na|texture:na|smell:na|price:neutral|colour:positive|shipping:na|packing:na
-"The lipstick feels slightly sticky, but the price explains the quality.",,negative,,neutral,,,,"the lipstick feels slightly sticky, but the price explains the quality.",stayingpower:na|texture:negative|smell:na|price:neutral|colour:na|shipping:na|packing:na
-"The packaging is neat, the lipstick arrived well, and the price is fair.",,,,neutral,,,positive,"the packaging is neat, the lipstick arrived well, and the price is fair.",stayingpower:na|texture:na|smell:na|price:neutral|colour:na|shipping:na|packing:positive
-"The lipstick has a soft texture, but the staying power is only average for this price.",neutral,positive,,neutral,,,,"the lipstick has a soft texture, but the staying power is only average for this price.",stayingpower:neutral|texture:positive|smell:na|price:neutral|colour:na|shipping:na|packing:na
-"The smell is very light, and you get what you pay for at this price.",,,neutral,neutral,,,,"the smell is very light, and you get what you pay for at this price.",stayingpower:na|texture:na|smell:neutral|price:neutral|colour:na|shipping:na|packing:na
-"The color looks good at first, but fades later, which is okay for this price.",negative,,,neutral,positive,,,"the color looks good at first, but fades later, which is okay for this price.",stayingpower:negative|texture:na|smell:na|price:neutral|colour:positive|shipping:na|packing:na
-"The lipstick feels light on the lips, and the price is reasonable.",,positive,,neutral,,,,"the lipstick feels light on the lips, and the price is reasonable.",stayingpower:na|texture:positive|smell:na|price:neutral|colour:na|shipping:na|packing:na
-"The color is simple, the texture is average, and the price feels normal.",,neutral,,neutral,neutral,,,"the color is simple, the texture is average, and the price feels normal.",stayingpower:na|texture:neutral|smell:na|price:neutral|colour:neutral|shipping:na|packing:na
-"Shipping was quick, and for the price I have no complaints.",,,,neutral,,positive,,"shipping was quick, and for the price i have no complaints.",stayingpower:na|texture:na|smell:na|price:neutral|colour:na|shipping:positive|packing:na
-"The lipstick dries a bit after some time, but you get what you pay for.",,negative,,neutral,,,,"the lipstick dries a bit after some time, but you get what you pay for.",stayingpower:na|texture:negative|smell:na|price:neutral|colour:na|shipping:na|packing:na
-"The smell is okay, the color is nice, and the price is fair.",,,neutral,neutral,positive,,,"the smell is okay, the color is nice, and the price is fair.",stayingpower:na|texture:na|smell:neutral|price:neutral|colour:positive|shipping:na|packing:na
-"The lipstick packaging is simple, but at this price it is acceptable.",,,,neutral,,,neutral,"the lipstick packaging is simple, but at this price it is acceptable.",stayingpower:na|texture:na|smell:na|price:neutral|colour:na|shipping:na|packing:neutral
-"The lipstick feels comfortable, but the color is just average for the price.",,positive,,neutral,neutral,,,"the lipstick feels comfortable, but the color is just average for the price.",stayingpower:na|texture:positive|smell:na|price:neutral|colour:neutral|shipping:na|packing:na
-"The smell is not great, but you get what you pay for.",,,negative,neutral,,,,"the smell is not great, but you get what you pay for.",stayingpower:na|texture:na|smell:negative|price:neutral|colour:na|shipping:na|packing:na
-"The lipstick arrived safely, shipping was normal, and the price is okay.",,,,neutral,,neutral,positive,"the lipstick arrived safely, shipping was normal, and the price is okay.",stayingpower:na|texture:na|smell:na|price:neutral|colour:na|shipping:neutral|packing:positive
-"The color is suitable for everyday use, and the price feels reasonable.",,,,neutral,positive,,,"the color is suitable for everyday use, and the price feels reasonable.",stayingpower:na|texture:na|smell:na|price:neutral|colour:positive|shipping:na|packing:na
-"The lipstick does not last very long, but at this price it is acceptable.",negative,,,neutral,,,,"the lipstick does not last very long, but at this price it is acceptable.",stayingpower:negative|texture:na|smell:na|price:neutral|colour:na|shipping:na|packing:na
-"The texture is smooth, the smell is light, and the price feels fair.",,positive,neutral,neutral,,,,"the texture is smooth, the smell is light, and the price feels fair.",stayingpower:na|texture:positive|smell:neutral|price:neutral|colour:na|shipping:na|packing:na
-"The color is okay but the lipstick is dry, I guess you get what you pay for at this price.",,negative,,neutral,neutral,,,"the color is okay but the lipstick is dry, i guess you get what you pay for at this price.",stayingpower:na|texture:negative|smell:na|price:neutral|colour:neutral|shipping:na|packing:na
-"Delivery was normal, took about 4 days. The price is standard for a matte lipstick.",,,,neutral,,neutral,,"delivery was normal, took about 4 days. the price is standard for a matte lipstick.",stayingpower:na|texture:na|smell:na|price:neutral|colour:na|shipping:neutral|packing:na
-It smells a bit like plastic but the color is vibrant. The price is acceptable.,,,negative,neutral,positive,,,it smells a bit like plastic but the color is vibrant. the price is acceptable.,stayingpower:na|texture:na|smell:negative|price:neutral|colour:positive|shipping:na|packing:na
-"The box was slightly crushed. The lipstick price is average, neither cheap nor expensive.",,,,neutral,,,negative,"the box was slightly crushed. the lipstick price is average, neither cheap nor expensive.",stayingpower:na|texture:na|smell:na|price:neutral|colour:na|shipping:na|packing:negative
-"Good texture, easy to apply. The price is fair for the quality.",,positive,,neutral,,,,"good texture, easy to apply. the price is fair for the quality.",stayingpower:na|texture:positive|smell:na|price:neutral|colour:na|shipping:na|packing:na
-"The color fades after eating, but for a cheap lipstick, it is understandable.",negative,,,neutral,,,,"the color fades after eating, but for a cheap lipstick, it is understandable.",stayingpower:negative|texture:na|smell:na|price:neutral|colour:na|shipping:na|packing:na
-"I bought this because of the reviews, the price is reasonable. The smell is nice and sweet.",,,positive,neutral,,,,"i bought this because of the reviews, the price is reasonable. the smell is nice and sweet.",stayingpower:na|texture:na|smell:positive|price:neutral|colour:na|shipping:na|packing:na
-Shipping was fast. The price is the same as in the supermarket.,,,,neutral,,positive,,shipping was fast. the price is the same as in the supermarket.,stayingpower:na|texture:na|smell:na|price:neutral|colour:na|shipping:positive|packing:na
-The shade is a bit different from the picture. Price is okay.,,,,neutral,negative,,,the shade is a bit different from the picture. price is okay.,stayingpower:na|texture:na|smell:na|price:neutral|colour:negative|shipping:na|packing:na
-It feels heavy on the lips. Quality matches the low price.,,negative,,neutral,,,,it feels heavy on the lips. quality matches the low price.,stayingpower:na|texture:negative|smell:na|price:neutral|colour:na|shipping:na|packing:na
-"Standard packaging, nothing special. The price is market rate.",,,,neutral,,,neutral,"standard packaging, nothing special. the price is market rate.",stayingpower:na|texture:na|smell:na|price:neutral|colour:na|shipping:na|packing:neutral
-The lipstick is smooth but doesn't stay long. Price is fitting for a daily use item.,negative,positive,,neutral,,,,the lipstick is smooth but doesn't stay long. price is fitting for a daily use item.,stayingpower:negative|texture:positive|smell:na|price:neutral|colour:na|shipping:na|packing:na
-Smell is too strong for me. The price is standard.,,,negative,neutral,,,,smell is too strong for me. the price is standard.,stayingpower:na|texture:na|smell:negative|price:neutral|colour:na|shipping:na|packing:na
-"The color is beautiful, very pigmented. The price is not a steal but it's okay.",,,,neutral,positive,,,"the color is beautiful, very pigmented. the price is not a steal but it's okay.",stayingpower:na|texture:na|smell:na|price:neutral|colour:positive|shipping:na|packing:na
-Shipping took too long. The price is average.,,,,neutral,,negative,,shipping took too long. the price is average.,stayingpower:na|texture:na|smell:na|price:neutral|colour:na|shipping:negative|packing:na
-"It is what it is, a budget lipstick. The price reflects the basic quality.",,,,neutral,,,,"it is what it is, a budget lipstick. the price reflects the basic quality.",stayingpower:na|texture:na|smell:na|price:neutral|colour:na|shipping:na|packing:na
-Texture is sticky. Price is bearable.,,negative,,neutral,,,,texture is sticky. price is bearable.,stayingpower:na|texture:negative|smell:na|price:neutral|colour:na|shipping:na|packing:na
-The packing was careful with bubble wrap. Price is consistent with other shops.,,,,neutral,,,positive,the packing was careful with bubble wrap. price is consistent with other shops.,stayingpower:na|texture:na|smell:na|price:neutral|colour:na|shipping:na|packing:positive
-Nice color but drying. You pay for the brand name mostly.,,negative,,neutral,positive,,,nice color but drying. you pay for the brand name mostly.,stayingpower:na|texture:negative|smell:na|price:neutral|colour:positive|shipping:na|packing:na
-It has no scent which I like. Price is a bit high but still within range.,,,positive,neutral,,,,it has no scent which i like. price is a bit high but still within range.,stayingpower:na|texture:na|smell:positive|price:neutral|colour:na|shipping:na|packing:na
-The lipstick arrived intact. Price is normal.,,,,neutral,,,positive,the lipstick arrived intact. price is normal.,stayingpower:na|texture:na|smell:na|price:neutral|colour:na|shipping:na|packing:positive
-"Staying power is okay, about 3 hours. Price is fair.",neutral,,,neutral,,,,"staying power is okay, about 3 hours. price is fair.",stayingpower:neutral|texture:na|smell:na|price:neutral|colour:na|shipping:na|packing:na
-The color is way lighter than expected. Price is average.,,,,neutral,negative,,,the color is way lighter than expected. price is average.,stayingpower:na|texture:na|smell:na|price:neutral|colour:negative|shipping:na|packing:na
-It applies smoothly. The cost is acceptable.,,positive,,neutral,,,,it applies smoothly. the cost is acceptable.,stayingpower:na|texture:positive|smell:na|price:neutral|colour:na|shipping:na|packing:na
-Shipping was fast but the packing was flimsy. Price is okay.,,,,neutral,,positive,negative,shipping was fast but the packing was flimsy. price is okay.,stayingpower:na|texture:na|smell:na|price:neutral|colour:na|shipping:positive|packing:negative
-"The smell is nice, like peach. Price is what you expect.",,,positive,neutral,,,,"the smell is nice, like peach. price is what you expect.",stayingpower:na|texture:na|smell:positive|price:neutral|colour:na|shipping:na|packing:na
-"Not great, not bad. Price is standard for a tint.",,,,neutral,,,,"not great, not bad. price is standard for a tint.",stayingpower:na|texture:na|smell:na|price:neutral|colour:na|shipping:na|packing:na
-The color is accurate. Price is reasonable for the size.,,,,neutral,positive,,,the color is accurate. price is reasonable for the size.,stayingpower:na|texture:na|smell:na|price:neutral|colour:positive|shipping:na|packing:na
-It dries my lips out. The price is cheap so I can't complain much.,,negative,,neutral,,,,it dries my lips out. the price is cheap so i can't complain much.,stayingpower:na|texture:negative|smell:na|price:neutral|colour:na|shipping:na|packing:na
-Delivery took a week. Price is fair.,,,,neutral,,negative,,delivery took a week. price is fair.,stayingpower:na|texture:na|smell:na|price:neutral|colour:na|shipping:negative|packing:na
-The cap is loose. Price is standard.,,,,neutral,,,negative,the cap is loose. price is standard.,stayingpower:na|texture:na|smell:na|price:neutral|colour:na|shipping:na|packing:negative
-It stays on well enough. Price is average for this brand.,neutral,,,neutral,,,,it stays on well enough. price is average for this brand.,stayingpower:neutral|texture:na|smell:na|price:neutral|colour:na|shipping:na|packing:na
-Texture is creamy but heavy. Price is acceptable.,,neutral,,neutral,,,,texture is creamy but heavy. price is acceptable.,stayingpower:na|texture:neutral|smell:na|price:neutral|colour:na|shipping:na|packing:na
-The smell is chemical. You get what you pay for.,,,negative,neutral,,,,the smell is chemical. you get what you pay for.,stayingpower:na|texture:na|smell:negative|price:neutral|colour:na|shipping:na|packing:na
-Color is pretty. Price is normal.,,,,neutral,positive,,,color is pretty. price is normal.,stayingpower:na|texture:na|smell:na|price:neutral|colour:positive|shipping:na|packing:na
-Shipping was quick. The price is not expensive but not cheap either.,,,,neutral,,positive,,shipping was quick. the price is not expensive but not cheap either.,stayingpower:na|texture:na|smell:na|price:neutral|colour:na|shipping:positive|packing:na
-The lipstick broke. Price is fair considering the material.,,,,neutral,,,negative,the lipstick broke. price is fair considering the material.,stayingpower:na|texture:na|smell:na|price:neutral|colour:na|shipping:na|packing:negative
-Smells sweet. Price is okay.,,,positive,neutral,,,,smells sweet. price is okay.,stayingpower:na|texture:na|smell:positive|price:neutral|colour:na|shipping:na|packing:na
-It fades fast. Price is standard.,negative,,,neutral,,,,it fades fast. price is standard.,stayingpower:negative|texture:na|smell:na|price:neutral|colour:na|shipping:na|packing:na
-The texture is fine. Price is reasonable.,,neutral,,neutral,,,,the texture is fine. price is reasonable.,stayingpower:na|texture:neutral|smell:na|price:neutral|colour:na|shipping:na|packing:na
-Packed well in a box. Price is average.,,,,neutral,,,positive,packed well in a box. price is average.,stayingpower:na|texture:na|smell:na|price:neutral|colour:na|shipping:na|packing:positive
-Color is dull. Price is what it is.,,,,neutral,negative,,,color is dull. price is what it is.,stayingpower:na|texture:na|smell:na|price:neutral|colour:negative|shipping:na|packing:na
-It is soft on the lips. Price is mid-range.,,positive,,neutral,,,,it is soft on the lips. price is mid-range.,stayingpower:na|texture:positive|smell:na|price:neutral|colour:na|shipping:na|packing:na
-Shipping was delayed. Price is correct for the item.,,,,neutral,,negative,,shipping was delayed. price is correct for the item.,stayingpower:na|texture:na|smell:na|price:neutral|colour:na|shipping:negative|packing:na
-The smell is nothing special. Price is standard.,,,neutral,neutral,,,,the smell is nothing special. price is standard.,stayingpower:na|texture:na|smell:neutral|price:neutral|colour:na|shipping:na|packing:na
-Packaging is cute. Price is okay.,,,,neutral,,,positive,packaging is cute. price is okay.,stayingpower:na|texture:na|smell:na|price:neutral|colour:na|shipping:na|packing:positive
-Texture is clumpy. Price is fair for a discount item.,,negative,,neutral,,,,texture is clumpy. price is fair for a discount item.,stayingpower:na|texture:negative|smell:na|price:neutral|colour:na|shipping:na|packing:na
-It transfers easily. Price is average.,negative,,,neutral,,,,it transfers easily. price is average.,stayingpower:negative|texture:na|smell:na|price:neutral|colour:na|shipping:na|packing:na
-The color is nice. Price is predictable.,,,,neutral,positive,,,the color is nice. price is predictable.,stayingpower:na|texture:na|smell:na|price:neutral|colour:positive|shipping:na|packing:na
-Just a normal lipstick. Price is fine.,,,,neutral,,,,just a normal lipstick. price is fine.,stayingpower:na|texture:na|smell:na|price:neutral|colour:na|shipping:na|packing:na
+data,stayingpower,texture,smell,price,colour,shipping,packing
+"The lipstick texture is smooth and easy to apply, and for the price it feels reasonable.",,positive,,neutral,,,
+"The color is wearable and simple, and the price matches what the product offers.",,,,neutral,positive,,
+"It does not last very long on the lips, but for the price this is acceptable.",negative,,,neutral,,,
+"The smell is light and not disturbing, you get what you pay for at this price.",,,neutral,neutral,,,
+"The lipstick feels slightly dry, but the price is fair for this quality.",,negative,,neutral,,,
+"The shade looks nice on the lips, and the price feels normal for a daily lipstick.",,,,neutral,positive,,
+"Shipping took about a week, and considering the price it is fine.",,,,neutral,,neutral,
+"The packaging is simple and neat, and the price matches the overall product.",,,,neutral,,,neutral
+The lipstick applies evenly and for the price it performs as expected.,,positive,,neutral,,,
+"The color payoff is average, and the price feels standard.",,,,neutral,neutral,,
+"It fades a bit after eating, but at this price that is understandable.",negative,,,neutral,,,
+"The texture is okay and not sticky, and the price is just normal.",,neutral,,neutral,,,
+"The smell is pleasant but not strong, and the price seems fair.",,,positive,neutral,,,
+"Shipping was a little slow, but considering the price it is acceptable.",,,,neutral,,negative,
+"The lipstick feels light on the lips, and the price fits the quality.",,positive,,neutral,,,
+"The color is soft and natural, and the price is what I expected.",,,,neutral,positive,,
+"The packaging is basic, but the price matches the presentation.",,,,neutral,,,neutral
+"There is almost no smell, and at this price that is fine.",,,neutral,neutral,,,
+"The lipstick feels a bit heavy, but the price seems reasonable.",,negative,,neutral,,,
+"The shade is suitable for daily use, and the price is fair.",,,,neutral,positive,,
+"The product arrived safely, and for the price it is okay.",,,,neutral,,neutral,positive
+"The staying power is average, which is acceptable for this price.",neutral,,,neutral,,,
+"It does not stay very long, but you get what you pay for.",negative,,,neutral,,,
+"The texture feels soft, and the price seems fair to me.",,positive,,neutral,,,
+"The smell is not very nice, but at this price it is acceptable.",,,negative,neutral,,,
+"The lipstick looks fine overall, and the price is just average.",,,,neutral,neutral,,
+"Shipping was fast, and the price feels reasonable.",,,,neutral,,positive,
+"The texture feels dry after some time, but the price explains it.",,negative,,neutral,,,
+"The color matches the photos, and the price is fair.",,,,neutral,positive,,
+"The packaging is simple, and the price feels standard.",,,,neutral,,,neutral
+"There is no noticeable smell, which is fine for this price.",,,neutral,neutral,,,
+"The lipstick applies smoothly, and the price seems reasonable.",,positive,,neutral,,,
+"The staying power is not strong, but the price is fair.",negative,,,neutral,,,
+"The smell is okay, and you get what you pay for.",,,neutral,neutral,,,
+"The lipstick looks good at first, and the price is normal.",,,,neutral,positive,,
+"Shipping took some time, but for the price it is acceptable.",,,,neutral,,neutral,
+"The texture feels average, and the price is just okay.",,neutral,,neutral,,,
+"The color is simple and wearable, and the price matches it.",,,,neutral,positive,,
+"It wears off after a few hours, but that is expected at this price.",negative,,,neutral,,,
+"The lipstick feels comfortable, and the price seems fair.",,positive,,neutral,,,
+"The smell is not special, but the price is reasonable.",,,neutral,neutral,,,
+"The lipstick feels a bit rough, but the price explains the quality.",,negative,,neutral,,,
+"The packaging is neat, and the price is fair overall.",,,,neutral,,,positive
+"The shade is fine for casual use, and the price is acceptable.",,,,neutral,positive,,
+"The lipstick arrived without issues, and the price feels normal.",,,,neutral,,neutral,positive
+"The staying power is weak, but you get what you pay for.",negative,,,neutral,,,
+"The lipstick feels light, and the price is reasonable.",,positive,,neutral,,,
+"The lipstick is a bit dry on the lips, but for this price, you get what you pay for.",,negative,,neutral,,,
+"The color is standard, nothing special. The price is reasonable for the quality provided.",,,,neutral,neutral,,
+"Shipping took about 5 days which is normal. The price is okay, neither cheap nor expensive.",,,,neutral,,neutral,
+The smell is quite strong and chemical. I guess at this price point I shouldn't expect a high-end fragrance.,,,negative,neutral,,,
+"It fades after eating, but considering the cost, it is an acceptable daily lipstick.",neutral,,,neutral,,,
+"The packaging is simple plastic. It is a standard budget product, so the price matches what you receive.",,,,neutral,,,neutral
+The color is beautiful and bright. The price is the same as in the store.,,,,neutral,positive,,
+Texture is smooth but the stick is small. The price is fair for the amount of grams.,,positive,,neutral,,,
+"I bought it to try, the quality is average. The price is acceptable.",,,,neutral,,,
+Delivery was fast. The price is consistent with other shops selling this brand.,,,,neutral,,positive,
+The box was slightly dented. It's a cheap product so I didn't expect luxury packing anyway.,,,,neutral,,,negative
+The scent is nice like peach. The price is standard for a student budget.,,,positive,neutral,,,
+"It doesn't stay on long, maybe 2 hours. But for 50k, it's fine to just reapply.",neutral,,,neutral,,,
+The texture is a bit powdery. You get what you pay for essentially.,,negative,,neutral,,,
+"It is not a fake, the quality is decent. The price is market rate.",,,,neutral,,,
+"Bought 2 colors, they look okay. The price is normal, not a steal but not a rip-off.",,,,neutral,neutral,,
+Shipping took forever. The lipstick is okay for the money.,,,,neutral,,negative,
+The packaging is cute. Price is about right for a domestic brand.,,,,neutral,,,positive
+The color is lighter than the picture. It's a cheap lipstick so I can't complain too much.,,,,neutral,negative,,
+It feels sticky on the lips. Quality is commensurate with the low price.,,negative,,neutral,,,
+Standard shipping speed. The price is average for this type of matte tint.,,,,neutral,,neutral,
+"It smells like candy, very sweet. Price is okay, I bought it with free shipping coupon.",,,positive,neutral,,,
+"The staying power is weak. But for a few dollars, it is acceptable for taking photos.",negative,,,neutral,,,
+Nice color but drying. The price is standard.,,negative,,neutral,positive,,
+I ordered the wrong shade. The price is fair so I will just give it to my sister.,,,,neutral,,,
+"The bottle is glass, feels sturdy. Price is expected for this quality.",,,,neutral,,,positive
+Nothing special about the texture. You pay a standard price for a standard product.,,neutral,,neutral,,,
+The smell is a bit weird. Price is consistent with the market.,,,negative,neutral,,,
+It arrived safely wrapped in bubble wrap. The cost is reasonable.,,,,neutral,,,positive
+The pigment is okay. It's a budget lipstick so don't expect high-end performance.,,,,neutral,neutral,,
+"Shipping was a bit slow. The price is average, nothing to shout about.",,,,neutral,,negative,
+Texture is creamy. Price is fine.,,positive,,neutral,,,
+"It is what it is, a cheap lip gloss. The price reflects the basic quality.",,,,neutral,,,
+The color is vibrant. I bought it because the price is just right.,,,,neutral,positive,,
+"The lipstick broke easily. But for this money, I can't be too angry.",,,,neutral,,,negative
+Smells like chocolate. The price is typical for this brand.,,,positive,neutral,,,
+It dries quickly on the lips. The price is suitable for teenagers.,,,,neutral,,,
+Standard delivery time. The price is neither high nor low.,,,,neutral,,neutral,
+The color matches the ad. Price is fair.,,,,neutral,positive,,
+"Packaging is just a cardboard box. You pay for the product, not the box, so the price is fine.",,,,neutral,,,neutral
+It lasts about 4 hours. Good enough for the price.,neutral,,,neutral,,,
+The texture is a bit thick. But it is a cheap buy so it's acceptable.,,neutral,,neutral,,,
+"No smell, which is good. The price is standard retail price.",,,positive,neutral,,,
+"I bought it on a small sale, but the price is basically the usual amount.",,,,neutral,,,
+The color is not very pigmented. It is appropriate quality for the low price.,,,,neutral,negative,,
+Shipping was fast and packed well. Price is reasonable.,,,,neutral,,positive,positive
+It feels light on lips. The price is justifiable.,,positive,,neutral,,,
+"The cap is loose. For the price, I suppose defects happen.",,,,neutral,,,negative
+Staying power is okay. The price is average.,neutral,,,neutral,,,
+Pretty color. The price is what you would expect for a local brand.,,,,neutral,positive,,
+"The lipstick color looks fine on the lips, the texture is smooth, and for this price it feels reasonable.",,positive,,neutral,neutral,,
+"The smell is a bit strong for me, but you get what you pay for at this price.",,,negative,neutral,,,
+"The color is nice but it does not last very long, which is understandable for this price.",negative,,,neutral,positive,,
+"The lipstick feels a bit dry on the lips, but the price matches the quality.",,negative,,neutral,,,
+"The color payoff is average, and for the price it is acceptable.",,,,neutral,neutral,,
+"The smell is light and pleasant, and you get what you pay for at this price.",,,positive,neutral,,,
+"The lipstick applies evenly, the price is okay, but the staying power is just average.",neutral,positive,,neutral,,,
+"Shipping took about a week, the packaging was fine, and the price is fair.",,,,neutral,,neutral,neutral
+"The lipstick color is pretty, the texture is okay, and the price feels normal.",,neutral,,neutral,positive,,
+"The smell is not very nice, but at this price it is acceptable.",,,negative,neutral,,,
+"The lipstick fades after eating, but you get what you pay for at this price.",negative,,,neutral,,,
+"The texture feels soft, the color is okay, and the price is reasonable.",,positive,,neutral,neutral,,
+"The lipstick has almost no smell, and for this price that is fine.",,,neutral,neutral,,,
+"The color looks different from the picture, but the price is still fair.",,,,neutral,negative,,
+"The lipstick feels a bit heavy on the lips, but you get what you pay for.",,negative,,neutral,,,
+"Shipping was fast, the lipstick arrived safely, and the price feels okay.",,,,neutral,,positive,positive
+"The lipstick texture is average, the color is fine, and the price is acceptable.",,neutral,,neutral,neutral,,
+"The smell is pleasant, but the lipstick does not last long, which is expected at this price.",negative,,positive,neutral,,,
+"The color is suitable for daily use, and the price feels reasonable.",,,,neutral,positive,,
+"The lipstick dries my lips a little, but you get what you pay for.",,negative,,neutral,,,
+"The packaging is simple, shipping was okay, and the price is normal.",,,,neutral,,neutral,neutral
+"The lipstick applies smoothly, but the color payoff is just average for this price.",,positive,,neutral,neutral,,
+"The smell is a bit strange at first, but considering the price it is fine.",,,negative,neutral,,,
+"The lipstick does not stay all day, but that is expected at this price.",negative,,,neutral,,,
+"The texture is comfortable on the lips, and the price feels fair.",,positive,,neutral,,,
+"The color is not very bright, but you get what you pay for.",,,,neutral,negative,,
+"Shipping took a little longer, but the price is still reasonable.",,,,neutral,,negative,
+"The lipstick smells fine, the texture is okay, and the price is acceptable.",,neutral,neutral,neutral,,,
+"The color is beautiful, and for this price I think it is worth it.",,,,neutral,positive,,
+"The lipstick feels slightly sticky, but the price explains the quality.",,negative,,neutral,,,
+"The packaging is neat, the lipstick arrived well, and the price is fair.",,,,neutral,,,positive
+"The lipstick has a soft texture, but the staying power is only average for this price.",neutral,positive,,neutral,,,
+"The smell is very light, and you get what you pay for at this price.",,,neutral,neutral,,,
+"The color looks good at first, but fades later, which is okay for this price.",negative,,,neutral,positive,,
+"The lipstick feels light on the lips, and the price is reasonable.",,positive,,neutral,,,
+"The color is simple, the texture is average, and the price feels normal.",,neutral,,neutral,neutral,,
+"Shipping was quick, and for the price I have no complaints.",,,,neutral,,positive,
+"The lipstick dries a bit after some time, but you get what you pay for.",,negative,,neutral,,,
+"The smell is okay, the color is nice, and the price is fair.",,,neutral,neutral,positive,,
+"The lipstick packaging is simple, but at this price it is acceptable.",,,,neutral,,,neutral
+"The lipstick feels comfortable, but the color is just average for the price.",,positive,,neutral,neutral,,
+"The smell is not great, but you get what you pay for.",,,negative,neutral,,,
+"The lipstick arrived safely, shipping was normal, and the price is okay.",,,,neutral,,neutral,positive
+"The color is suitable for everyday use, and the price feels reasonable.",,,,neutral,positive,,
+"The lipstick does not last very long, but at this price it is acceptable.",negative,,,neutral,,,
+"The texture is smooth, the smell is light, and the price feels fair.",,positive,neutral,neutral,,,
+"The color is okay but the lipstick is dry, I guess you get what you pay for at this price.",,negative,,neutral,neutral,,
+"Delivery was normal, took about 4 days. The price is standard for a matte lipstick.",,,,neutral,,neutral,
+It smells a bit like plastic but the color is vibrant. The price is acceptable.,,,negative,neutral,positive,,
+"The box was slightly crushed. The lipstick price is average, neither cheap nor expensive.",,,,neutral,,,negative
+"Good texture, easy to apply. The price is fair for the quality.",,positive,,neutral,,,
+"The color fades after eating, but for a cheap lipstick, it is understandable.",negative,,,neutral,,,
+"I bought this because of the reviews, the price is reasonable. The smell is nice and sweet.",,,positive,neutral,,,
+Shipping was fast. The price is the same as in the supermarket.,,,,neutral,,positive,
+The shade is a bit different from the picture. Price is okay.,,,,neutral,negative,,
+It feels heavy on the lips. Quality matches the low price.,,negative,,neutral,,,
+"Standard packaging, nothing special. The price is market rate.",,,,neutral,,,neutral
+The lipstick is smooth but doesn't stay long. Price is fitting for a daily use item.,negative,positive,,neutral,,,
+Smell is too strong for me. The price is standard.,,,negative,neutral,,,
+"The color is beautiful, very pigmented. The price is not a steal but it's okay.",,,,neutral,positive,,
+Shipping took too long. The price is average.,,,,neutral,,negative,
+"It is what it is, a budget lipstick. The price reflects the basic quality.",,,,neutral,,,
+Texture is sticky. Price is bearable.,,negative,,neutral,,,
+The packing was careful with bubble wrap. Price is consistent with other shops.,,,,neutral,,,positive
+Nice color but drying. You pay for the brand name mostly.,,negative,,neutral,positive,,
+It has no scent which I like. Price is a bit high but still within range.,,,positive,neutral,,,
+The lipstick arrived intact. Price is normal.,,,,neutral,,,positive
+"Staying power is okay, about 3 hours. Price is fair.",neutral,,,neutral,,,
+The color is way lighter than expected. Price is average.,,,,neutral,negative,,
+It applies smoothly. The cost is acceptable.,,positive,,neutral,,,
+Shipping was fast but the packing was flimsy. Price is okay.,,,,neutral,,positive,negative
+"The smell is nice, like peach. Price is what you expect.",,,positive,neutral,,,
+"Not great, not bad. Price is standard for a tint.",,,,neutral,,,
+The color is accurate. Price is reasonable for the size.,,,,neutral,positive,,
+It dries my lips out. The price is cheap so I can't complain much.,,negative,,neutral,,,
+Delivery took a week. Price is fair.,,,,neutral,,negative,
+The cap is loose. Price is standard.,,,,neutral,,,negative
+It stays on well enough. Price is average for this brand.,neutral,,,neutral,,,
+Texture is creamy but heavy. Price is acceptable.,,neutral,,neutral,,,
+The smell is chemical. You get what you pay for.,,,negative,neutral,,,
+Color is pretty. Price is normal.,,,,neutral,positive,,
+Shipping was quick. The price is not expensive but not cheap either.,,,,neutral,,positive,
+The lipstick broke. Price is fair considering the material.,,,,neutral,,,negative
+Smells sweet. Price is okay.,,,positive,neutral,,,
+It fades fast. Price is standard.,negative,,,neutral,,,
+The texture is fine. Price is reasonable.,,neutral,,neutral,,,
+Packed well in a box. Price is average.,,,,neutral,,,positive
+Color is dull. Price is what it is.,,,,neutral,negative,,
+It is soft on the lips. Price is mid-range.,,positive,,neutral,,,
+Shipping was delayed. Price is correct for the item.,,,,neutral,,negative,
+The smell is nothing special. Price is standard.,,,neutral,neutral,,,
+Packaging is cute. Price is okay.,,,,neutral,,,positive
+Texture is clumpy. Price is fair for a discount item.,,negative,,neutral,,,
+It transfers easily. Price is average.,negative,,,neutral,,,
+The color is nice. Price is predictable.,,,,neutral,positive,,
+Just a normal lipstick. Price is fine.,,,,neutral,,,

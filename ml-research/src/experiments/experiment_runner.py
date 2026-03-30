@@ -1,6 +1,13 @@
 """
 experiment_runner.py
-Unified runner for all ablation studies and baseline comparisons.
+Orchestrates the execution of multiple experiments and ablation studies.
+
+Core Features:
+  - Sequence Execution: Runs a batch of experiments defined in ablation_configs.py.
+  - Automatic Redundancy Skipping: Detects experiments identical to 'A1_full_model'
+    and reuses existing results to save GPU hours.
+  - Result Management: Saves metrics, ROC/PR curves, and predictions for each run.
+  - State Persistence: Resumes from last finished experiment if interrupted.
 
 Usage:
     # Run a specific experiment
@@ -50,7 +57,7 @@ from baseline_models import create_baseline, CrossEntropyLossWrapper, TFIDFSVMBa
 from models.model import create_model
 from models.losses import AspectSpecificLossManager
 from utils.data_utils import create_dataloaders, DependencyParser, compute_class_weights
-from utils.metrics import AspectSentimentEvaluator
+from utils.metrics import AspectSentimentEvaluator, MixedSentimentEvaluator
 from transformers import RobertaTokenizer, BertTokenizer, get_linear_schedule_with_warmup
 
 
@@ -58,6 +65,12 @@ from transformers import RobertaTokenizer, BertTokenizer, get_linear_schedule_wi
 # Shared Experiment Result Structure
 # ─────────────────────────────────────────────────────────────────────────────
 def empty_result(exp_id: str, desc: str) -> dict:
+    """
+    Return a skeleton result dict for an experiment that has not yet run.
+
+    Used as a safe default so that partial failures still produce a
+    well-formed entry in all_results.json.
+    """
     return {
         'experiment_id': exp_id,
         'description':   desc,
@@ -135,7 +148,17 @@ class ExperimentTrainer:
 
         return self.model(input_ids, attention_mask, aspect_ids, edge_indices)
 
-    def train_epoch(self):
+    def train_epoch(self) -> float:
+        """
+        Run one full pass over the training dataloader.
+
+        Supports both AMP and standard precision. Handles tuple model outputs
+        (aspect-aware model returns (logits, attn_weights, repr) — only logits
+        are used for the loss).
+
+        Returns:
+            Average training loss across all batches.
+        """
         self.model.train()
         total_loss = 0
         from tqdm import tqdm
@@ -183,6 +206,17 @@ class ExperimentTrainer:
         return total_loss / max(len(self.train_loader), 1)
 
     def evaluate(self, loader) -> dict:
+        """
+        Evaluate the model on a dataloader and return per-aspect metrics.
+
+        Args:
+            loader: DataLoader for the split to evaluate (val or test).
+
+        Returns:
+            dict with keys:
+              'overall'  → {accuracy, macro_f1, weighted_f1, mcc, ...}
+              'aspects'  → {aspect_name: {accuracy, macro_f1, ...}, ...}
+        """
         self.model.eval()
         all_preds, all_labels, all_aspects = [], [], []
 
@@ -215,29 +249,33 @@ class ExperimentTrainer:
         print(f"\n[{self.exp_id}] Training for {self.config['training']['num_epochs']} epochs")
 
         t0 = time.time()
-        for epoch in range(self.config['training']['num_epochs']):
-            train_loss = self.train_epoch()
-            val_metrics = self.evaluate(self.val_loader)
-            val_f1 = val_metrics['overall']['macro_f1']
+        best_ckpt = self.results_dir / f'{self.exp_id}_best.pt'
+        
+        if best_ckpt.exists():
+            print(f"  Checkpoint {best_ckpt} found! Skipping training.")
+        else:
+            for epoch in range(self.config['training']['num_epochs']):
+                train_loss = self.train_epoch()
+                val_metrics = self.evaluate(self.val_loader)
+                val_f1 = val_metrics['overall']['macro_f1']
 
-            print(f"  Epoch {epoch+1}: loss={train_loss:.4f}  val_macro_f1={val_f1:.4f}  "
-                  f"patience={self.patience_counter}/{self.patience}")
+                print(f"  Epoch {epoch+1}: loss={train_loss:.4f}  val_macro_f1={val_f1:.4f}  "
+                      f"patience={self.patience_counter}/{self.patience}")
 
-            if val_f1 > self.best_val_metric:
-                self.best_val_metric = val_f1
-                self.patience_counter = 0
-                torch.save({
-                    'model_state_dict': self.model.state_dict(),
-                    'config': self.config,
-                }, self.results_dir / f'{self.exp_id}_best.pt')
-            else:
-                self.patience_counter += 1
-                if self.patience_counter >= self.patience:
-                    print(f"  Early stopping at epoch {epoch+1}")
-                    break
+                if val_f1 > self.best_val_metric:
+                    self.best_val_metric = val_f1
+                    self.patience_counter = 0
+                    torch.save({
+                        'model_state_dict': self.model.state_dict(),
+                        'config': self.config,
+                    }, best_ckpt)
+                else:
+                    self.patience_counter += 1
+                    if self.patience_counter >= self.patience:
+                        print(f"  Early stopping at epoch {epoch+1}")
+                        break
 
         # Load best and evaluate on test
-        best_ckpt = self.results_dir / f'{self.exp_id}_best.pt'
         if best_ckpt.exists():
             ckpt = torch.load(best_ckpt, map_location=self.device)
             self.model.load_state_dict(ckpt['model_state_dict'])
@@ -350,10 +388,12 @@ def run_dl_experiment(exp_id: str, desc: str, config: dict,
             tokenizer = RobertaTokenizer.from_pretrained(roberta_name)
 
         # ── Build model ─────────────────────────────────────────────────────
-        # Baseline B1: plain roberta (no aspect awareness)
-        if exp_id.startswith('B1_') or exp_id.startswith('B3_'):
-            baseline_key = 'plain_roberta' if 'roberta' in exp_id.lower() else 'bert_base'
-            model = create_baseline(baseline_key, config)
+        # BUG FIX: Use explicit exp_id prefix check instead of substring
+        # matching on the name (which could break if experiment names change).
+        if exp_id.startswith('B1_'):
+            model = create_baseline('plain_roberta', config)
+        elif exp_id.startswith('B3_'):
+            model = create_baseline('bert_base', config)
         else:
             # Full model or ablation variants
             model = create_model(config)
@@ -388,6 +428,57 @@ def run_dl_experiment(exp_id: str, desc: str, config: dict,
         result['overall']       = ser(test_metrics['overall'])
         result['per_aspect']    = ser(test_metrics['aspects'])
 
+        # ── A6: MSR Evaluation (Mixed Sentiment Resolution) ─────────────────
+        # When the config has evaluate_msr=True (set by ablation_6_mixed_sentiment),
+        # run MixedSentimentEvaluator on the test set to capture MSR-specific metrics.
+        if config.get('experiment', {}).get('evaluate_msr', False):
+            print(f"  [{exp_id}] Running Mixed Sentiment Resolution evaluation...")
+            mixed_evaluator = MixedSentimentEvaluator(config['aspects']['names'])
+            trainer.model.eval()
+            review_true = {}
+            review_pred = {}
+
+            with torch.no_grad():
+                for batch in trainer.test_loader:
+                    input_ids      = batch['input_ids'].to(trainer.device)
+                    attention_mask = batch['attention_mask'].to(trainer.device)
+                    aspect_ids     = batch['aspect_ids'].to(trainer.device)
+
+                    edge_indices = None
+                    if config['model'].get('use_dependency_gcn', False):
+                        edge_indices = [e.to(trainer.device) if e is not None else None
+                                       for e in batch['edge_indices']]
+
+                    preds = trainer.model(input_ids, attention_mask, aspect_ids, edge_indices)
+                    if isinstance(preds, tuple):
+                        preds = preds[0]
+                    pred_classes = torch.argmax(preds, dim=1).cpu().numpy()
+
+                    for i in range(len(pred_classes)):
+                        review_idx  = batch['review_ids'][i]
+                        aspect_name = batch['aspects'][i]
+                        true_label  = batch['labels'][i].item()
+
+                        if review_idx not in review_true:
+                            review_true[review_idx] = {}
+                            review_pred[review_idx] = {}
+
+                        review_true[review_idx][aspect_name] = true_label
+                        review_pred[review_idx][aspect_name] = int(pred_classes[i])
+
+            mixed_metrics = mixed_evaluator.evaluate_mixed_sentiment_resolution(
+                review_true, review_pred
+            )
+            mixed_evaluator.print_mixed_sentiment_results(mixed_metrics)
+
+            # Store key MSR scalars in result (JSON-serialisable)
+            result['mixed_sentiment'] = {
+                'mixed_review_count':    mixed_metrics.get('mixed_review_count', 0),
+                'mixed_review_accuracy': mixed_metrics.get('mixed_review_accuracy', 0.0),
+                'mixed_aspect_accuracy': mixed_metrics.get('mixed_aspect_accuracy', 0.0),
+                'mixed_detection_rate':  mixed_metrics.get('mixed_detection_rate', 0.0),
+            }
+
     except Exception as exc:
         import traceback
         result['status'] = 'error'
@@ -400,19 +491,115 @@ def run_dl_experiment(exp_id: str, desc: str, config: dict,
 # ─────────────────────────────────────────────────────────────────────────────
 # Main Runner
 # ─────────────────────────────────────────────────────────────────────────────
+def _check_config_isolation(exp_ids: list, all_specs: dict, base_config: dict):
+    """
+    Before training, warn if any requested experiment has a config that is
+    bit-for-bit identical to another experiment or to A1_full_model.
+    Catches ablation bugs (wrong train path, default flag re-set) before
+    wasting hours of GPU time.
+    """
+    import json
+    def _canonical(cfg):
+        # Exclude experiment name from comparison — that always differs.
+        c = copy.deepcopy(cfg)
+        c.get('experiment', {}).pop('name', None)
+        c.get('experiment', {}).pop('evaluate_msr', None)  # A6 only adds this
+        return json.dumps(c, sort_keys=True)
+
+    seen = {}  # canonical_config → exp_id
+    issues = []
+    for exp_id in exp_ids:
+        if exp_id not in all_specs:
+            continue
+        _, _, cfg = all_specs[exp_id]
+        key = _canonical(cfg)
+        if key in seen:
+            issues.append(
+                f"  WARNING: [{exp_id}] has an IDENTICAL config to [{seen[key]}] "
+                f"(excluding experiment name). This experiment would be a duplicate. "
+                f"Delete its checkpoint and fix the ablation config before re-running."
+            )
+        else:
+            seen[key] = exp_id
+
+    if issues:
+        print("\n" + "!" * 65)
+        print("PRE-FLIGHT CONFIG ISOLATION CHECK — DUPLICATES DETECTED:")
+        for msg in issues:
+            print(msg)
+        print("!" * 65 + "\n")
+
+
 def run_experiments(exp_ids: list, base_config: dict, results_dir: Path) -> dict:
     """Run selected experiments and collect results."""
     all_ablation_specs  = {k: (k, d, c) for k, d, c in get_all_ablation_specs(base_config)}
     all_baseline_specs  = {k: (k, d, c) for k, d, c in get_all_baseline_specs(base_config)}
     all_specs = {**all_ablation_specs, **all_baseline_specs}
 
+    # Pre-flight: warn before any training if two experiments share identical configs
+    _check_config_isolation(exp_ids, all_specs, base_config)
+
     results = {}
+    out_path = results_dir / 'all_results.json'
+    if out_path.exists():
+        try:
+            with open(out_path, 'r') as f:
+                results = json.load(f)
+            print(f"Loaded {len(results)} existing results from {out_path}.")
+        except Exception as e:
+            print(f"Could not load existing {out_path}: {e}")
+
+    # ─── Robust Redundancy Skipping ────────────────────────────────
+    # To save GPU hours, we check if an experiment's canonical config 
+    # (its architecture/data/hyperparams) matches A1_full_model exactly.
+    # If it does, we skip training and simply clone A1's results.
+    def _get_canonical(cfg):
+        import json
+        c = copy.deepcopy(cfg)
+        # We strip out name and evaluation-only flags to get the core training config
+        c.get('experiment', {}).pop('name', None)
+        c.get('experiment', {}).pop('evaluate_msr', None)
+        return json.dumps(c, sort_keys=True)
+
+    # Get the "Fingerprint" of the full model to use as a reference
+    full_model_key = None
+    if 'A1_full_model' in all_specs:
+        full_model_key = _get_canonical(all_specs['A1_full_model'][2])
+
     for exp_id in exp_ids:
         if exp_id not in all_specs:
             print(f"  Warning: unknown experiment '{exp_id}' — skipping")
             continue
 
         exp_id, desc, config = all_specs[exp_id]
+        
+        # --- Check for Redundancy before starting any GPU work ---
+        if full_model_key and exp_id != 'A1_full_model':
+            if _get_canonical(config) == full_model_key:
+                print(f"\n{'='*70}")
+                print(f"SKIPPING REDUNDANT RUN: [{exp_id}]  {desc}")
+                print(f"Reason: This config is identical to [A1_full_model].")
+                print(f"Action: Reusing A1 results to save GPU time.")
+                print(f"{'='*70}")
+                
+                # We can only reuse results if A1 has already been run and is in the results dict
+                if 'A1_full_model' in results:
+                    # Clone the A1 metrics but keep the current exp_id/description
+                    results[exp_id] = copy.deepcopy(results['A1_full_model'])
+                    results[exp_id]['experiment_id'] = exp_id
+                    results[exp_id]['description']   = desc
+                else:
+                    # If A1 hasn't run yet, we can't clone it. 
+                    # The user should run A1 first to enable this skipping.
+                    print(f"  Warning: A1_full_model hasn't run yet. Please run A1 first to enable auto-reuse.")
+                    results[exp_id] = empty_result(exp_id, desc)
+                    results[exp_id]['status'] = 'skipped (run A1 first)'
+                
+                # Save the updated results file and move to next experiment
+                with open(out_path, 'w') as f:
+                    json.dump(results, f, indent=2)
+                continue
+
         print(f"\n{'='*65}")
         print(f"Running: [{exp_id}]  {desc}")
         print(f"{'='*65}")
@@ -443,8 +630,8 @@ def main():
                         help='Run a group of experiments')
     parser.add_argument('--list',       action='store_true',
                         help='List all available experiments and exit')
-    parser.add_argument('--results_dir', default='results/experiments',
-                        help='Directory to save results')
+    parser.add_argument('--results_dir', default='outputs/experiments',
+                        help='Directory to save results (default: outputs/experiments)')
     args = parser.parse_args()
 
     # Load base config

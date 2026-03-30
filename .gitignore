@@ -1,10 +1,14 @@
 # Python
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
 .venv/
+venv/
 
 # IDE
 .vscode/
+.idea/
 
 # Large model files - NEVER commit these!
 *.pt
@@ -20,7 +24,6 @@ ml-research/outputs/*/*.pt
 ml-research/outputs/*/best_model.pt
 ml-research/archive/outputs/checkpoints/
 
-
 # Logs
 *.log
 ml-research/outputs/logs/
@@ -35,10 +38,35 @@ ml-research/outputs/logs/
 .env.*
 .env.local
 
-# Website
+# ── Website / Frontend (Next.js) ─────────────────────────────────────────────
+node_modules/
 website/node_modules/
 website/.next/
-website/out/
-website/dist/
-website/.vercel/
+website/frontend/node_modules/
+website/frontend/.next/
+website/frontend/out/
+website/frontend/dist/
+website/frontend/.vercel/
+website/frontend/tsc_errors.log
+
+# ── Website / Backend (FastAPI) ───────────────────────────────────────────────
+# (Python __pycache__ is already caught globally above)
+# Runtime-generated logs and debug files — never commit
+website/backend_error.log
+website/debug_hook_log.txt
+website/error_log.txt
+website/backend/debug_hook_log.txt
+website/backend/error_log.txt
+
+# ── TypeScript build artifacts ─────────────────────────────────────────────────
+tsconfig.tsbuildinfo
+*.tsbuildinfo
+tsc_errors.log
+
+# ── Temporary / scratch files ─────────────────────────────────────────────────
+tmp_*.py
+tmp_*.ipynb
+evidence.html
+
+# Misc
 .claude/

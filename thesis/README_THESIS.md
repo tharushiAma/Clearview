@@ -12,20 +12,16 @@
 | [03_research_design.md](03_research_design.md) | 3 | Research design, methodology overview, justifications |
 | [04_data_pipeline.md](04_data_pipeline.md) | 4 | Dataset, preprocessing, stratified split, LLM augmentation |
 | [05_model_architecture.md](05_model_architecture.md) | 5 | RoBERTa + Aspect Attention + Dependency GCN |
-| [06_class_imbalance.md](06_class_imbalance.md) | 6 | Hybrid loss (Focal + Class-Balanced + Dice) |
-| [07_explainability.md](07_explainability.md) | 7 | Attention, LIME, SHAP, Integrated Gradients, MSR Delta |
+| [06_class_imbalance.md](06_class_imbalance.md) | 6 | Hybrid loss (Focal + Class-Balanced) |
+| [07_explainability.md](07_explainability.md) | 7 | Attention, LIME, SHAP, Integrated Gradients |
 | [08_experiments_baselines.md](08_experiments_baselines.md) | 8 | 4 baselines + 6 ablation studies (19 experiments) |
 | [09_results_analysis.md](09_results_analysis.md) | 9 | Results, discussion, statistical analysis |
 | [10_conclusion.md](10_conclusion.md) | 10 | Conclusion, limitations, future work |
 | [REFERENCES.md](REFERENCES.md) | Refs | Full bibliography |
 
-## Key Contributions
+## What this covers
 
-1. Three-pronged class imbalance framework (LLM augmentation + Hybrid Loss + two-phase split)
-2. Aspect-Oriented Dependency GCN with aspect-specific gating
-3. MSR Delta analysis - novel XAI for mixed sentiment resolution evidence
-4. 19-experiment ablation study (6 component studies + 4 baselines)
-5. ClearView web system - deployable ABSA demo with interactive XAI
+The main things I worked on: handling extreme class imbalance (price was 132:1 before augmentation — nothing was going to learn from that), separating conflicting aspect opinions within the same review, and making the model's decisions interpretable. The Integrated Gradients method specifically proved the model isn't mixing up signals from different aspects in the same sentence. There's also a web demo that runs live predictions with XAI.
 
 ## Dataset Summary
 

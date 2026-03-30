@@ -1,0 +1,17 @@
+\begin{table}[h]
+\centering
+\small
+\caption{Baseline Comparison}
+\label{tab:baseline_comparison}
+\begin{tabular}{lcccc}
+\hline
+Model & Acc. & Macro-F1 & Weighted-F1 & MCC \\
+\hline
+Flat ABSA RoBERTa — aspect attention, shared head, CE loss (no GCN/hybrid loss) & 0.9214 & 0.7948 & 0.9227 & 0.7846 \\
+Plain RoBERTa — [CLS] head, no aspect awareness, CE loss & 0.7754 & 0.5731 & 0.7827 & 0.4235 \\
+RoBERTa + Aspect Attention + GCN + CrossEntropy (no hybrid loss) & 0.9250 & 0.7911 & 0.9246 & 0.7939 \\
+BERT-base-uncased — [CLS] head, aspect-unaware, CE loss & 0.7566 & 0.5697 & 0.7713 & 0.4398 \\
+Classical TF-IDF + LinearSVC — no deep learning & 0.8997 & 0.6971 & 0.8880 & 0.7023 \\
+\hline
+\end{tabular}
+\end{table}

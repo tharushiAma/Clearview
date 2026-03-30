@@ -11,7 +11,12 @@ Ablations:
   A3  — Loss function variants (Hybrid / Focal / CB / CE)
   A4  — Data augmentation on/off
   A5  — Aspect-specific vs shared classifier
-  A6  — Text preprocessing on/off
+  A6  — Mixed Sentiment Resolution evaluation (GCN with/without MSR)
+  A7  — Hybrid Loss weight fine-tuning
+
+Redundancy Management:
+  Includes 'validate_ablation' to identify any experiment identical to the 
+  Full Model (A1), alerting the user before GPU time is wasted.
 """
 
 import copy
@@ -19,6 +24,67 @@ from typing import Dict, List, Tuple
 
 
 ExperimentSpec = Tuple[str, str, dict]  # (experiment_id, description, config_override)
+
+
+def validate_ablation(exp_id: str, modified: dict, base: dict, keys: list = None):
+    """
+    Checks if an ablation variant is accidentally identical to the base_config
+    (the Full Model). If so, prints a NOTE to the user.
+    
+    This function acts as an 'Early Warning' system during config generation.
+    Enforcement (skipping) happens later in experiment_runner.py.
+
+    Args:
+        exp_id:   The unique ID of the experiment (e.g., 'A2_aspect_attention')
+        modified: The deep-copied and potentially modified configuration dict
+        base:     The base_config (A1_full_model reference) for comparison
+        keys:     Optional list of key paths (e.g., ['data.train_path']) that are 
+                  EXPECTED to differ. If they don't, a WARNING is issued.
+    """
+    import warnings
+    import json
+
+    def _get(d, dotted_key):
+        """Helper to navigate nested dictionaries with dotted keys."""
+        parts = dotted_key.split('.')
+        for p in parts:
+            d = d.get(p, {})
+        return d
+
+    def _canonical(cfg):
+        """
+        Creates a 'fingerprint' of a config by stripping out name-specific
+        and evaluation-specific fields (like 'name' and 'evaluate_msr').
+        This allows us to see if the core logic (architecture/data) is duplicate.
+        """
+        import copy
+        c = copy.deepcopy(cfg)
+        c.get('experiment', {}).pop('name', None)
+        c.get('experiment', {}).pop('evaluate_msr', None)
+        return json.dumps(c, sort_keys=True)
+
+    # 1. Global Redundancy Check (Canonical comparison)
+    # If the stripped-down configs match, they are effectively the same model.
+    if _canonical(modified) == _canonical(base):
+        if exp_id != 'A1_full_model':
+            # This is an "Info" message to inform the user that training
+            # is not required and results will be reused.
+            print(f"[ablation_configs] NOTE: '{exp_id}' is identical to the "
+                  f"base Full Model. The runner will automatically reuse A1 "
+                  f"results for this row to save GPU time.")
+        return
+
+    # 2. Specific key checks (Validation for intended changes)
+    # If the user specified that certain keys MUST change (e.g., a path),
+    # we double-check that they actually did change.
+    if keys:
+        for key in keys:
+            if _get(modified, key) == _get(base, key):
+                warnings.warn(
+                    f"\n[ablation_configs] WARNING: '{exp_id}' key '{key}' is "
+                    f"identical to base_config. This ablation may not behave as intended or might be redundant.",
+                    stacklevel=2
+                )
 
 
 def get_all_ablation_specs(base_config: dict) -> List[ExperimentSpec]:
@@ -38,7 +104,7 @@ def get_all_ablation_specs(base_config: dict) -> List[ExperimentSpec]:
     specs.extend(ablation_3_loss_function(base_config))
     specs.extend(ablation_4_augmentation(base_config))
     specs.extend(ablation_5_classifier_head(base_config))
-    specs.extend(ablation_6_preprocessing(base_config))
+    specs.extend(ablation_6_mixed_sentiment(base_config))
     return specs
 
 
@@ -50,6 +116,7 @@ def ablation_1_gcn(base_config: dict) -> List[ExperimentSpec]:
     """
     full = copy.deepcopy(base_config)
     full['experiment']['name'] = 'A1_full_model'
+    validate_ablation('A1_full_model', full, base_config)
 
     no_gcn = copy.deepcopy(base_config)
     no_gcn['model']['use_dependency_gcn'] = False
@@ -71,6 +138,7 @@ def ablation_2_aspect_attention(base_config: dict) -> List[ExperimentSpec]:
     """
     attention = copy.deepcopy(base_config)
     attention['experiment']['name'] = 'A2_aspect_attention'
+    validate_ablation('A2_aspect_attention', attention, base_config)
 
     cls_only = copy.deepcopy(base_config)
     cls_only['model']['use_aspect_attention'] = False
@@ -96,6 +164,10 @@ def ablation_3_loss_function(base_config: dict) -> List[ExperimentSpec]:
 
     hybrid    = make_cfg('A3_hybrid_loss',
                          {'focal': 1.0, 'cb': 0.5, 'dice': 0.3})
+    # Guard: A3_hybrid_loss must differ from base on loss_weights (dice component added)
+    validate_ablation('A3_hybrid_loss', hybrid, base_config,
+                      ['training.loss_weights'])
+
     focal_only  = make_cfg('A3_focal_only',
                            {'focal': 1.0, 'cb': 0.0, 'dice': 0.0})
     cb_only     = make_cfg('A3_cb_only',
@@ -126,6 +198,8 @@ def ablation_4_augmentation(base_config: dict) -> List[ExperimentSpec]:
     with_aug = copy.deepcopy(base_config)
     with_aug['data']['train_path'] = 'data/splits/train_augmented.csv'
     with_aug['experiment']['name'] = 'A4_with_augmentation'
+    validate_ablation('A4_with_augmentation', with_aug, base_config,
+                      ['data.train_path'])
 
     no_aug = copy.deepcopy(base_config)
     no_aug['data']['train_path'] = 'data/splits/train.csv'
@@ -147,10 +221,26 @@ def ablation_5_classifier_head(base_config: dict) -> List[ExperimentSpec]:
     aspect_specific = copy.deepcopy(base_config)
     aspect_specific['model']['use_shared_classifier'] = False
     aspect_specific['experiment']['name'] = 'A5_aspect_specific_heads'
+    validate_ablation('A5_aspect_specific_heads', aspect_specific, base_config)
 
     shared = copy.deepcopy(base_config)
     shared['model']['use_shared_classifier'] = True
     shared['experiment']['name'] = 'A5_shared_head'
+
+    # Guard: create_model() defaults use_shared_classifier=False, so if base_config
+    # doesn't set it (or sets it False), A5_aspect_specific_heads == A1_full_model.
+    # In that case, A1_full_model IS the aspect-specific result — use it directly
+    # in your ablation table instead of re-running.
+    base_shared = base_config.get('model', {}).get('use_shared_classifier', False)
+    if not base_shared:
+        import warnings
+        warnings.warn(
+            "[ablation_configs] A5_aspect_specific_heads: base_config already uses "
+            "use_shared_classifier=False (the default). A5_aspect_specific_heads is "
+            "identical to A1_full_model. Use A1's result for the 'aspect-specific' "
+            "row in your ablation table — do NOT re-run A5_aspect_specific_heads.",
+            stacklevel=2,
+        )
 
     return [
         ('A5_aspect_specific_heads', '7 aspect-specific classifier heads', aspect_specific),
@@ -158,31 +248,65 @@ def ablation_5_classifier_head(base_config: dict) -> List[ExperimentSpec]:
     ]
 
 
-# ─── Ablation 6: Text Preprocessing ─────────────────────────────────────────
-def ablation_6_preprocessing(base_config: dict) -> List[ExperimentSpec]:
+# ─── Ablation 6: Mixed Sentiment Resolution (MSR) Evaluation ────────────────
+def ablation_6_mixed_sentiment(base_config: dict) -> List[ExperimentSpec]:
     """
-    Tests the impact of the cleaning pipeline.
-    'no_preprocessing' uses the original raw text column — set via a special flag
-    picked up in data_utils.py to skip clean_text_for_inference().
-    This requires a separate unprocessed data split or using 'raw_data' path.
-    """
-    with_preprocess = copy.deepcopy(base_config)
-    with_preprocess['experiment']['name'] = 'A6_with_preprocessing'
+    Tests whether the Dependency GCN specifically improves Mixed Sentiment
+    Resolution (MSR) — i.e., correctly separating conflicting sentiments
+    across aspects within the same review.
 
-    no_preprocess = copy.deepcopy(base_config)
-    # train.csv contains the cleaned text in 'data' column.
-    # For the no-preprocess ablation we point to the raw original data split
-    # (which must be created via a separate extraction step — see experiment_runner)
-    no_preprocess['data']['skip_inference_cleaning'] = True
-    no_preprocess['data']['train_path'] = 'data/splits/train_raw.csv'
-    no_preprocess['data']['val_path']   = 'data/splits/val_raw.csv'
-    no_preprocess['data']['test_path']  = 'data/splits/test_raw.csv'
-    no_preprocess['experiment']['name'] = 'A6_no_preprocessing'
+    Hypothesis: The GCN's aspect-oriented gating allows the model to isolate
+    aspect-relevant tokens, which is critical for MSR. Removing the GCN
+    should degrade MSR accuracy more than overall accuracy.
+
+    Both variants are evaluated with the dedicated MixedSentimentEvaluator
+    (in addition to standard metrics) so that experiment_runner can compare:
+      - Overall Macro-F1 drop with/without GCN
+      - MSR review-level accuracy drop with/without GCN
+    This pair of numbers proves the GCN's specific contribution to MSR.
+
+    The 'evaluate_msr' flag in the config is picked up by experiment_runner.py
+    to trigger MixedSentimentEvaluator after the standard test evaluation.
+    """
+    with_gcn = copy.deepcopy(base_config)
+    with_gcn['experiment']['name']         = 'A6_msr_with_gcn'
+    with_gcn['experiment']['evaluate_msr'] = True  # Signal runner to run MSR eval
+    validate_ablation('A6_msr_with_gcn', with_gcn, base_config)
+
+    no_gcn = copy.deepcopy(base_config)
+    no_gcn['model']['use_dependency_gcn']    = False
+    no_gcn['data']['use_dependency_parsing'] = False
+    no_gcn['experiment']['name']             = 'A6_msr_no_gcn'
+    no_gcn['experiment']['evaluate_msr']     = True
 
     return [
-        ('A6_with_preprocessing', 'With text cleaning pipeline', with_preprocess),
-        ('A6_no_preprocessing',   'Without cleaning (raw text)',  no_preprocess),
+        ('A6_msr_with_gcn', 'MSR Eval: Full model + GCN (mixed sent resolution)', with_gcn),
+        ('A6_msr_no_gcn',   'MSR Eval: No GCN (attention only, no dep parsing)',  no_gcn),
     ]
+
+
+# ─── Ablation 7: Hybrid Loss Weights ─────────────────────────────────────────
+def ablation_7_hybrid_weights(base_config: dict) -> List[ExperimentSpec]:
+    """
+    Tests different combinations of focal and class-balanced weights without dice loss.
+    """
+    def make_cfg(name: str, weights: dict) -> dict:
+        cfg = copy.deepcopy(base_config)
+        cfg['training']['loss_weights'] = weights
+        cfg['experiment']['name'] = name
+        return cfg
+
+    cb_05 = make_cfg('A7_hybrid_cb_05', {'focal': 1.0, 'cb': 0.5, 'dice': 0.0})
+    validate_ablation('A7_hybrid_cb_05', cb_05, base_config)
+    
+    cb_10 = make_cfg('A7_hybrid_cb_10', {'focal': 1.0, 'cb': 1.0, 'dice': 0.0})
+
+    return [
+        ('A7_hybrid_cb_05', 'Hybrid Loss (Focal 1.0 + CB 0.5 + Dice 0.0)', cb_05),
+        ('A7_hybrid_cb_10', 'Hybrid Loss (Focal 1.0 + CB 1.0 + Dice 0.0)', cb_10),
+    ]
+
+
 
 
 # ─── Summary ──────────────────────────────────────────────────────────────────
@@ -193,6 +317,7 @@ def get_all_baseline_specs(base_config: dict) -> List[ExperimentSpec]:
     # B1: Plain RoBERTa
     b1 = copy.deepcopy(base_config)
     b1['experiment']['name'] = 'B1_plain_roberta'
+    b1['experiment']['evaluate_msr'] = True
     specs.append(('B1_plain_roberta',
                   'Plain RoBERTa — [CLS] head, no aspect awareness, CE loss',
                   b1))
@@ -201,6 +326,7 @@ def get_all_baseline_specs(base_config: dict) -> List[ExperimentSpec]:
     b2 = copy.deepcopy(base_config)
     b2['training']['use_ce_loss'] = True
     b2['experiment']['name'] = 'B2_roberta_ce'
+    b2['experiment']['evaluate_msr'] = True
     specs.append(('B2_roberta_ce',
                   'RoBERTa + Aspect Attention + GCN + CrossEntropy (no hybrid loss)',
                   b2))
@@ -209,6 +335,7 @@ def get_all_baseline_specs(base_config: dict) -> List[ExperimentSpec]:
     b3 = copy.deepcopy(base_config)
     b3['model']['roberta_model'] = 'bert-base-uncased'
     b3['experiment']['name'] = 'B3_bert_base'
+    b3['experiment']['evaluate_msr'] = True
     specs.append(('B3_bert_base',
                   'BERT-base-uncased — [CLS] head, aspect-unaware, CE loss',
                   b3))

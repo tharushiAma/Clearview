@@ -3,7 +3,7 @@
 # Model Configuration
 model:
   name: "multi_aspect_sentiment_roberta_gcn"
-  roberta_model: "roberta-base" 
+  roberta_model: "roberta-base"
   hidden_dim: 768
   num_aspects: 7
   num_classes: 3 # negative, neutral, positive
@@ -30,7 +30,7 @@ aspects:
     positive: 2
 
   # Class distribution (from augmented training data with preprocessed synthetic)
-  # Updated: 2026-02-11 - After synthetic data integration (87.8% retention)
+  # After synthetic data integration (87.8% retention)
   class_counts:
     stayingpower: [727, 244, 1076] # neg, neu, pos
     texture: [639, 420, 2563]
@@ -57,7 +57,6 @@ training:
   loss_weights:
     focal: 1.0
     cb: 0.5
-    dice: 0.3
 
   # Aspect-specific loss parameters
   focal_gamma:
@@ -79,20 +78,9 @@ data:
   max_seq_length: 256
   text_column: "data"
 
-  # Data augmentation
-  # augmentation:
-  #   enabled: true
-  #   techniques: ["back_translation", "synonym_replacement", "mixup"]
-  #   augment_minority_only: true
-  #   augmentation_ratio:
-  #     negative: 3.0 # Generate 3x samples for negative class
-  #     neutral: 2.0
-  #     positive: 1.0
-  #   mixup_alpha: 0.4
-
   # Dependency parsing
   use_dependency_parsing: true
-  dependency_parser: "spacy" # or "stanza"
+  dependency_parser: "spacy"
   language: "en"
 
 # Explainability Configuration
@@ -107,7 +95,7 @@ explainability:
 # Experiment Configuration
 experiment:
   name: "cosmetic_sentiment_v1"
-  save_dir: "results"
+  save_dir: "outputs"
   log_every: 50
   eval_every: 500
   save_best_only: true
@@ -125,7 +113,7 @@ evaluation:
 
 # Hardware Configuration
 hardware:
-  device: "cuda" # or "cpu"
-  num_workers: 4
+  device: "cuda"
+  num_workers: 0
   pin_memory: true
   mixed_precision: true # Use automatic mixed precision for faster training

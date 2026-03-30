@@ -1,0 +1,47 @@
+name: Backend API Tests
+
+on:
+  push:
+    branches: [main, website]
+    paths:
+      - "website/backend/**"
+      - ".github/workflows/backend-tests.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "website/backend/**"
+
+jobs:
+  test:
+    name: Run Backend Tests
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: website
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: website/backend/requirements.txt
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r backend/requirements.txt
+          pip install pytest pytest-asyncio "httpx>=0.23.0"
+
+      - name: Run backend tests
+        run: |
+          pytest backend/tests/ -v --tb=short
+        env:
+          # Point to a non-existent path so the backend falls back gracefully.
+          # Tests mock the model layer — no real checkpoint needed.
+          CKPT_PATH: /tmp/no_model_here.pt
+          ALLOWED_ORIGINS: "http://localhost:3000"

@@ -1,0 +1,114 @@
+{
+  "stayingpower": {
+    "positive": {
+      "train": 1059,
+      "aug": 1076
+    },
+    "negative": {
+      "train": 668,
+      "aug": 727,
+      "diff": 59
+    },
+    "neutral": {
+      "train": 224,
+      "aug": 244,
+      "diff": 20
+    }
+  },
+  "texture": {
+    "positive": {
+      "train": 2467,
+      "aug": 2563
+    },
+    "negative": {
+      "train": 565,
+      "aug": 639,
+      "diff": 74
+    },
+    "neutral": {
+      "train": 385,
+      "aug": 420,
+      "diff": 35
+    }
+  },
+  "smell": {
+    "positive": {
+      "train": 1634,
+      "aug": 1668
+    },
+    "negative": {
+      "train": 305,
+      "aug": 335,
+      "diff": 30
+    },
+    "neutral": {
+      "train": 95,
+      "aug": 274,
+      "diff": 179
+    }
+  },
+  "price": {
+    "positive": {
+      "train": 2267,
+      "aug": 2295
+    },
+    "negative": {
+      "train": 9,
+      "aug": 201,
+      "diff": 192
+    },
+    "neutral": {
+      "train": 9,
+      "aug": 218,
+      "diff": 209
+    }
+  },
+  "colour": {
+    "positive": {
+      "train": 4388,
+      "aug": 4483
+    },
+    "negative": {
+      "train": 463,
+      "aug": 499,
+      "diff": 36
+    },
+    "neutral": {
+      "train": 390,
+      "aug": 428,
+      "diff": 38
+    }
+  },
+  "shipping": {
+    "positive": {
+      "train": 2365,
+      "aug": 2406
+    },
+    "negative": {
+      "train": 1176,
+      "aug": 1216,
+      "diff": 40
+    },
+    "neutral": {
+      "train": 245,
+      "aug": 267,
+      "diff": 22
+    }
+  },
+  "packing": {
+    "positive": {
+      "train": 2034,
+      "aug": 2068
+    },
+    "negative": {
+      "train": 65,
+      "aug": 236,
+      "diff": 171
+    },
+    "neutral": {
+      "train": 9,
+      "aug": 177,
+      "diff": 168
+    }
+  }
+}

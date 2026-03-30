@@ -1,0 +1,18 @@
+{
+  "pythonVersion": "3.11",
+  "include": [
+    "website/backend",
+    "ml-research"
+  ],
+  "extraPaths": [
+    "website",
+    "website/backend",
+    "ml-research"
+  ],
+  "reportMissingImports": "none",
+  "reportMissingModuleSource": "none",
+  "reportMissingModuleAttribute": "none",
+  "reportUnknownMemberType": "none",
+  "reportUnknownVariableType": "none",
+  "reportUnknownArgumentType": "none"
+}

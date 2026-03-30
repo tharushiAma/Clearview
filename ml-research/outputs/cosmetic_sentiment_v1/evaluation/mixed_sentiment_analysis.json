@@ -1,21 +1,21 @@
 {
-  "mixed_review_count": 621,
-  "mixed_detection_rate": 43.09507286606523,
-  "mixed_review_accuracy": 66.98872785829307,
-  "mixed_aspect_accuracy": 86.61814109742441,
+  "mixed_review_count": 628,
+  "mixed_detection_rate": 43.40013821700069,
+  "mixed_review_accuracy": 68.15286624203821,
+  "mixed_aspect_accuracy": 87.54778809393774,
   "stats": {
-    "total_reviews": 1987,
-    "mixed_sentiment_reviews": 621,
-    "single_aspect_reviews": 546,
-    "multi_aspect_reviews": 1441,
+    "total_reviews": 1994,
+    "mixed_sentiment_reviews": 628,
+    "single_aspect_reviews": 547,
+    "multi_aspect_reviews": 1447,
     "conflict_types": {
       "positive_negative": 410,
       "positive_neutral_negative": 43,
-      "neutral_with_extremes": 168
+      "neutral_with_extremes": 175
     },
-    "mixed_percentage_of_multi": 43.09507286606523,
-    "mixed_percentage_of_total": 31.25314544539507
+    "mixed_percentage_of_multi": 43.40013821700069,
+    "mixed_percentage_of_total": 31.49448345035105
   },
-  "total_mixed_aspects": 1786,
-  "correct_mixed_aspects": 1547
+  "total_mixed_aspects": 1831,
+  "correct_mixed_aspects": 1603
 }
