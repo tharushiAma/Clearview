@@ -220,7 +220,7 @@ class AspectSpecificLossManager:
                 focal_alpha=focal_alpha,
                 focal_gamma=gamma,
                 cb_beta=beta,
-                weights=config.get('loss_weights', {'focal': 1.0, 'cb': 0.5})
+                weights=config.get('loss_weights', {'focal': 1.0, 'cb': 0.5, 'dice': 0.3})
             )
             
             print(f"Initialized loss for {aspect}:")

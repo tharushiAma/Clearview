@@ -57,6 +57,7 @@ training:
   loss_weights:
     focal: 1.0
     cb: 0.5
+    dice: 0.3
 
   # Aspect-specific loss parameters
   focal_gamma:
