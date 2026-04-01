@@ -31,8 +31,8 @@ ml-research/outputs/logs/
 !ml-research/outputs/ablations_4class/*.md
 
 # Website
-website/node_modules/
-website/.next/
-website/out/
-website/dist/
-website/.vercel/
+**/node_modules/
+**/.next/
+**/out/
+**/dist/
+**/.vercel/
