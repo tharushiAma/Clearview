@@ -11,7 +11,7 @@ Baselines:
 
 import torch
 import torch.nn as nn
-from transformers import RobertaModel, BertModel
+from transformers import RobertaModel, BertModel, DistilBertModel
 
 import os
 import sys
@@ -81,6 +81,32 @@ class CrossEntropyLossWrapper(nn.Module):
             'total': loss_val,
         }
         return loss, loss_details
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Baseline 2: DistilBERT-base
+# DistilBERT-base-uncased with a single shared [CLS] classification head.
+# Lightweight baseline for performance/size trade-off analysis.
+# ─────────────────────────────────────────────────────────────────────────────
+class DistilBERTBaseline(nn.Module):
+    """
+    DistilBERT-base-uncased with a single shared [CLS] classification head.
+    Aspect-unaware — same as PlainRoBERTa but with DistilBERT encoder.
+    """
+    def __init__(self, distilbert_model='distilbert-base-uncased', num_classes=3, dropout=0.1):
+        super(DistilBERTBaseline, self).__init__()
+        self.distilbert = DistilBertModel.from_pretrained(distilbert_model)
+        self.dropout = nn.Dropout(dropout)
+        self.classifier = nn.Linear(768, num_classes)
+
+    def forward(self, input_ids, attention_mask, aspect_id=None, edge_index=None, **kwargs):
+        output = self.distilbert(input_ids=input_ids, attention_mask=attention_mask)
+        cls_output = output.last_hidden_state[:, 0, :]
+        cls_output = self.dropout(cls_output)
+        return self.classifier(cls_output)
+
+    def get_num_parameters(self):
+        return sum(p.numel() for p in self.parameters() if p.requires_grad)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -250,6 +276,15 @@ def create_baseline(baseline_name: str, config: dict):
         from models.model import create_model
         model = create_model(config)
         print("[Baseline] Full architecture + CrossEntropy loss")
+        return model
+
+    elif baseline_name == 'distilbert_base':
+        model = DistilBERTBaseline(
+            distilbert_model='distilbert-base-uncased',
+            num_classes=num_classes,
+            dropout=dropout,
+        )
+        print(f"[Baseline] DistilBERT-base: {model.get_num_parameters():,} params")
         return model
 
     elif baseline_name == 'bert_base':

@@ -301,7 +301,7 @@ Mixed sentiment resolution accuracy: computed by `MixedSentimentEvaluator` — p
 | ID | Model | Description |
 | --- | --- | --- |
 | B1 | PlainRoBERTa | RoBERTa + [CLS] head, no aspect awareness, CE loss |
-| B2 | RoBERTa+CE | Full architecture but CrossEntropy only |
+| B2 | DistilBERTBaseline | DistilBERT-base-uncased + [CLS] head, CE loss |
 | B3 | BERTBaseline | BERT-base-uncased + [CLS] head, CE loss |
 | B4 | TF-IDF+SVM | Classical: TF-IDF features + LinearSVC per aspect |
 | B5 | Flat ABSA RoBERTa | Aspect attention, shared head, CE loss (no GCN/hybrid loss) |

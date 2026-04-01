@@ -355,7 +355,7 @@ All methods are demonstrated in `notebooks/14_inference` and `notebooks/17_train
 | A5 | Classifier Head | 7 aspect-specific heads / 1 shared head |
 | A6 | Mixed Sentiment Resolution | Full model + GCN vs. No GCN |
 | A7 | Hybrid Loss CB Weight | Focal×1.0 + CB×0.5 vs. CB×1.0 |
-| B1–B5 | Baselines | PlainRoBERTa / RoBERTa+CE / BERT-base / TF-IDF+SVM |
+| B1–B5 | Baselines | PlainRoBERTa / DistilBERTBaseline / BERT-base / TF-IDF+SVM |
 
 ---
 

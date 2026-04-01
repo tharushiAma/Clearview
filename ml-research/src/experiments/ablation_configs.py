@@ -322,13 +322,13 @@ def get_all_baseline_specs(base_config: dict) -> List[ExperimentSpec]:
                   'Plain RoBERTa — [CLS] head, no aspect awareness, CE loss',
                   b1))
 
-    # B2: Full architecture + CE loss
+    # B2: DistilBERTBaseline
     b2 = copy.deepcopy(base_config)
-    b2['training']['use_ce_loss'] = True
-    b2['experiment']['name'] = 'B2_roberta_ce'
+    b2['model']['roberta_model'] = 'distilbert-base-uncased'
+    b2['experiment']['name'] = 'B2_distilbert_base'
     b2['experiment']['evaluate_msr'] = True
-    specs.append(('B2_roberta_ce',
-                  'RoBERTa + Aspect Attention + GCN + CrossEntropy (no hybrid loss)',
+    specs.append(('B2_distilbert_base',
+                  'DistilBERT-base-uncased — [CLS] head, aspect-unaware, CE loss',
                   b2))
 
     # B3: BERT-base

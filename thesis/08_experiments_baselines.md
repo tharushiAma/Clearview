@@ -16,10 +16,10 @@ Architecture: RoBERTa-base with CLS token pooling, no aspect awareness, standard
 Purpose: Establishes the baseline performance of RoBERTa without any of the proposed innovations.
 Expected weakness: No aspect-specific attention, treats all aspects identically, no imbalance handling.
 
-### B2: RoBERTa+CE
-Architecture: Full proposed architecture (RoBERTa + Aspect Attention + Dependency GCN + per-aspect heads) but with plain cross-entropy loss instead of Hybrid Loss.
-Purpose: Isolates the contribution of the loss function while keeping the architecture constant.
-Expected weakness: High accuracy but poor minority class recall (price-negative, packing-negative especially).
+### B2: DistilBERTBaseline
+Architecture: DistilBERT-base-uncased + CLS pooling + per-aspect heads + cross-entropy loss.
+Purpose: Provides a lightweight transformer baseline comparison, demonstrating the trade-off between model size and performance.
+Implementation: Uses transformers.DistilBertModel as backbone in src/experiments/baseline_models.py.
 
 ### B3: BERTBaseline
 Architecture: BERT-base-uncased + CLS pooling + per-aspect heads + cross-entropy loss.

@@ -58,7 +58,7 @@ from models.model import create_model
 from models.losses import AspectSpecificLossManager
 from utils.data_utils import create_dataloaders, DependencyParser, compute_class_weights
 from utils.metrics import AspectSentimentEvaluator, MixedSentimentEvaluator
-from transformers import RobertaTokenizer, BertTokenizer, get_linear_schedule_with_warmup
+from transformers import RobertaTokenizer, BertTokenizer, DistilBertTokenizer, get_linear_schedule_with_warmup
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -382,7 +382,9 @@ def run_dl_experiment(exp_id: str, desc: str, config: dict,
     try:
         # ── Pick tokenizer ──────────────────────────────────────────────────
         roberta_name = config['model']['roberta_model']
-        if 'bert' in roberta_name and 'roberta' not in roberta_name:
+        if 'distilbert' in roberta_name:
+            tokenizer = DistilBertTokenizer.from_pretrained(roberta_name)
+        elif 'bert' in roberta_name and 'roberta' not in roberta_name:
             tokenizer = BertTokenizer.from_pretrained(roberta_name)
         else:
             tokenizer = RobertaTokenizer.from_pretrained(roberta_name)
@@ -392,6 +394,8 @@ def run_dl_experiment(exp_id: str, desc: str, config: dict,
         # matching on the name (which could break if experiment names change).
         if exp_id.startswith('B1_'):
             model = create_baseline('plain_roberta', config)
+        elif exp_id.startswith('B2_'):
+            model = create_baseline('distilbert_base', config)
         elif exp_id.startswith('B3_'):
             model = create_baseline('bert_base', config)
         else:

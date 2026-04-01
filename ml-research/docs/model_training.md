@@ -138,7 +138,7 @@ Experiments are run interactively via `notebooks/12_experiment_runner.ipynb` and
 | Group | IDs | What it tests |
 | --- | --- | --- |
 | Ablations | A1–A6 | GCN, attention, loss, augmentation, classifier, preprocessing |
-| Baselines | B1–B4 | PlainRoBERTa, RoBERTa+CE, BERT-base, TF-IDF+SVM |
+| Baselines | B1–B4 | PlainRoBERTa, DistilBERTBaseline, BERT-base, TF-IDF+SVM |
 
 ---
 
