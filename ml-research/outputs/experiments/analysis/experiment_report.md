@@ -10,7 +10,6 @@ Generated from 22 experiments
 
 | Experiment | Accuracy | Macro-F1 | Weighted-F1 | MCC | Time |
 |-----------|----------|----------|-------------|-----|------|
-| Flat ABSA RoBERTa — aspect attention, shared head, CE loss (no GCN/hybrid loss) | 0.9214 | **0.7948** | 0.9227 | 0.7846 | 0.51 min |
 | Plain RoBERTa — [CLS] head, no aspect awareness, CE loss | 0.7754 | **0.5731** | 0.7827 | 0.4235 | 0.52 min |
 | RoBERTa + Aspect Attention + GCN + CrossEntropy (no hybrid loss) | 0.9250 | **0.7911** | 0.9246 | 0.7939 | 0.62 min |
 | BERT-base-uncased — [CLS] head, aspect-unaware, CE loss | 0.7566 | **0.5697** | 0.7713 | 0.4398 | 0.54 min |
@@ -21,7 +20,6 @@ Generated from 22 experiments
 
 | Experiment | stayingpower | texture | smell | price | colour | shipping | packing | Avg |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Flat ABSA RoBERTa — aspect attention, shared head, CE loss (no GCN/hybrid loss) | 0.8304 | 0.8089 | 0.7716 | 0.3267 | 0.7335 | 0.7923 | 0.6139 | 0.6968 |
 | Plain RoBERTa — [CLS] head, no aspect awareness, CE loss | 0.6086 | 0.5626 | 0.5212 | 0.3378 | 0.5296 | 0.6300 | 0.4627 | 0.5218 |
 | RoBERTa + Aspect Attention + GCN + CrossEntropy (no hybrid loss) | 0.8338 | 0.7988 | 0.7295 | 0.4223 | 0.7689 | 0.7819 | 0.7077 | 0.7204 |
 | BERT-base-uncased — [CLS] head, aspect-unaware, CE loss | 0.5759 | 0.5882 | 0.5164 | 0.3131 | 0.5213 | 0.6432 | 0.4218 | 0.5114 |
@@ -32,7 +30,6 @@ Generated from 22 experiments
 
 | Experiment | price-negative | price-neutral | packing-neutral | smell-neutral |
 | --- | --- | --- | --- | --- |
-| Flat ABSA RoBERTa — aspect attention, shared head, CE loss (no GCN/hybrid loss) | 0.0000 | 0.0000 | 0.0000 | 0.4444 |
 | Plain RoBERTa — [CLS] head, no aspect awareness, CE loss | 0.0580 | 0.0588 | 0.0000 | 0.1579 |
 | RoBERTa + Aspect Attention + GCN + CrossEntropy (no hybrid loss) | 0.2857 | 0.0000 | 0.2857 | 0.3636 |
 | BERT-base-uncased — [CLS] head, aspect-unaware, CE loss | 0.0762 | 0.0000 | 0.0000 | 0.2000 |
