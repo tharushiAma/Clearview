@@ -224,7 +224,7 @@ def create_dataloaders(config, tokenizer, dependency_parser=None):
             pin_memory=hw_config['pin_memory'],
             collate_fn=collate_fn_with_dependencies,
         )
-        print(f"[DataLoaders] {name}: {len(ds)} samples → {len(loader)} batches")
+        print(f"[DataLoaders] {name}: {len(ds)} samples -> {len(loader)} batches")
         loaders.append(loader)
 
     return tuple(loaders)

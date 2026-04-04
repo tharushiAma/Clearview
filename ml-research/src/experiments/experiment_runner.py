@@ -355,6 +355,58 @@ def run_tfidf_svm(exp_id: str, desc: str, config: dict, results_dir: Path) -> di
     duration_mins = (time.time() - t0) / 60
     print(f"  [{exp_id}] Done in {duration_mins:.1f} min — overall macro_f1={overall.get('macro_f1', 0):.4f}")
 
+    # ── MSR Evaluation for TF-IDF SVM ──────────────────────────────────────
+    # Unlike DL baselines that ignore aspect_id, TF-IDF SVM has a *separate*
+    # per-aspect classifier, so it can (in principle) predict different
+    # sentiments for different aspects of the same review. This makes MSR
+    # evaluation meaningful and provides an interesting comparison point.
+    mixed_sentiment = {}
+    if config.get('experiment', {}).get('evaluate_msr', False):
+        print(f"  [{exp_id}] Running Mixed Sentiment Resolution evaluation...")
+        try:
+            # Build per-review dicts: {row_idx: {aspect: label}}
+            msr_review_true: dict = {}
+            msr_review_pred: dict = {}
+
+            for aspect in aspects:
+                col_mask = test_df[aspect].notna()
+                if col_mask.sum() == 0:
+                    continue
+                sub_df = test_df.loc[col_mask].copy()
+                X_texts = sub_df['data'].astype(str).tolist()
+                row_indices = sub_df.index.tolist()
+
+                y_true_raw = sub_df[aspect].map(
+                    lambda v: label_map.get(str(v).lower(), -1)
+                ).tolist()
+                y_pred_raw = svm.predict(X_texts, aspect).tolist()
+
+                for idx_pos, row_idx in enumerate(row_indices):
+                    true_lbl = y_true_raw[idx_pos]
+                    pred_lbl = y_pred_raw[idx_pos]
+                    if true_lbl == -1:
+                        continue
+                    if row_idx not in msr_review_true:
+                        msr_review_true[row_idx] = {}
+                        msr_review_pred[row_idx] = {}
+                    msr_review_true[row_idx][aspect] = int(true_lbl)
+                    msr_review_pred[row_idx][aspect] = int(pred_lbl)
+
+            mixed_evaluator = MixedSentimentEvaluator(aspects)
+            mixed_metrics = mixed_evaluator.evaluate_mixed_sentiment_resolution(
+                msr_review_true, msr_review_pred
+            )
+            mixed_evaluator.print_mixed_sentiment_results(mixed_metrics)
+
+            mixed_sentiment = {
+                'mixed_review_count':    mixed_metrics.get('mixed_review_count', 0),
+                'mixed_review_accuracy': mixed_metrics.get('mixed_review_accuracy', 0.0),
+                'mixed_aspect_accuracy': mixed_metrics.get('mixed_aspect_accuracy', 0.0),
+                'mixed_detection_rate':  mixed_metrics.get('mixed_detection_rate', 0.0),
+            }
+        except Exception as msr_exc:
+            print(f"  [{exp_id}] MSR evaluation failed: {msr_exc}")
+
     return {
         'experiment_id': exp_id,
         'description':   desc,
@@ -362,7 +414,7 @@ def run_tfidf_svm(exp_id: str, desc: str, config: dict, results_dir: Path) -> di
         'duration_mins': round(duration_mins, 2),
         'overall':       overall,
         'per_aspect':    per_aspect,
-        'mixed_sentiment': {},
+        'mixed_sentiment': mixed_sentiment,
         'error':         None,
     }
 
@@ -578,7 +630,11 @@ def run_experiments(exp_ids: list, base_config: dict, results_dir: Path) -> dict
         exp_id, desc, config = all_specs[exp_id]
         
         # --- Check for Redundancy before starting any GPU work ---
-        if full_model_key and exp_id != 'A1_full_model':
+        # IMPORTANT: Never apply this check to baselines — they use a different
+        # model class (chosen by exp_id prefix in run_dl_experiment) even when
+        # their training hyperparams/data config look identical to A1.
+        is_baseline = bool(config.get('_baseline_type'))
+        if full_model_key and exp_id != 'A1_full_model' and not is_baseline:
             if _get_canonical(config) == full_model_key:
                 print(f"\n{'='*70}")
                 print(f"SKIPPING REDUNDANT RUN: [{exp_id}]  {desc}")

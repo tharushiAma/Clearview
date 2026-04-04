@@ -318,6 +318,7 @@ def get_all_baseline_specs(base_config: dict) -> List[ExperimentSpec]:
     b1 = copy.deepcopy(base_config)
     b1['experiment']['name'] = 'B1_plain_roberta'
     b1['experiment']['evaluate_msr'] = True
+    b1['_baseline_type'] = 'plain_roberta'   # needed so redundancy checker doesn’t clone A1
     specs.append(('B1_plain_roberta',
                   'Plain RoBERTa — [CLS] head, no aspect awareness, CE loss',
                   b1))
@@ -343,6 +344,7 @@ def get_all_baseline_specs(base_config: dict) -> List[ExperimentSpec]:
     # B4: TF-IDF + SVM (handled separately — no GPU, no config)
     b4 = copy.deepcopy(base_config)
     b4['experiment']['name'] = 'B4_tfidf_svm'
+    b4['experiment']['evaluate_msr'] = True
     b4['_baseline_type'] = 'tfidf_svm'
     specs.append(('B4_tfidf_svm',
                   'Classical TF-IDF + LinearSVC — no deep learning',
