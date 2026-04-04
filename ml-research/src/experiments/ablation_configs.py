@@ -116,12 +116,14 @@ def ablation_1_gcn(base_config: dict) -> List[ExperimentSpec]:
     """
     full = copy.deepcopy(base_config)
     full['experiment']['name'] = 'A1_full_model'
+    full['experiment']['evaluate_msr'] = True  # Capture MSR metrics for the full model
     validate_ablation('A1_full_model', full, base_config)
 
     no_gcn = copy.deepcopy(base_config)
     no_gcn['model']['use_dependency_gcn'] = False
     no_gcn['data']['use_dependency_parsing'] = False
     no_gcn['experiment']['name'] = 'A1_no_gcn'
+    no_gcn['experiment']['evaluate_msr'] = True  # Capture MSR metrics without GCN
 
     return [
         ('A1_full_model', 'Full model (with Dependency GCN)', full),
