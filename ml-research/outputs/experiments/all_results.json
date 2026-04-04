@@ -10721,7 +10721,12 @@
         ]
       }
     },
-    "mixed_sentiment": {}
+    "mixed_sentiment": {
+      "mixed_review_count": 628,
+      "mixed_review_accuracy": 0.0,
+      "mixed_aspect_accuracy": 40.57891862370289,
+      "mixed_detection_rate": 43.40013821700069
+    }
   },
   "A3_focal_only": {
     "experiment_id": "A3_focal_only",
@@ -13037,7 +13042,12 @@
         ]
       }
     },
-    "mixed_sentiment": {}
+    "mixed_sentiment": {
+      "mixed_review_count": 628,
+      "mixed_review_accuracy": 65.12738853503186,
+      "mixed_aspect_accuracy": 86.51010376843256,
+      "mixed_detection_rate": 43.40013821700069
+    }
   },
   "A7_hybrid_cb_05": {
     "experiment_id": "A7_hybrid_cb_05",
