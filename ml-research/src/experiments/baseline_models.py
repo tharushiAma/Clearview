@@ -40,12 +40,12 @@ class PlainRoBERTa(nn.Module):
         Args:
             input_ids: (batch_size, seq_len)
             attention_mask: (batch_size, seq_len)
-            aspect_id: ignored (for interface compatibility)
+            aspect_id: ignored (for interface compatibility with MultiAspectSentimentModel)
         Returns:
             logits: (batch_size, num_classes)
         """
         output = self.roberta(input_ids=input_ids, attention_mask=attention_mask)
-        cls_output = output.last_hidden_state[:, 0, :]   # [CLS] token
+        cls_output = output.last_hidden_state[:, 0, :]  # [CLS] token is the aggregate sentence representation
         cls_output = self.dropout(cls_output)
         return self.classifier(cls_output)
 
@@ -159,17 +159,18 @@ class TFIDFSVMBaseline:
             pipeline = Pipeline([
                 ('tfidf', TfidfVectorizer(
                     max_features=max_features,
-                    ngram_range=ngram_range,
-                    sublinear_tf=True,       # log-scaled TF
+                    ngram_range=ngram_range,    # Captures both unigrams and bigrams (e.g. 'not good')
+                    sublinear_tf=True,          # log(1 + tf) scaling reduces dominance of very frequent terms
                     strip_accents='unicode',
                     analyzer='word',
-                    min_df=2,
+                    min_df=2,                   # Ignore terms that appear in fewer than 2 documents
                 )),
-                # CalibratedClassifierCV gives probability estimates from LinearSVC
+                # CalibratedClassifierCV wraps LinearSVC to produce probability estimates via Platt scaling.
+                # LinearSVC alone cannot output probabilities; this is needed for predict_proba().
                 ('clf', CalibratedClassifierCV(LinearSVC(
-                    class_weight='balanced',  # Handles imbalance
+                    class_weight='balanced',    # Automatically adjusts weights inversely proportional to class frequency
                     max_iter=2000,
-                    C=1.0,
+                    C=1.0,                      # Regularisation strength; 1.0 is the sklearn default
                 ))),
             ])
             self.pipelines[aspect] = pipeline
@@ -238,6 +239,8 @@ class TFIDFSVMBaseline:
     def load(cls, save_path, aspect_names):
         """Load saved pipelines."""
         import joblib, os
+        # Use __new__ to bypass __init__ (which would create new empty pipelines)
+        # and directly populate the object with the stored pipelines.
         obj = cls.__new__(cls)
         obj.aspect_names = aspect_names
         obj.pipelines = {}

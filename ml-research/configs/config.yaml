@@ -29,17 +29,6 @@ aspects:
     neutral: 1
     positive: 2
 
-  # Class distribution (from augmented training data with preprocessed synthetic)
-  # After synthetic data integration (87.8% retention)
-  class_counts:
-    stayingpower: [727, 244, 1076] # neg, neu, pos
-    texture: [639, 420, 2563]
-    smell: [335, 274, 1668]
-    price: [201, 218, 2295]
-    colour: [499, 428, 4483]
-    shipping: [1216, 267, 2406]
-    packing: [236, 177, 2068]
-
 # Training Configuration
 training:
   batch_size: 16
@@ -97,11 +86,7 @@ explainability:
 experiment:
   name: "cosmetic_sentiment_v1"
   save_dir: "outputs"
-  log_every: 50
-  eval_every: 500
   save_best_only: true
-  use_wandb: false
-  wandb_project: "cosmetic-sentiment-analysis"
   seed: 42
 
 # Evaluation Configuration

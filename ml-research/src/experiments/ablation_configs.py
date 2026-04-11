@@ -11,7 +11,6 @@ Ablations:
   A3  — Loss function variants (Hybrid / Focal / CB / CE)
   A4  — Data augmentation on/off
   A5  — Aspect-specific vs shared classifier
-  A6  — Mixed Sentiment Resolution evaluation (GCN with/without MSR)
   A7  — Hybrid Loss weight fine-tuning
 
 Redundancy Management:
@@ -28,10 +27,8 @@ ExperimentSpec = Tuple[str, str, dict]  # (experiment_id, description, config_ov
 
 def validate_ablation(exp_id: str, modified: dict, base: dict, keys: list = None):
     """
-    Checks if an ablation variant is accidentally identical to the base_config
-    (the Full Model). If so, prints a NOTE to the user.
-    
-    This function acts as an 'Early Warning' system during config generation.
+    Checks if an ablation variant is identical to the the Full Model. 
+    If so, prints an 'Early Warning' to the user.
     Enforcement (skipping) happens later in experiment_runner.py.
 
     Args:
@@ -114,16 +111,17 @@ def ablation_1_gcn(base_config: dict) -> List[ExperimentSpec]:
     Tests whether the Dependency GCN helps.
     Hypothesis: GCN captures syntactic relationships useful for mixed sentiment.
     """
+    # deep copy ensures each ablation variant has its own independent config dict
     full = copy.deepcopy(base_config)
     full['experiment']['name'] = 'A1_full_model'
-    full['experiment']['evaluate_msr'] = True  # Capture MSR metrics for the full model
+    full['experiment']['evaluate_msr'] = True  # Run MixedSentimentEvaluator after standard eval
     validate_ablation('A1_full_model', full, base_config)
 
     no_gcn = copy.deepcopy(base_config)
-    no_gcn['model']['use_dependency_gcn'] = False
-    no_gcn['data']['use_dependency_parsing'] = False
+    no_gcn['model']['use_dependency_gcn'] = False   # Disables AspectOrientedDepGCN in forward()
+    no_gcn['data']['use_dependency_parsing'] = False # Skips spaCy parsing — saves ~30% data load time
     no_gcn['experiment']['name'] = 'A1_no_gcn'
-    no_gcn['experiment']['evaluate_msr'] = True  # Capture MSR metrics without GCN
+    no_gcn['experiment']['evaluate_msr'] = True
 
     return [
         ('A1_full_model', 'Full model (with Dependency GCN)', full),
@@ -140,13 +138,13 @@ def ablation_2_aspect_attention(base_config: dict) -> List[ExperimentSpec]:
     """
     attention = copy.deepcopy(base_config)
     attention['experiment']['name'] = 'A2_aspect_attention'
-    attention['experiment']['evaluate_msr'] = True  # Compare MSR with/without attention
+    attention['experiment']['evaluate_msr'] = True  # Compare MSR with attention
     validate_ablation('A2_aspect_attention', attention, base_config)
 
     cls_only = copy.deepcopy(base_config)
     cls_only['model']['use_aspect_attention'] = False
     cls_only['experiment']['name'] = 'A2_cls_pooling'
-    cls_only['experiment']['evaluate_msr'] = True  # Compare MSR with/without attention
+    cls_only['experiment']['evaluate_msr'] = True  # Compare MSR without attention
 
     return [
         ('A2_aspect_attention', 'Aspect-guided MHA attention',     attention),
@@ -166,11 +164,12 @@ def ablation_3_loss_function(base_config: dict) -> List[ExperimentSpec]:
         cfg['experiment']['name'] = name
         return cfg
 
+    # Each variant sets only the loss_weights field; all other config is identical to A1.
+    # This isolates the contribution of each loss component while keeping the model fixed.
     hybrid    = make_cfg('A3_hybrid_loss',
                          {'focal': 1.0, 'cb': 0.5, 'dice': 0.3})
     # Guard: A3_hybrid_loss must differ from base on loss_weights (dice component added)
-    validate_ablation('A3_hybrid_loss', hybrid, base_config,
-                      ['training.loss_weights'])
+    validate_ablation('A3_hybrid_loss', hybrid, base_config,['training.loss_weights'])
 
     focal_only  = make_cfg('A3_focal_only',
                            {'focal': 1.0, 'cb': 0.0, 'dice': 0.0})
@@ -179,17 +178,11 @@ def ablation_3_loss_function(base_config: dict) -> List[ExperimentSpec]:
     dice_only   = make_cfg('A3_dice_only',
                            {'focal': 0.0, 'cb': 0.0, 'dice': 1.0})
 
-    # CE loss — uses CrossEntropyLossWrapper (flag picked up by experiment_runner)
-    ce = copy.deepcopy(base_config)
-    ce['training']['use_ce_loss'] = True
-    ce['experiment']['name'] = 'A3_ce_loss'
-
     return [
         ('A3_hybrid_loss',  'Hybrid Loss (Focal + CB + Dice)',    hybrid),
         ('A3_focal_only',   'Focal Loss only',                    focal_only),
         ('A3_cb_only',      'Class-Balanced Loss only',           cb_only),
-        ('A3_dice_only',    'Dice Loss only',                     dice_only),
-        ('A3_ce_loss',      'Cross-Entropy Loss (no imbalance handling)', ce),
+        ('A3_dice_only',    'Dice Loss only',                     dice_only)
     ]
 
 
@@ -322,6 +315,8 @@ def get_all_baseline_specs(base_config: dict) -> List[ExperimentSpec]:
     b1 = copy.deepcopy(base_config)
     b1['experiment']['name'] = 'B1_plain_roberta'
     b1['experiment']['evaluate_msr'] = True
+    # _baseline_type prevents the redundancy checker in experiment_runner.py from
+    # treating B1 as a duplicate of A1 (they share hyperparams but use different model classes).
     b1['_baseline_type'] = 'plain_roberta'   # needed so redundancy checker doesn’t clone A1
     specs.append(('B1_plain_roberta',
                   'Plain RoBERTa — [CLS] head, no aspect awareness, CE loss',

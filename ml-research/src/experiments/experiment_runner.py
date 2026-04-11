@@ -133,7 +133,7 @@ class ExperimentTrainer:
         self.best_val_metric  = 0
         self.patience_counter = 0
         self.patience         = config['training']['early_stopping_patience']
-        self.global_step      = 0
+        self.global_step      = 0  # Counts individual batch updates (not epochs)
 
     def _forward(self, batch):
         """Run forward pass regardless of model type (handles aspect_id arg)."""
@@ -170,17 +170,20 @@ class ExperimentTrainer:
             self.optimizer.zero_grad()
 
             if self.use_amp:
+                # AMP (Automatic Mixed Precision): runs forward pass in float16 for speed,
+                # then uses GradScaler to safely convert gradients back to float32.
                 from torch.cuda.amp import autocast
                 with autocast():
                     preds = self._forward(batch)
-                    # Handle models returning tuples (aspect-aware model returns (preds, attn, repr))
+                    # MultiAspectSentimentModel returns (logits, attn_weights, aspect_repr)
+                    # when return_attention=True. Only need logits for the loss.
                     if isinstance(preds, tuple):
                         preds = preds[0]
                     loss, _ = self.loss_manager.compute_loss(
                         preds, labels, aspect_ids, self.config['aspects']['names']
                     )
                 self.scaler.scale(loss).backward()
-                self.scaler.unscale_(self.optimizer)
+                self.scaler.unscale_(self.optimizer)   # Unscale before clipping so clip threshold is in real units
                 torch.nn.utils.clip_grad_norm_(
                     self.model.parameters(), self.config['training']['max_grad_norm']
                 )
@@ -194,12 +197,13 @@ class ExperimentTrainer:
                     preds, labels, aspect_ids, self.config['aspects']['names']
                 )
                 loss.backward()
+                # Gradient clipping prevents exploding gradients when fine-tuning RoBERTa
                 torch.nn.utils.clip_grad_norm_(
                     self.model.parameters(), self.config['training']['max_grad_norm']
                 )
                 self.optimizer.step()
 
-            self.scheduler.step()
+            self.scheduler.step()         # Linear warm-up + decay via HuggingFace scheduler
             total_loss += loss.item()
             self.global_step += 1
 
@@ -226,7 +230,8 @@ class ExperimentTrainer:
                 preds = self._forward(batch)
                 if isinstance(preds, tuple):
                     preds = preds[0]
-                # Collect softmax probabilities for ROC/AUC computation
+                # Convert logits to probabilities for ROC-AUC computation.
+                # argmax over probs is identical to argmax over logits (softmax is monotone).
                 probs = torch.softmax(preds, dim=1).cpu().numpy()
                 pred_classes = np.argmax(probs, axis=1)
                 all_probs.extend(probs)
@@ -450,8 +455,8 @@ def run_dl_experiment(exp_id: str, desc: str, config: dict,
             tokenizer = RobertaTokenizer.from_pretrained(roberta_name)
 
         # ── Build model ─────────────────────────────────────────────────────
-        # BUG FIX: Use explicit exp_id prefix check instead of substring
-        # matching on the name (which could break if experiment names change).
+        # Baseline models are selected by exp_id prefix (B1/B2/B3) rather than
+        # substring matching on the name to avoid fragile string coupling.
         if exp_id.startswith('B1_'):
             model = create_baseline('plain_roberta', config)
         elif exp_id.startswith('B2_'):
@@ -459,7 +464,7 @@ def run_dl_experiment(exp_id: str, desc: str, config: dict,
         elif exp_id.startswith('B3_'):
             model = create_baseline('bert_base', config)
         else:
-            # Full model or ablation variants
+            # Full model or ablation variants (A1–A7: all use the same architecture)
             model = create_model(config)
 
         # ── Build loss ─────────────────────────────────────────────────────

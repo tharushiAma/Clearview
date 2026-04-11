@@ -269,15 +269,15 @@ class SentimentPredictor:
         """
         predictions = {}
         
-        print(f"⌛ Starting: Predicting for all {len(self.aspect_names)} aspects...")
+        print(f"Starting: Predicting for all {len(self.aspect_names)} aspects...")
         for aspect in tqdm(self.aspect_names, desc="Predicting aspects"):
             try:
                 pred = self.predict(text, aspect)
                 predictions[aspect] = pred
             except Exception as e:
-                print(f"❌ Error predicting {aspect}: {e}")
+                print(f" Error predicting {aspect}: {e}")
                 predictions[aspect] = None
-        print(f"✅ Completed: Predicting for all aspects.")
+        print(f"Completed: Predicting for all aspects.")
         
         return predictions
     
@@ -344,7 +344,7 @@ class SentimentPredictor:
             random_state=42
         )
         
-        print(f"⌛ Starting: Generating LIME explanation (samples={num_samples})...")
+        print(f"Starting: Generating LIME explanation (samples={num_samples})...")
         # Define prediction function for LIME
         def predict_proba(texts):
             """Wrapper for model prediction compatible with LIME.
@@ -391,7 +391,7 @@ class SentimentPredictor:
             num_samples=num_samples,
             top_labels=3
         )
-        print("✅ Completed: LIME explanation generated.")
+        print("Completed: LIME explanation generated.")
         
         return explanation
     

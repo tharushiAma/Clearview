@@ -30,8 +30,8 @@ class FocalLoss(nn.Module):
             targets: (batch_size,) class labels
         """
         ce_loss = F.cross_entropy(inputs, targets, reduction='none')
-        pt = torch.exp(-ce_loss)
-        focal_loss = (1 - pt) ** self.gamma * ce_loss
+        pt = torch.exp(-ce_loss)          # pt = probability assigned to the correct class
+        focal_loss = (1 - pt) ** self.gamma * ce_loss  # Down-weights easy examples (high pt)
         
         if self.alpha is not None:
             # alpha can be passed as a Python list, numpy array, torch Tensor, or a scalar.
@@ -43,7 +43,7 @@ class FocalLoss(nn.Module):
             else:
                 # Scalar alpha — same weight applied to every sample
                 alpha_t = self.alpha
-            focal_loss = alpha_t * focal_loss
+            focal_loss = alpha_t * focal_loss  # Scale each sample's loss by its class weight
             
         if self.reduction == 'mean':
             return focal_loss.mean()
@@ -66,8 +66,10 @@ class ClassBalancedLoss(nn.Module):
     """
     def __init__(self, samples_per_class, beta=0.9999, reduction='mean'):
         super(ClassBalancedLoss, self).__init__()
-        # Effective number = (1 - beta^n) / (1 - beta).  As n → ∞, EN → 1/(1-beta).
-        # Dividing by EN rather than raw count avoids over-penalising very small classes.
+        # Effective Number formula: EN(n) = (1 - beta^n) / (1 - beta)
+        # As n grows, EN grows logarithmically rather than linearly.
+        # This gives more meaningful weights for very large majority classes
+        # compared to simple inverse-frequency weighting.
         effective_num = 1.0 - np.power(beta, samples_per_class)
         weights = (1.0 - beta) / np.array(effective_num)
         # Re-normalise so weights average to 1.0 (preserves the loss scale)
@@ -81,6 +83,8 @@ class ClassBalancedLoss(nn.Module):
             inputs: (batch_size, num_classes) logits
             targets: (batch_size,) class labels
         """
+        # Move weights to the same device as inputs at runtime in case the model
+        # is on GPU but the weights tensor was created on CPU.
         if self.weights.device != inputs.device:
             self.weights = self.weights.to(inputs.device)
         return F.cross_entropy(inputs, targets, weight=self.weights, reduction=self.reduction)
@@ -134,8 +138,10 @@ class HybridLoss(nn.Module):
         super(HybridLoss, self).__init__()
         
         if weights is None:
-            # Default matches ablation A3 exploration; the A7 winning config
-            # sets dice=0.0 (passed explicitly via config.yaml loss_weights).
+            # Default: Focal is the primary term (weight=1.0), CB corrects for
+            # extreme imbalance (weight=0.5), Dice improves minority-class F1 (weight=0.3).
+            # The A7 ablation found dice=0.0 was optimal for this dataset, so
+            # config.yaml overrides this default via loss_weights.
             weights = {'focal': 1.0, 'cb': 0.5, 'dice': 0.3}
         
         self.focal_loss = FocalLoss(alpha=focal_alpha, gamma=focal_gamma)
@@ -191,25 +197,28 @@ class AspectSpecificLossManager:
             min_count = min(counts)
             imbalance_ratio = max_count / min_count if min_count > 0 else float('inf')
             
-            # Select gamma based on imbalance severity
+            # Gamma controls how strongly the loss focuses on hard (misclassified) examples.
+            # Higher gamma = more aggressive down-weighting of easy examples.
             if aspect in config.get('focal_gamma', {}):
-                gamma = config['focal_gamma'][aspect]
-            elif imbalance_ratio > 50:  # Severe imbalance
+                gamma = config['focal_gamma'][aspect]  # Per-aspect override from config
+            elif imbalance_ratio > 50:  # Severe imbalance (e.g. price: 2244 pos vs 17 neg)
                 gamma = 3.0
             elif imbalance_ratio > 10:  # Moderate imbalance
                 gamma = 2.5
             else:
-                gamma = 2.0
+                gamma = 2.0  # Standard focal loss default
             
-            # Select beta based on imbalance severity
+            # Beta controls the effective-number calculation in CB Loss.
+            # 0.9999 recommended for extreme imbalance (Cui et al. 2019).
             if aspect in config.get('class_balanced_beta', {}):
-                beta = config['class_balanced_beta'][aspect]
+                beta = config['class_balanced_beta'][aspect]  # Per-aspect override
             elif imbalance_ratio > 50:
                 beta = 0.9999
             else:
                 beta = 0.999
             
-            # Calculate focal alpha (inverse frequency weighting)
+            # Inverse-frequency alpha: rare classes get proportionally larger weights.
+            # Clamped at 1.0 to avoid division by zero for empty classes.
             total = sum(counts)
             focal_alpha = [total / (len(counts) * c) if c > 0 else 1.0 for c in counts]
             focal_alpha = torch.tensor(focal_alpha, dtype=torch.float32)

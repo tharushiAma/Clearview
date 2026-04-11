@@ -31,7 +31,8 @@ class AspectAwareRoBERTa(nn.Module):
         nn.init.xavier_uniform_(self.aspect_embeddings.weight)
         
         if use_aspect_attention:
-            # Multi-head attention for aspect-text interaction
+            # 8 heads over 768-dim → each head attends over 96-dim subspace.
+            # batch_first=True keeps (batch, seq, features) convention throughout.
             self.aspect_attention = nn.MultiheadAttention(
                 embed_dim=hidden_dim,
                 num_heads=8,
@@ -55,6 +56,8 @@ class AspectAwareRoBERTa(nn.Module):
             )
         else:
             # Aspect-specific classifiers (separate head for each aspect)
+            # Each head specialises for its aspect's class distribution (e.g.
+            # price has extreme imbalance; smell/texture are more balanced).
             self.aspect_classifiers = nn.ModuleList([
                 nn.Sequential(
                     nn.Linear(hidden_dim, hidden_dim // 2),
@@ -91,19 +94,22 @@ class AspectAwareRoBERTa(nn.Module):
         hidden_states = roberta_output.last_hidden_state  # (batch_size, seq_len, hidden_dim)
         
         if self.use_aspect_attention:
-            # Aspect-guided MHA attention (standard path)
+            # Aspect-guided MHA: the aspect embedding acts as the query, the full token
+            # sequence is both key and value. This forces attention to focus on tokens
+            # most relevant to THIS aspect (e.g., 'smells great' for the smell aspect).
             aspect_query = self.aspect_embeddings(aspect_id)   # (batch_size, hidden_dim)
-            aspect_query = aspect_query.unsqueeze(1)            # (batch_size, 1, hidden_dim)
+            aspect_query = aspect_query.unsqueeze(1)            # (batch_size, 1, hidden_dim) — single query token
 
             attended_output, attention_weights = self.aspect_attention(
                 query=aspect_query,
                 key=hidden_states,
                 value=hidden_states,
-                key_padding_mask=~attention_mask.bool()
+                key_padding_mask=~attention_mask.bool()  # True marks positions to IGNORE (padding)
             )
-            aspect_representation = attended_output.squeeze(1)  # (batch_size, hidden_dim)
+            aspect_representation = attended_output.squeeze(1)  # (batch_size, hidden_dim) — remove query token dim
         else:
             # Ablation 2: CLS pooling (no aspect awareness)
+            # Falls back to the same strategy used by baseline models (PlainRoBERTa, BERT, DistilBERT)
             aspect_representation = hidden_states[:, 0, :]      # (batch_size, hidden_dim)
             # Fake uniform attention weights for interface compatibility
             seq_len = hidden_states.size(1)
@@ -115,7 +121,8 @@ class AspectAwareRoBERTa(nn.Module):
         aspect_representation = self.layer_norm(aspect_representation)
         aspect_representation = self.dropout(aspect_representation)
         
-        # Classification
+        # Route each sample through its aspect-specific classifier using the sample's aspect_id.
+        # Loop is necessary because different samples in the batch may have different aspect_ids.
         batch_size = input_ids.size(0)
         predictions = []
         
@@ -189,16 +196,19 @@ class AspectOrientedDepGCN(nn.Module):
                 x_gcn = self.gcn_layers[i](aggregated)
                 x_gcn = F.relu(x_gcn)
             else:
-                # No edges, just apply transformation
+                # No dependency edges (e.g. very short text or parse failure).
+                # Apply the linear layer directly to keep parameter flow intact.
                 x_gcn = self.gcn_layers[i](x)
                 x_gcn = F.relu(x_gcn)
             
-            # Aspect-oriented gating
+            # Aspect-oriented gating: the gate is computed from both the GCN output
+            # and the aspect embedding. Tokens relevant to this aspect get gate ≈ 1
+            # (keep GCN features) while irrelevant tokens get gate ≈ 0 (keep residual).
             aspect_expanded = aspect_embedding.unsqueeze(0).expand(num_nodes, -1)
-            gate_input = torch.cat([x_gcn, aspect_expanded], dim=-1)
-            gate = self.aspect_gate(gate_input)
+            gate_input = torch.cat([x_gcn, aspect_expanded], dim=-1)  # (num_nodes, hidden_dim*2)
+            gate = self.aspect_gate(gate_input)  # (num_nodes, hidden_dim) — sigmoid output in [0, 1]
             
-            # Gated residual connection
+            # Gated residual connection: blend GCN features with the previous repr.
             x = gate * x_gcn + (1 - gate) * x
             x = self.layer_norms[i](x)
             x = self.dropout(x)
@@ -309,12 +319,14 @@ class MultiAspectSentimentModel(nn.Module):
                 gcn_pooled = (gcn_out * mask_expanded).sum(0) / (sum_mask + 1e-9)
                 gcn_outputs.append(gcn_pooled)
             else:
-                # No dependency tree, use zero tensor or aspect repr
+                # No dependency tree: fill with zeros so the final_classifier still
+                # receives a valid (hidden_dim,) tensor from the GCN branch.
                 gcn_outputs.append(torch.zeros_like(aspect_repr[i]))
         
         gcn_output = torch.stack(gcn_outputs)  # (batch_size, hidden_dim)
         
-        # Combine attention and GCN features
+        # Concatenate attention-based and GCN-based representations.
+        # The final_classifier then learns to weight each branch's contribution.
         combined = torch.cat([aspect_repr, gcn_output], dim=-1)  # (batch_size, hidden_dim*2)
         
         # Final prediction with combined features

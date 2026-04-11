@@ -50,28 +50,33 @@ class AspectSentimentEvaluator:
         roc_auc = None
         if y_prob is not None:
             try:
-                # multi_class='ovr' handles the 3-class sentiment problem
+                # multi_class='ovr' treats each of the 3 sentiment classes as a binary
+                # problem in turn. Macro average weights all three classes equally,
+                # which is important given the class imbalance in our dataset.
                 roc_auc = roc_auc_score(y_true, y_prob, labels=[0, 1, 2], multi_class='ovr', average='macro')
             except Exception as e:
+                # Fails when a class has zero samples (e.g. no 'negative' in a small aspect batch)
                 print(f"[Evaluator] WARNING: Could not compute ROC AUC for {aspect_name}: {e}")
 
+        # Per-class metrics use a fixed labels=[0,1,2] list so that classes with
+        # zero samples still produce a defined 0.0 score rather than shifting positions.
         self.results[aspect_name] = {
             'accuracy'          : accuracy,
             'macro_precision'   : macro_precision,
             'macro_recall'      : macro_recall,
-            'macro_f1'          : macro_f1,
+            'macro_f1'          : macro_f1,          # Primary metric — weights all 3 classes equally
             'weighted_precision': weighted_precision,
             'weighted_recall'   : weighted_recall,
-            'weighted_f1'       : weighted_f1,
-            'mcc'               : mcc,
+            'weighted_f1'       : weighted_f1,        # Secondary metric — can be misleadingly high for imbalanced data
+            'mcc'               : mcc,                # Balanced single-number metric; 0 = random, +1 = perfect
             'per_class_precision': precision,
             'per_class_recall'  : recall,
             'per_class_f1'      : f1,
             'support'           : support,
             'confusion_matrix'  : cm,
             'roc_auc'           : roc_auc,
-            'y_true'            : y_true,
-            'y_prob'            : y_prob,
+            'y_true'            : y_true,  # Stored for ROC/AUC curve plotting later
+            'y_prob'            : y_prob,  # Softmax probabilities; None for models that don't output probs
         }
 
         print(f"  Accuracy: {accuracy:.4f}  |  Macro-F1: {macro_f1:.4f}  |  "
@@ -339,6 +344,8 @@ class ErrorAnalyzer:
                 'aspect'    : aspects[i],
                 'true_label': self.class_names[y_true[i]],
                 'pred_label': self.class_names[y_pred[i]],
+                # String form 'negative->positive' makes downstream error-type counting
+                # and grouping easy without requiring a secondary class name lookup.
                 'error_type': f"{self.class_names[y_true[i]]}->{self.class_names[y_pred[i]]}",
             }
             for i in range(len(texts)) if y_true[i] != y_pred[i]
@@ -408,13 +415,16 @@ class MixedSentimentEvaluator:
             has_negative = 0 in sentiments
             is_mixed     = False
 
+            # 'positive + negative' is the most interesting conflict:
+            # the model must assign opposite polarities to two aspects of the same review.
             if has_positive and has_negative:
                 is_mixed = True
                 if has_neutral:
-                    stats['conflict_types']['positive_neutral_negative'] += 1  # type: ignore
+                    stats['conflict_types']['positive_neutral_negative'] += 1  # type: ignore  # All three sentiments present
                 else:
-                    stats['conflict_types']['positive_negative'] += 1  # type: ignore
+                    stats['conflict_types']['positive_negative'] += 1          # type: ignore  # Only the two extremes
             elif has_neutral and (has_positive or has_negative):
+                # Softer conflict: neutral alongside one polarised aspect
                 is_mixed = True
                 stats['conflict_types']['neutral_with_extremes'] += 1  # type: ignore
 
@@ -489,9 +499,9 @@ class MixedSentimentEvaluator:
 
         return {
             'mixed_review_count'   : len(mixed_review_ids),
-            'mixed_prevalence'     : mixed_stats['mixed_percentage_of_multi'],  # type: ignore[typeddict-item]
-            'mixed_review_accuracy': review_acc,
-            'mixed_aspect_accuracy': aspect_acc,
+            'mixed_prevalence'     : mixed_stats['mixed_percentage_of_multi'],  # type: ignore[typeddict-item]  # % of multi-aspect reviews that are mixed
+            'mixed_review_accuracy': review_acc,   # % of mixed reviews where ALL aspect predictions were correct
+            'mixed_aspect_accuracy': aspect_acc,   # % of individual aspect predictions correct within mixed reviews
             'stats'                : mixed_stats,
             'total_mixed_aspects'  : total_aspects,
             'correct_mixed_aspects': correct_aspects,

@@ -3,11 +3,9 @@ Data processing utilities for multi-aspect sentiment analysis
 """
 
 import pandas as pd
-import numpy as np
 import torch
 from torch.utils.data import Dataset, DataLoader
 from transformers import RobertaTokenizer
-import re
 from collections import Counter
 from tqdm import tqdm
 
@@ -29,15 +27,17 @@ class CosmeticReviewDataset(Dataset):
         self.is_train     = is_train
 
         data_config      = config['data']
-        self.max_length  = data_config['max_seq_length']
-        self.text_column = data_config['text_column']
-        self.label_map   = config['aspects']['label_map']
+        self.max_length  = data_config['max_seq_length']  # RoBERTa max is 512; we use 128 for speed
+        self.text_column = data_config['text_column']     # Column name in the CSV that holds review text
+        self.label_map   = config['aspects']['label_map'] # {'negative': 0, 'neutral': 1, 'positive': 2}
 
         print(f"[Dataset] Text column: '{self.text_column}'  |  max_seq_length: {self.max_length}")
         print(f"[Dataset] Aspects ({len(aspect_names)}): {aspect_names}")
         print(f"[Dataset] Label map: {self.label_map}")
         print(f"[Dataset] Building (text, aspect, label) samples...")
 
+        # Each CSV row becomes N samples — one per labelled aspect column.
+        # A single review mentioning colour AND smell becomes two separate training samples.
         self.samples = self._prepare_samples()
 
         print(f"[Dataset] Total samples built: {len(self.samples)}  "
@@ -56,15 +56,16 @@ class CosmeticReviewDataset(Dataset):
                 continue
 
             for aspect in self.aspect_names:
+                # NaN in an aspect column means the review was not labelled for that aspect
                 if pd.notna(row[aspect]):
                     label_str = str(row[aspect]).lower()
-                    if label_str in self.label_map:
+                    if label_str in self.label_map:  # Silently skip any malformed labels
                         samples.append({
                             'text'        : text,
                             'aspect'      : aspect,
-                            'aspect_id'   : self.aspect_names.index(aspect),
-                            'label'       : self.label_map[label_str],
-                            'original_idx': idx,
+                            'aspect_id'   : self.aspect_names.index(aspect),  # Integer index for embedding lookup
+                            'label'       : self.label_map[label_str],         # Convert string to integer class
+                            'original_idx': idx,  # Preserve CSV row index for MSR evaluation grouping
                         })
 
         if skipped_empty:
@@ -91,20 +92,20 @@ class CosmeticReviewDataset(Dataset):
         sample   = self.samples[idx]
         encoding = self.tokenizer(
             sample['text'],
-            add_special_tokens=True,
+            add_special_tokens=True,   # Adds [CLS] at start and [SEP] at end
             max_length=self.max_length,
-            padding='max_length',
-            truncation=True,
-            return_tensors='pt',
+            padding='max_length',      # Pad shorter sequences so all batches are the same length
+            truncation=True,           # Silently truncate anything longer than max_length
+            return_tensors='pt',       # Return PyTorch tensors directly
         )
         return {
-            'input_ids'    : encoding['input_ids'].squeeze(0),
-            'attention_mask': encoding['attention_mask'].squeeze(0),
+            'input_ids'    : encoding['input_ids'].squeeze(0),        # (max_length,) — removes the batch dim added by tokenizer
+            'attention_mask': encoding['attention_mask'].squeeze(0),  # (max_length,) — 0 for padding positions
             'aspect_id'    : torch.tensor(sample['aspect_id'], dtype=torch.long),
             'label'        : torch.tensor(sample['label'],     dtype=torch.long),
-            'text'         : sample['text'],
-            'aspect'       : sample['aspect'],
-            'review_id'    : sample['original_idx'],
+            'text'         : sample['text'],    # Raw string kept for LIME/SHAP explainability
+            'aspect'       : sample['aspect'],  # Aspect name kept for per-aspect metric grouping
+            'review_id'    : sample['original_idx'],  # CSV row index — used to group samples by review in MSR evaluation
         }
 
 
@@ -148,7 +149,7 @@ class DependencyParsingDataset(CosmeticReviewDataset):
         return trees
 
     def __getitem__(self, idx):
-        item = super().__getitem__(idx)
+        item = super().__getitem__(idx)  # Get standard (input_ids, label, ...) from parent
 
         if self.dependency_trees is not None:
             dep_info              = self.dependency_trees.get(item['text'], {})
@@ -156,18 +157,24 @@ class DependencyParsingDataset(CosmeticReviewDataset):
                 'edge_index', torch.zeros((2, 0), dtype=torch.long)
             )
 
+            # spaCy uses word-level token indices, but the GCN operates over
+            # RoBERTa's subword (BPE) token space capped at max_length.
+            # Edges referencing positions beyond max_length would cause
+            # an out-of-bounds error in scatter_add_, so we prune them here.
             if edge_index.size(1) > 0:
                 mask       = (edge_index[0] < self.max_length) & (edge_index[1] < self.max_length)
                 edge_index = edge_index[:, mask]
 
             item['edge_index'] = edge_index
-            item['tokens']     = dep_info.get('tokens', [])
-            item['edge_types'] = dep_info.get('edge_types', [])
+            item['tokens']     = dep_info.get('tokens', [])      # Token strings for XAI display
+            item['edge_types'] = dep_info.get('edge_types', [])  # Dependency relation labels (e.g. 'nsubj')
         return item
 
 
 def collate_fn_with_dependencies(batch):
     """Custom collate function for batches with dependency trees"""
+    # edge_index tensors have a variable number of edges per sample, so they cannot
+    # be stacked into a single tensor. We keep them as a Python list instead.
     edge_indices, tokens, edge_types = [], [], []
     for item in batch:
         if 'edge_index' in item:
@@ -175,19 +182,23 @@ def collate_fn_with_dependencies(batch):
             tokens.append(item.get('tokens', []))
             edge_types.append(item.get('edge_types', []))
         else:
+            # Samples from CosmeticReviewDataset (no dependency parsing) get None
+            # so that the model's forward() can detect and skip the GCN branch.
             edge_indices.append(None)
             tokens.append([])
             edge_types.append([])
 
     return {
-        'input_ids'    : torch.stack([item['input_ids']     for item in batch]),
-        'attention_mask': torch.stack([item['attention_mask'] for item in batch]),
-        'aspect_ids'   : torch.stack([item['aspect_id']    for item in batch]),
-        'labels'       : torch.stack([item['label']         for item in batch]),
+        # Fixed-size tensors can be stacked normally
+        'input_ids'    : torch.stack([item['input_ids']     for item in batch]),  # (B, seq_len)
+        'attention_mask': torch.stack([item['attention_mask'] for item in batch]),  # (B, seq_len)
+        'aspect_ids'   : torch.stack([item['aspect_id']    for item in batch]),  # (B,)
+        'labels'       : torch.stack([item['label']         for item in batch]),  # (B,)
+        # Variable-length / non-tensor fields stay as Python lists
         'review_ids'   : [item['review_id'] for item in batch],
         'texts'        : [item['text']      for item in batch],
         'aspects'      : [item['aspect']    for item in batch],
-        'edge_indices' : edge_indices,
+        'edge_indices' : edge_indices,   # List of (2, num_edges) tensors or None
         'tokens'       : tokens,
         'edge_types'   : edge_types,
     }
@@ -276,6 +287,8 @@ def compute_class_weights(data_path, aspect_names, label_map):
     aspect_class_counts = {}
 
     for aspect in tqdm(aspect_names, desc="  Counting per aspect"):
+        # Counts are ordered by label_id (0=neg, 1=neu, 2=pos) to match HybridLoss's
+        # samples_per_class argument format. Using .astype(str) handles mixed types.
         counts = [0, 0, 0]
         for label_str, label_id in label_map.items():
             counts[label_id] = int((df[aspect].astype(str) == label_str).sum())  # type: ignore
