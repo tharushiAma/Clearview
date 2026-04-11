@@ -1,0 +1,33 @@
+﻿[ablation_configs] NOTE: 'A2_aspect_attention' is identical to the base Full Model. The runner will automatically reuse A1 results for this row to save GPU time.
+[ablation_configs] NOTE: 'A3_hybrid_loss' is identical to the base Full Model. The runner will automatically reuse A1 results for this row to save GPU time.
+[ablation_configs] NOTE: 'A4_with_augmentation' is identical to the base Full Model. The runner will automatically reuse A1 results for this row to save GPU time.
+[ablation_configs] NOTE: 'A6_msr_with_gcn' is identical to the base Full Model. The runner will automatically reuse A1 results for this row to save GPU time.
+======================================================================
+EXPERIMENT PLAN
+======================================================================
+
+-- Baseline Comparisons ----------------------------------------------
+  [B1_plain_roberta]  Plain RoBERTa ù [CLS] head, no aspect awareness, CE loss
+  [B2_distilbert_base]  DistilBERT-base-uncased ù [CLS] head, aspect-unaware, CE loss
+  [B3_bert_base]  BERT-base-uncased ù [CLS] head, aspect-unaware, CE loss
+  [B4_tfidf_svm]  Classical TF-IDF + LinearSVC ù no deep learning
+
+-- Ablation Studies --------------------------------------------------
+  [A1_full_model]  Full model (with Dependency GCN)
+  [A1_no_gcn]  No GCN ù aspect attention only
+  [A2_aspect_attention]  Aspect-guided MHA attention
+  [A2_cls_pooling]  CLS token pooling (no attention)
+  [A3_hybrid_loss]  Hybrid Loss (Focal + CB + Dice)
+  [A3_focal_only]  Focal Loss only
+  [A3_cb_only]  Class-Balanced Loss only
+  [A3_dice_only]  Dice Loss only
+  [A3_ce_loss]  Cross-Entropy Loss (no imbalance handling)
+  [A4_with_augmentation]  With LLM synthetic augmentation (10,050 samples)
+  [A4_no_augmentation]  Without augmentation (9,240 samples)
+  [A5_aspect_specific_heads]  7 aspect-specific classifier heads
+  [A5_shared_head]  Single shared classifier head
+  [A6_msr_with_gcn]  MSR Eval: Full model + GCN (mixed sent resolution)
+  [A6_msr_no_gcn]  MSR Eval: No GCN (attention only, no dep parsing)
+
+Total experiments: 19
+======================================================================

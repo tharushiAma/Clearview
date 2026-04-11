@@ -140,11 +140,13 @@ def ablation_2_aspect_attention(base_config: dict) -> List[ExperimentSpec]:
     """
     attention = copy.deepcopy(base_config)
     attention['experiment']['name'] = 'A2_aspect_attention'
+    attention['experiment']['evaluate_msr'] = True  # Compare MSR with/without attention
     validate_ablation('A2_aspect_attention', attention, base_config)
 
     cls_only = copy.deepcopy(base_config)
     cls_only['model']['use_aspect_attention'] = False
     cls_only['experiment']['name'] = 'A2_cls_pooling'
+    cls_only['experiment']['evaluate_msr'] = True  # Compare MSR with/without attention
 
     return [
         ('A2_aspect_attention', 'Aspect-guided MHA attention',     attention),

@@ -118,7 +118,7 @@ Per-aspect Macro-F1:
 
 ## XAI Methods
 
-All implemented in `outputs/cosmetic_sentiment_v1/evaluation/inference.py`:
+All implemented in `inference_bridge/inference.py`:
 
 | Method | Notes |
 | --- | --- |

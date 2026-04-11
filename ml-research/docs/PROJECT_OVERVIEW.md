@@ -93,7 +93,7 @@ Three classes:
 - `MixedSentimentEvaluator` — groups by review_id, identifies conflicting-aspect reviews, measures resolution accuracy
 - `ErrorAnalyzer` — classifies error patterns (pos↔neg confusion, neutral confusion, etc.)
 
-### `outputs/cosmetic_sentiment_v1/evaluation/inference.py`
+### `inference_bridge/inference.py`
 
 `SentimentPredictor` class — wraps the trained model for prediction and all XAI methods:
 

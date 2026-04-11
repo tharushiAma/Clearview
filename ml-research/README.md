@@ -382,6 +382,6 @@ All methods are demonstrated in `notebooks/14_inference` and `notebooks/17_train
 | `src/models/model.py` | Full model class — edit to change architecture |
 | `src/models/losses.py` | Loss functions — edit to change loss strategy |
 | `src/utils/data_utils.py` | Dataset + DataLoader — edit to change tokenisation |
-| `outputs/cosmetic_sentiment_v1/evaluation/inference.py` | SentimentPredictor — used by website at runtime |
+| `inference_bridge/inference.py` | SentimentPredictor — used by website at runtime |
 | `inference_bridge/trained_model_adapter.py` | Website prediction bridge — do not move |
 | `inference_bridge/trained_model_xai.py` | Website XAI bridge — do not move |

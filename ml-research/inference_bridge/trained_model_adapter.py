@@ -17,9 +17,9 @@ from typing import Dict, List
 current_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.abspath(os.path.join(current_dir, "..", ".."))
 
-# inference.py lives inside ml-research/outputs/cosmetic_sentiment_v1/evaluation/
+# inference.py and trained_model_adapter.py both live in ml-research/inference_bridge/
 # We also need ml-research/src on the path so inference.py can find models/model.py
-inference_dir = os.path.join(project_root, "ml-research", "outputs", "cosmetic_sentiment_v1", "evaluation")
+inference_dir = os.path.join(project_root, "ml-research", "inference_bridge")
 ml_src_dir = os.path.join(project_root, "ml-research", "src")
 if inference_dir not in sys.path:
     sys.path.insert(0, inference_dir)
@@ -28,9 +28,7 @@ if ml_src_dir not in sys.path:
 
 from inference import SentimentPredictor
 
-# ---------------------------------------------------------------------------
 # 3-class label names (matches model training config)
-# ---------------------------------------------------------------------------
 LABEL_NAMES = ['negative', 'neutral', 'positive']
 
 # ---------------------------------------------------------------------------

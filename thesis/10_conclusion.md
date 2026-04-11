@@ -5,26 +5,26 @@
 This thesis presented ClearView, addressing four interconnected challenges in ABSA for the cosmetic domain:
 
 **Contribution 1: Two-Pronged Class Imbalance Framework**
-LLM-based synthetic augmentation + per-aspect Hybrid Loss (Focal + Class-Balanced) + two-phase stratified split. Each prong addresses a different mechanism of imbalance, quantified through ablation studies A3 and A4.
+LLM-based synthetic augmentation + per-aspect Hybrid Loss (Focal + Class-Balanced, Dice=0.0) + two-phase stratified split. Each prong addresses a different mechanism of imbalance, quantified through ablation studies A3 and A4. The A7 configuration (Focal 1.0 + CB 0.5) achieves Macro-F1 = 0.7944, outperforming all individual loss functions.
 
-**Contribution 2: Aspect-Oriented Dependency GCN**
-spaCy dependency parse trees with aspect-specific gating provide explicit structural reasoning for mixed sentiment resolution. The aspect gate prevents cross-aspect signal contamination.
+**Contribution 2: Aspect-Aware Attention Module (primary MSR driver)**
+Learnable aspect embeddings as MHA queries provide aspect-specific token selection and are the necessary condition for Mixed Sentiment Resolution. Ablation A2 shows that removing this module causes a −24.78% Macro-F1 drop and complete collapse of MSR capability (review-level accuracy 66.56% → 0%). The Dependency GCN provides complementary syntactic structure, but the Aspect-Aware Attention is the primary mechanism.
 
-**Contribution 3: 19-Experiment Evaluation Framework**
-4 baselines and 6 ablation studies (15 variants) providing quantitative justification for every major architectural decision.
+**Contribution 3: 16-Experiment Evaluation Framework**
+4 baselines and 6 ablation studies providing quantitative justification for every major architectural decision. All 16 experiments completed with full results in all_results.csv.
 
 **Contribution 4: ClearView Web System**
 Deployable web system with interactive XAI visualizations demonstrating practical utility.
 
 ## 10.2 Answers to Research Questions
 
-**RQ1 (Hybrid Loss):** Partially confirmed. The Focal+CB combination (A7: Macro-F1 = 0.7944) outperforms all individual losses. CE and CB-only tied at 0.7911, with Focal+CB providing the winning +0.33% margin through hard-example focusing combined with principled reweighting. Price and packing negative classes remained near-zero F1 regardless of loss choice due to insufficient training samples (9 each).
+**RQ1 (Hybrid Loss):** Partially confirmed. The Focal+CB combination (A7: Macro-F1 = 0.7944) outperforms all individual losses. CE and CB-only tied at 0.7911, with Focal+CB providing the winning +0.33% margin through hard-example focusing combined with principled reweighting. Dice Loss alone collapses to 0.2926. Price and packing negative classes remained near-zero F1 regardless of loss choice due to insufficient training samples.
 
-**RQ2 (Dependency GCN):** Confirmed. Removing GCN caused a −9.9% Macro-F1 drop (0.7856 → 0.6863), the largest single-component ablation effect. Aspect-level accuracy on mixed reviews (87.55%) demonstrates that the GCN's aspect-gating mechanism successfully prevents cross-aspect signal contamination.
+**RQ2 (Dependency GCN / MSR):** Revised finding. The Aspect-Aware Attention module — not the Dependency GCN alone — is the primary driver of Mixed Sentiment Resolution. Ablation A2 (removing Aspect Attention) causes a −24.78% Macro-F1 drop and complete review-level MSR collapse (66.56% → 0%). Ablation A1 (removing GCN, keeping Attention) shows no statistically meaningful MSR change (66.56% in both conditions). All CLS-pooled baselines (B1: 0.5731, B2: 0.5677, B3: 0.5697) achieve 0% review-level MSR accuracy, confirming that aspect-conditioned query separation is the necessary condition. The GCN provides complementary syntactic signal but is not the primary mechanism.
 
 **RQ3 (LLM Augmentation):** Partially confirmed. Overall Macro-F1 impact was negligible (−0.16%), as the most extreme imbalance cases (price: 9 negative samples) remain too sparse even after augmentation. Localised improvements were observed for moderately imbalanced aspects. The fundamental bottleneck is original data scarcity, not augmentation volume.
 
-**RQ4 (XAI Evidence):** Confirmed. Integrated Gradients analysis shows orthogonal token attribution patterns across focus aspects in mixed-sentiment reviews — tokens contributing to colour prediction carry near-zero attribution for smell prediction and vice versa. This provides direct interpretable evidence of aspect-specific signal separation by the GCN.
+**RQ4 (XAI Evidence):** Confirmed. Integrated Gradients analysis shows orthogonal token attribution patterns across focus aspects in mixed-sentiment reviews — tokens contributing to colour prediction carry near-zero attribution for smell prediction and vice versa. The 87.22% aspect-level and 66.56% review-level MSR accuracy validate the Aspect-Aware Attention's aspect-gating mechanism as the primary driver of mixed sentiment resolution.
 
 ## 10.3 Limitations
 

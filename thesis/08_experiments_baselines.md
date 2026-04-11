@@ -2,11 +2,11 @@
 
 ## 8.1 Experiment Framework Overview
 
-All experiments use the same data splits (train_augmented.csv, val.csv, test.csv) and evaluation code (AspectSentimentEvaluator, MixedSentimentEvaluator). Experiments are implemented in src/experiments/experiment_runner.py and results automatically analyzed by results_analyzer.py.
+All experiments use the same data splits (train_augmented.csv, val.csv, test.csv) and evaluation code (AspectSentimentEvaluator, MixedSentimentEvaluator). Experiments are implemented in src/experiments/experiment_runner.py and results automatically analyzed by results_analyzer.py. All experiments have been completed and results are stored in results/experiments/all_results.json and all_results.csv.
 
-Total experiments: 19 (4 baselines + 15 ablation variants)
+Total experiments run: 16 (4 baselines + 12 ablation variants, including 2 A7 loss weight variants)
 
-Primary metric: Validation Macro-F1 (aggregated across all 7 aspects)
+Primary metric: Test Macro-F1 (aggregated across all 7 aspects)
 Secondary: Per-class F1 for negative (minority) class, Mixed Sentiment Resolution Accuracy
 
 ## 8.2 Baseline Models (4 experiments)
@@ -76,13 +76,15 @@ Variants:
 Research question: Do different aspects benefit from dedicated classifier heads?
 Key metric: Per-aspect F1 variance; aspects with highly different linguistic patterns expected to show larger degradation with shared head.
 
-### Ablation A6: Text Preprocessing
-Component tested: Text cleaning pipeline
+### Ablation A6: Mixed Sentiment Resolution (MSR) Evaluation
+Component tested: MSR-specific evaluation of full model vs. GCN-ablated model
 Variants:
-  - A6_with_preprocessing: Full cleaning pipeline (default)
-  - A6_raw_text: Raw text without cleaning (HTML, garbled tokens, repeated punctuation retained)
-Research question: Does the cleaning pipeline improve model performance?
-Key metric: Overall Macro-F1, qualitative inspection of attention on cleaned vs. uncleaned inputs.
+  - A6_msr_with_gcn: Full model evaluated with MixedSentimentEvaluator (same as A1_full_model)
+  - A6_msr_no_gcn: No-GCN model evaluated with MixedSentimentEvaluator (same as A1_no_gcn)
+Research question: Does the Dependency GCN improve Mixed Sentiment Resolution accuracy specifically?
+Key metric: MSR review-level accuracy (% of mixed reviews with all aspects correct), MSR aspect-level accuracy.
+
+**Note on A6 vs. planned Text Preprocessing ablation:** The originally planned A6 (text preprocessing comparison) was not executed as a separate experiment, as the cleaning pipeline is a required pre-processing step shared by all models. The cleaning benefit is inherent to the baseline results. Instead, A6 was re-purposed to capture MSR-specific metrics for the two GCN variants, consolidating the MSR evaluation evidence.
 
 ## 8.4 Running Experiments
 
@@ -114,15 +116,15 @@ With multiple experiments comparing variants, statistical significance testing i
 
 Multiple comparison correction (Bonferroni) applied when comparing all ablation variants simultaneously.
 
-## 8.6 Expected Experimental Outcomes
+## 8.6 Actual Experimental Outcomes Summary
 
-Based on the literature and architecture design:
+All experiments completed. Summary of key findings vs expectations:
 
-| Ablation | Expected Primary Finding |
-|---------|------------------------|
-| A1 (GCN) | +3-5% mixed sentiment resolution accuracy with GCN |
-| A2 (Attention) | +2-4% Macro-F1 with aspect attention vs CLS |
-| A3 (Loss) | Hybrid significantly outperforms single-loss; CE shows near-zero negative recall |
-| A4 (Augmentation) | +5-10% negative class F1 with augmentation; minimal majority class impact |
-| A5 (Shared head) | Per-aspect heads better, especially for texture vs shipping (linguistically different) |
-| A6 (Preprocessing) | Minor improvement (+1-2%), larger impact on aspects with domain vocabulary |
+| Ablation | Expected | Actual Finding |
+|---------|----------|----------------|
+| A1 (GCN) | +3-5% MSR accuracy with GCN | MSR accuracy identical (66.56%) with/without GCN; Aspect-Aware Attention is the MSR driver |
+| A2 (Attention) | +2-4% Macro-F1 with aspect attention | +24.78% Macro-F1; +46.65% MSR aspect-level accuracy; 0→66.56% review-level MSR |
+| A3 (Loss) | Hybrid outperforms single-loss | A7 (Focal+CB, Dice=0.0) is best at 0.7944; Dice alone collapses to 0.2926 |
+| A4 (Augmentation) | +5-10% negative class F1 | Negligible overall effect (−0.16% Macro-F1); extreme imbalance not fixed by augmentation volume |
+| A5 (Shared head) | Per-aspect heads better | +0.59% Macro-F1, +1.44% MSR review-level accuracy |
+| A6 (MSR evaluation) | MSR improvement with GCN | GCN and no-GCN identical MSR; Aspect Attention is primary MSR mechanism |

@@ -218,7 +218,7 @@ class ExperimentTrainer:
               'aspects'  → {aspect_name: {accuracy, macro_f1, ...}, ...}
         """
         self.model.eval()
-        all_preds, all_labels, all_aspects = [], [], []
+        all_preds, all_labels, all_aspects, all_probs = [], [], [], []
 
         with torch.no_grad():
             from tqdm import tqdm
@@ -226,22 +226,30 @@ class ExperimentTrainer:
                 preds = self._forward(batch)
                 if isinstance(preds, tuple):
                     preds = preds[0]
-                pred_classes = torch.argmax(preds, dim=1).cpu().numpy()
+                # Collect softmax probabilities for ROC/AUC computation
+                probs = torch.softmax(preds, dim=1).cpu().numpy()
+                pred_classes = np.argmax(probs, axis=1)
+                all_probs.extend(probs)
                 all_preds.extend(pred_classes)
                 all_labels.extend(batch['labels'].numpy())
                 all_aspects.extend(batch['aspects'])
+
+        all_probs_arr  = np.array(all_probs)
+        all_labels_arr = np.array(all_labels)
+        all_preds_arr  = np.array(all_preds)
 
         aspect_metrics = {}
         for aspect in self.config['aspects']['names']:
             mask  = np.array([a == aspect for a in all_aspects])
             if mask.sum() == 0:
                 continue
-            y_true = np.array(all_labels)[mask]
-            y_pred = np.array(all_preds)[mask]
-            aspect_metrics[aspect] = self.evaluator.evaluate_aspect(y_true, y_pred, aspect)
+            y_true = all_labels_arr[mask]
+            y_pred = all_preds_arr[mask]
+            y_prob = all_probs_arr[mask]          # shape: (n_aspect_samples, 3)
+            aspect_metrics[aspect] = self.evaluator.evaluate_aspect(y_true, y_pred, aspect, y_prob=y_prob)
 
         overall = self.evaluator.evaluate_aspect(
-            np.array(all_labels), np.array(all_preds), 'overall'
+            all_labels_arr, all_preds_arr, 'overall', y_prob=all_probs_arr
         )
         return {'overall': overall, 'aspects': aspect_metrics}
 
@@ -402,7 +410,7 @@ def run_tfidf_svm(exp_id: str, desc: str, config: dict, results_dir: Path) -> di
                 'mixed_review_count':    mixed_metrics.get('mixed_review_count', 0),
                 'mixed_review_accuracy': mixed_metrics.get('mixed_review_accuracy', 0.0),
                 'mixed_aspect_accuracy': mixed_metrics.get('mixed_aspect_accuracy', 0.0),
-                'mixed_detection_rate':  mixed_metrics.get('mixed_detection_rate', 0.0),
+                'mixed_prevalence':  mixed_metrics.get('mixed_prevalence', 0.0),
             }
         except Exception as msr_exc:
             print(f"  [{exp_id}] MSR evaluation failed: {msr_exc}")
@@ -532,7 +540,7 @@ def run_dl_experiment(exp_id: str, desc: str, config: dict,
                 'mixed_review_count':    mixed_metrics.get('mixed_review_count', 0),
                 'mixed_review_accuracy': mixed_metrics.get('mixed_review_accuracy', 0.0),
                 'mixed_aspect_accuracy': mixed_metrics.get('mixed_aspect_accuracy', 0.0),
-                'mixed_detection_rate':  mixed_metrics.get('mixed_detection_rate', 0.0),
+                'mixed_prevalence':  mixed_metrics.get('mixed_prevalence', 0.0),
             }
 
     except Exception as exc:

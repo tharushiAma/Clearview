@@ -128,7 +128,7 @@ def run_msr_for_experiment(exp_id: str) -> dict:
         'mixed_review_count'   : mixed_metrics.get('mixed_review_count', 0),
         'mixed_review_accuracy': mixed_metrics.get('mixed_review_accuracy', 0.0),
         'mixed_aspect_accuracy': mixed_metrics.get('mixed_aspect_accuracy', 0.0),
-        'mixed_detection_rate' : mixed_metrics.get('mixed_detection_rate',  0.0),
+        'mixed_prevalence' : mixed_metrics.get('mixed_prevalence',  0.0),
     }
 
 

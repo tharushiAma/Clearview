@@ -449,7 +449,7 @@ class MixedSentimentEvaluator:
             print("[MSREvaluator] WARNING: No mixed sentiment reviews found in dataset")
             return {
                 'mixed_review_count'   : 0,
-                'mixed_detection_rate' : 0.0,
+                'mixed_prevalence'     : 0.0,
                 'mixed_review_accuracy': 0.0,
                 'mixed_aspect_accuracy': 0.0,
                 'stats'                : mixed_stats,
@@ -489,7 +489,7 @@ class MixedSentimentEvaluator:
 
         return {
             'mixed_review_count'   : len(mixed_review_ids),
-            'mixed_detection_rate' : mixed_stats['mixed_percentage_of_multi'],  # type: ignore[typeddict-item]
+            'mixed_prevalence'     : mixed_stats['mixed_percentage_of_multi'],  # type: ignore[typeddict-item]
             'mixed_review_accuracy': review_acc,
             'mixed_aspect_accuracy': aspect_acc,
             'stats'                : mixed_stats,
