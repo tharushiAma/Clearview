@@ -27,7 +27,7 @@ class CosmeticReviewDataset(Dataset):
         self.is_train     = is_train
 
         data_config      = config['data']
-        self.max_length  = data_config['max_seq_length']  # RoBERTa max is 512; we use 128 for speed
+        self.max_length  = data_config['max_seq_length']  # RoBERTa max is 512; using 128 for speed
         self.text_column = data_config['text_column']     # Column name in the CSV that holds review text
         self.label_map   = config['aspects']['label_map'] # {'negative': 0, 'neutral': 1, 'positive': 2}
 
@@ -59,7 +59,7 @@ class CosmeticReviewDataset(Dataset):
                 # NaN in an aspect column means the review was not labelled for that aspect
                 if pd.notna(row[aspect]):
                     label_str = str(row[aspect]).lower()
-                    if label_str in self.label_map:  # Silently skip any malformed labels
+                    if label_str in self.label_map:  # Skip any malformed labels
                         samples.append({
                             'text'        : text,
                             'aspect'      : aspect,
@@ -95,8 +95,8 @@ class CosmeticReviewDataset(Dataset):
             add_special_tokens=True,   # Adds [CLS] at start and [SEP] at end
             max_length=self.max_length,
             padding='max_length',      # Pad shorter sequences so all batches are the same length
-            truncation=True,           # Silently truncate anything longer than max_length
-            return_tensors='pt',       # Return PyTorch tensors directly
+            truncation=True,           # Truncate sequences longer than max_length
+            return_tensors='pt',       # Return PyTorch tensors
         )
         return {
             'input_ids'    : encoding['input_ids'].squeeze(0),        # (max_length,) — removes the batch dim added by tokenizer

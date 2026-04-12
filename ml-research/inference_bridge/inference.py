@@ -25,53 +25,63 @@ if _ml_src_dir not in sys.path:
 from models.model import create_model
 
 
-# ── Lightweight text cleaning (mirrors preprocess_and_split.py pipeline) ──────
+# ── Text cleaning (mirrors 02_preprocess_and_split.ipynb pipeline) ──────────
 # This ensures inference-time text matches what the model was trained on.
-# We inline the function here to avoid fragile cross-project imports.
+# We include the translation artifact removal logic as the model was fine-tuned 
+# on data with these patterns stripped.
 import re as _re
 import unicodedata as _ud
 import html as _html
 
-_HTML_TAG_RE    = _re.compile(r"<[^>]+>")
-_HTML_ENTITY_RE = _re.compile(r"&(?:#\d+|#x[\da-fA-F]+|[a-zA-Z]+);")
-_URL_RE         = _re.compile(r"https?://\S+|www\.\S+|ftp://\S+", _re.IGNORECASE)
-_EMAIL_RE       = _re.compile(r"[\w.+-]+@[\w-]+\.[a-zA-Z]{2,}", _re.IGNORECASE)
-_CONSONANTS     = set("bcdfghjklmnpqrstvwxz")
+_TRANSLATION_ARTIFACTS = [
+    r'\bthe product is\b',
+    r'\bthe goods\b',
+    r'\bgoods received\b',
+    r'\bpackaging is\b',
+    r'\bthe seller\b(?= (is|sent|ships))',
+    r'\border received\b',
+    r'\bfast delivery\b\.?\s*$',
+    r'\bwill buy again\b\.?\s*$',
+    r'\bgood product\b\.?\s*$',
+    r'[\u200b-\u200f\u202a-\u202e\ufeff]',
+]
 
-def _is_garbled(tok: str, min_len=6, cons_ratio=0.82, rep_ratio=0.60) -> bool:
-    t = tok.lower()
-    if len(t) < min_len:
-        return False
-    letters = [c for c in t if c.isalpha()]
-    if not letters:
-        return False
-    if sum(1 for c in letters if c in _CONSONANTS) / len(letters) >= cons_ratio:
-        return True
-    if max(t.count(c) for c in set(t)) / len(t) >= rep_ratio:
-        return True
-    return False
+_ARTIFACT_RE    = [_re.compile(p, _re.IGNORECASE) for p in _TRANSLATION_ARTIFACTS]
+_HTML_TAG_RE    = _re.compile(r'<[^>]+>')
+_HTML_ENTITY_RE = _re.compile(r'&(?:#\d+|#x[\da-fA-F]+|[a-zA-Z]+);')
+_URL_RE         = _re.compile(r'https?://\S+|www\.\S+|ftp://\S+', _re.IGNORECASE)
+_EMAIL_RE       = _re.compile(r'[\w.+-]+@[\w-]+\.[a-zA-Z]{2,}', _re.IGNORECASE)
 
 def clean_text_for_inference(text: str) -> str:
-    """Clean text the same way training data was preprocessed."""
+    """Master cleaning pipeline: validate -> NFC -> HTML -> URLs -> artifacts -> whitespace."""
     if not isinstance(text, str) or not text.strip():
         return ""
-    text = _ud.normalize("NFC", text)
+    
+    # 1. Unicode NFC normalisation
+    text = _ud.normalize('NFC', text)
+    
+    # 2. HTML tag & entity removal
     text = _html.unescape(text)
-    text = _HTML_ENTITY_RE.sub(" ", text)
-    text = _HTML_TAG_RE.sub(" ", text)
-    text = _URL_RE.sub(" ", text)
-    text = _EMAIL_RE.sub(" ", text)
-    text = _re.sub(r"\.{3,}", "…", text)
-    text = _re.sub(r"!{2,}", "!", text)
-    text = _re.sub(r"\?{2,}", "?", text)
-    text = _re.sub(r"[\u200b-\u200f\u202a-\u202e\ufeff]", "", text)
-    tokens = text.split()
-    clean_tokens = [t for t in tokens if not _is_garbled(t)]
-    if len(tokens) >= 5 and len(tokens) - len(clean_tokens) >= 0.4 * len(tokens):
-        return ""
-    text = " ".join(clean_tokens)
-    text = _re.sub(r"[\t\r\n]+", " ", text)
-    text = _re.sub(r" {2,}", " ", text)
+    text = _HTML_ENTITY_RE.sub(' ', text)
+    text = _HTML_TAG_RE.sub(' ', text)
+    
+    # 3. URL / e-mail removal
+    text = _URL_RE.sub(' ', text)
+    text = _EMAIL_RE.sub(' ', text)
+    
+    # 4. Translation artifact normalisation
+    # (Filler phrases, excessive punctuation, and invisible Unicode)
+    text = _re.sub(r'\.{3,}', '…', text)
+    text = _re.sub(r'!{2,}',   '!', text)
+    text = _re.sub(r'\?{2,}',  '?', text)
+    text = _re.sub(r'[\u200b-\u200f\u202a-\u202e\ufeff]', '', text)
+    for pat in _ARTIFACT_RE:
+        text = pat.sub(' ', text)
+        
+    # 5. Whitespace collapse
+    text = _re.sub(r'[\t\r\n]+', ' ', text)
+    text = _re.sub(r' {2,}', ' ', text)
+    
     return text.strip()
 
 

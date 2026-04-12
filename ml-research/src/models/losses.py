@@ -19,8 +19,8 @@ class FocalLoss(nn.Module):
     """
     def __init__(self, alpha=None, gamma=2.0, reduction='mean'):
         super(FocalLoss, self).__init__()
-        self.gamma = gamma
-        self.alpha = alpha
+        self.gamma = gamma # Controls how much to focus on hard examples
+        self.alpha = alpha # Per-class weight
         self.reduction = reduction
         
     def forward(self, inputs, targets):
@@ -30,19 +30,17 @@ class FocalLoss(nn.Module):
             targets: (batch_size,) class labels
         """
         ce_loss = F.cross_entropy(inputs, targets, reduction='none')
-        pt = torch.exp(-ce_loss)          # pt = probability assigned to the correct class
+        pt = torch.exp(-ce_loss)          # pt = model's confidence on the correct class
         focal_loss = (1 - pt) ** self.gamma * ce_loss  # Down-weights easy examples (high pt)
         
         if self.alpha is not None:
-            # alpha can be passed as a Python list, numpy array, torch Tensor, or a scalar.
-            # In all cases we index by target class to get per-sample weights (alpha_t).
+            # Map per-class alpha weights to per-sample weights using target indices.
             if isinstance(self.alpha, (list, np.ndarray)):
                 alpha_t = torch.tensor(self.alpha, device=inputs.device, dtype=torch.float)[targets]
             elif isinstance(self.alpha, torch.Tensor):
                 alpha_t = self.alpha.to(inputs.device)[targets]
             else:
-                # Scalar alpha — same weight applied to every sample
-                alpha_t = self.alpha
+                alpha_t = self.alpha # Scalar alpha - same weight applied to every sample
             focal_loss = alpha_t * focal_loss  # Scale each sample's loss by its class weight
             
         if self.reduction == 'mean':
@@ -66,27 +64,22 @@ class ClassBalancedLoss(nn.Module):
     """
     def __init__(self, samples_per_class, beta=0.9999, reduction='mean'):
         super(ClassBalancedLoss, self).__init__()
-        # Effective Number formula: EN(n) = (1 - beta^n) / (1 - beta)
-        # As n grows, EN grows logarithmically rather than linearly.
-        # This gives more meaningful weights for very large majority classes
-        # compared to simple inverse-frequency weighting.
-        effective_num = 1.0 - np.power(beta, samples_per_class)
-        weights = (1.0 - beta) / np.array(effective_num)
-        # Re-normalise so weights average to 1.0 (preserves the loss scale)
+
+        # Effective number of samples for each class
+        effective_num = 1.0 - np.power(beta, samples_per_class)   # E_n = 1 - beta^n
+        weights       = (1.0 - beta) / np.array(effective_num)    # Normalise by (1-beta)
+
+        # Re-normalise so average weight = 1.0 (preserves the loss scale)
         weights = weights / weights.sum() * len(weights)
-        self.weights = torch.tensor(weights, dtype=torch.float32)
+
+        self.weights   = torch.tensor(weights, dtype=torch.float32)
         self.reduction = reduction
         
     def forward(self, inputs, targets):
-        """
-        Args:
-            inputs: (batch_size, num_classes) logits
-            targets: (batch_size,) class labels
-        """
-        # Move weights to the same device as inputs at runtime in case the model
-        # is on GPU but the weights tensor was created on CPU.
+        # Move weights to the same device as inputs (GPU if available)
         if self.weights.device != inputs.device:
             self.weights = self.weights.to(inputs.device)
+        # Standard CrossEntropy, but weighted by the effective-number weights
         return F.cross_entropy(inputs, targets, weight=self.weights, reduction=self.reduction)
 
 
@@ -106,25 +99,21 @@ class DiceLoss(nn.Module):
         self.smooth = smooth
         
     def forward(self, inputs, targets):
-        """
-        Args:
-            inputs: (batch_size, num_classes) logits
-            targets: (batch_size,) class labels
-        """
-        inputs = F.softmax(inputs, dim=1)
-        targets_one_hot = F.one_hot(targets, num_classes=inputs.size(1)).float()
-        
-        intersection = (inputs * targets_one_hot).sum(dim=0)
-        cardinality = inputs.sum(dim=0) + targets_one_hot.sum(dim=0)
-        
+        inputs                = F.softmax(inputs, dim=1)  # Convert logits to probabilities
+        targets_one_hot       = F.one_hot(targets, num_classes=inputs.size(1)).float()  # Binary indicator matrix
+
+        intersection = (inputs * targets_one_hot).sum(dim=0)  # True-positive-like term, per-class
+        cardinality  = inputs.sum(dim=0) + targets_one_hot.sum(dim=0)  # Predicted + actual totals
+
+        # Dice per class = 2*TP / (Predicted + Actual), then average across classes
         dice_score = (2.0 * intersection + self.smooth) / (cardinality + self.smooth)
-        return 1.0 - dice_score.mean()
+        return 1.0 - dice_score.mean()  # Loss = 1 - Dice (minimise → maximise F1)
 
 
 class HybridLoss(nn.Module):
     """
-    Combination of multiple losses for extreme class imbalance
-    Recommended for severely imbalanced aspects like price and packing
+    Weighted sum of Focal + Class-Balanced + Dice losses.
+    The `weights` dict configures the contribution of each component.
     
     Args:
         samples_per_class: List of sample counts [neg, neu, pos]
@@ -140,8 +129,6 @@ class HybridLoss(nn.Module):
         if weights is None:
             # Default: Focal is the primary term (weight=1.0), CB corrects for
             # extreme imbalance (weight=0.5), Dice improves minority-class F1 (weight=0.3).
-            # The A7 ablation found dice=0.0 was optimal for this dataset, so
-            # config.yaml overrides this default via loss_weights.
             weights = {'focal': 1.0, 'cb': 0.5, 'dice': 0.3}
         
         self.focal_loss = FocalLoss(alpha=focal_alpha, gamma=focal_gamma)
@@ -150,18 +137,9 @@ class HybridLoss(nn.Module):
         self.weights = weights
         
     def forward(self, inputs, targets):
-        """
-        Args:
-            inputs: (batch_size, num_classes) logits
-            targets: (batch_size,) class labels
-            
-        Returns:
-            total_loss: Combined loss
-            loss_dict: Dictionary with individual loss values
-        """
-        loss_focal = self.focal_loss(inputs, targets)
-        loss_cb = self.cb_loss(inputs, targets)
-        loss_dice = self.dice_loss(inputs, targets)
+        loss_focal = self.focal_loss(inputs, targets)   # Focus on hard/rare examples
+        loss_cb    = self.cb_loss(inputs, targets)      # Reweight by effective sample count
+        loss_dice  = self.dice_loss(inputs, targets)    # Directly optimise F1
         
         total_loss = (self.weights.get('focal', 0.0) * loss_focal + 
                      self.weights.get('cb', 0.0) * loss_cb + 
@@ -197,19 +175,18 @@ class AspectSpecificLossManager:
             min_count = min(counts)
             imbalance_ratio = max_count / min_count if min_count > 0 else float('inf')
             
-            # Gamma controls how strongly the loss focuses on hard (misclassified) examples.
+            # Auto-select gamma: more severe imbalance → higher gamma → stronger focus
             # Higher gamma = more aggressive down-weighting of easy examples.
             if aspect in config.get('focal_gamma', {}):
                 gamma = config['focal_gamma'][aspect]  # Per-aspect override from config
-            elif imbalance_ratio > 50:  # Severe imbalance (e.g. price: 2244 pos vs 17 neg)
+            elif imbalance_ratio > 50:  # Severe imbalance
                 gamma = 3.0
             elif imbalance_ratio > 10:  # Moderate imbalance
                 gamma = 2.5
             else:
                 gamma = 2.0  # Standard focal loss default
             
-            # Beta controls the effective-number calculation in CB Loss.
-            # 0.9999 recommended for extreme imbalance (Cui et al. 2019).
+            # Auto-select beta for Class-Balanced loss
             if aspect in config.get('class_balanced_beta', {}):
                 beta = config['class_balanced_beta'][aspect]  # Per-aspect override
             elif imbalance_ratio > 50:
@@ -245,26 +222,17 @@ class AspectSpecificLossManager:
     
     def compute_loss(self, predictions, targets, aspect_ids, aspect_names):
         """
-        Compute loss for a batch with multiple aspects
-        
-        Args:
-            predictions: (batch_size, num_classes) logits
-            targets: (batch_size,) class labels
-            aspect_ids: (batch_size,) aspect indices
-            aspect_names: List of aspect names
-            
-        Returns:
-            total_loss: Average loss across batch
-            loss_details: Dictionary with per-aspect loss breakdown
+        Compute per-sample loss using each sample's aspect-specific loss function.
+        Returns the mean loss over the batch and a dict with per-aspect breakdowns.
         """
         total_loss = 0
         loss_details = {}
         
         for i in range(predictions.size(0)):
             aspect_idx = aspect_ids[i].item()
-            aspect = aspect_names[aspect_idx]
+            aspect = aspect_names[aspect_idx] # e.g. 'price'
             
-            loss_fn = self.aspect_losses[aspect]
+            loss_fn = self.aspect_losses[aspect]# That aspect's HybridLoss
             sample_loss, loss_dict = loss_fn(
                 predictions[i].unsqueeze(0),
                 targets[i].unsqueeze(0)
@@ -280,7 +248,7 @@ class AspectSpecificLossManager:
                     loss_details[aspect][key] = []
                 loss_details[aspect][key].append(value)
         
-        total_loss = total_loss / predictions.size(0)
+        total_loss = total_loss / predictions.size(0)  # Average over batch
         
         # Average loss details
         for aspect in loss_details:
@@ -300,7 +268,7 @@ if __name__ == "__main__":
     num_classes = 3
     
     # Create dummy predictions and targets
-    predictions = torch.randn(batch_size, num_classes)
+    predictions = torch.randn(batch_size, num_classes) # Random logits
     targets = torch.tensor([2, 2, 2, 2, 0, 2, 1, 2])  # Mostly positive class
     
     # Test Focal Loss
