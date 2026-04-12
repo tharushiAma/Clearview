@@ -27,33 +27,17 @@ from models.model import create_model
 
 # ── Text cleaning (mirrors 02_preprocess_and_split.ipynb pipeline) ──────────
 # This ensures inference-time text matches what the model was trained on.
-# We include the translation artifact removal logic as the model was fine-tuned 
-# on data with these patterns stripped.
 import re as _re
 import unicodedata as _ud
 import html as _html
 
-_TRANSLATION_ARTIFACTS = [
-    r'\bthe product is\b',
-    r'\bthe goods\b',
-    r'\bgoods received\b',
-    r'\bpackaging is\b',
-    r'\bthe seller\b(?= (is|sent|ships))',
-    r'\border received\b',
-    r'\bfast delivery\b\.?\s*$',
-    r'\bwill buy again\b\.?\s*$',
-    r'\bgood product\b\.?\s*$',
-    r'[\u200b-\u200f\u202a-\u202e\ufeff]',
-]
-
-_ARTIFACT_RE    = [_re.compile(p, _re.IGNORECASE) for p in _TRANSLATION_ARTIFACTS]
 _HTML_TAG_RE    = _re.compile(r'<[^>]+>')
 _HTML_ENTITY_RE = _re.compile(r'&(?:#\d+|#x[\da-fA-F]+|[a-zA-Z]+);')
 _URL_RE         = _re.compile(r'https?://\S+|www\.\S+|ftp://\S+', _re.IGNORECASE)
 _EMAIL_RE       = _re.compile(r'[\w.+-]+@[\w-]+\.[a-zA-Z]{2,}', _re.IGNORECASE)
 
 def clean_text_for_inference(text: str) -> str:
-    """Master cleaning pipeline: validate -> NFC -> HTML -> URLs -> artifacts -> whitespace."""
+    """Master cleaning pipeline: validate -> NFC -> HTML -> URLs -> whitespace."""
     if not isinstance(text, str) or not text.strip():
         return ""
     
@@ -69,14 +53,11 @@ def clean_text_for_inference(text: str) -> str:
     text = _URL_RE.sub(' ', text)
     text = _EMAIL_RE.sub(' ', text)
     
-    # 4. Translation artifact normalisation
-    # (Filler phrases, excessive punctuation, and invisible Unicode)
+    # 4. Normalise punctuation and invisible characters
     text = _re.sub(r'\.{3,}', '…', text)
     text = _re.sub(r'!{2,}',   '!', text)
     text = _re.sub(r'\?{2,}',  '?', text)
     text = _re.sub(r'[\u200b-\u200f\u202a-\u202e\ufeff]', '', text)
-    for pat in _ARTIFACT_RE:
-        text = pat.sub(' ', text)
         
     # 5. Whitespace collapse
     text = _re.sub(r'[\t\r\n]+', ' ', text)
