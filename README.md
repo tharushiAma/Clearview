@@ -1,12 +1,8 @@
-# ClearView — Multi-Aspect Mixed Sentiment Resolution for Cosmetic Reviews
+# ClearView — Class imbalance handled Multi Aspect mixed sentiment resolution with Explainability in cosmetic domain
 
 My final year project. Classifies sentiment across 7 aspects of cosmetic product reviews (colour, smell, texture, price, stayingpower, packing, shipping) while handling severe class imbalance and resolving conflicting opinions within the same review.
 
 The core idea: a review like "I love the colour but the smell is awful" should be classified as `colour: positive, smell: negative` — not just "mixed". That sounds obvious but getting a model to actually do this correctly requires more than just a vanilla BERT fine-tune.
-
-## Architecture
-
-The system's full UML and component architecture design, covering the ML pipeline, Aspect-Aware inference bridge, and website integration, can be found in `Clearview_Architecture.drawio`.
 
 ## What's in here
 
@@ -18,12 +14,12 @@ The system's full UML and component architecture design, covering the ML pipelin
 
 | Metric | Score |
 | --- | --- |
-| Overall Accuracy | 92.14% |
-| Overall Macro-F1 | 0.7981 |
-| Weighted F1 | 0.9242 |
-| MCC | 0.7842 |
+| Overall Accuracy | 92.36% |
+| Overall Macro-F1 | 0.7856 |
+| Weighted F1 | 0.9221 |
+| MCC | 0.7838 |
 
-Best gains from the full model (vs plain RoBERTa baseline): price aspect +9.57% F1, packing +15.81% F1. These were the worst-performing aspects due to extreme class imbalance (174:1 and 185:1 positive-to-negative ratio before augmentation).
+Best gains from the full model (vs plain RoBERTa baseline): price aspect +6.85% F1, packing +27.99% F1. These were the worst-performing aspects due to extreme class imbalance (174:1 and 185:1 positive-to-negative ratio before augmentation).
 
 ## Running it locally
 
@@ -42,6 +38,16 @@ jupyter lab notebooks/
 
 ```bash
 cd website
+
+# 1. Install backend dependencies (or ensure your ML venv is active)
+pip install -r backend/requirements.txt
+
+# 2. Install frontend dependencies (requires Node.js)
+cd frontend
+npm install
+cd ..
+
+# 3. Start the application
 ./run_all.ps1
 ```
 
@@ -57,7 +63,6 @@ Website: Next.js, TypeScript, Tailwind CSS, FastAPI
 
 ```
 Clearview/
-├── Clearview_Architecture.drawio # System architecture & UML diagram
 ├── ml-research/                  # ML core pipeline, XAI bridge, and trained models
 └── website/
     ├── frontend/                 # Next.js web application
