@@ -51,7 +51,7 @@ export default function XAIPage() {
         .map((p: any) => ({
           aspect: p.aspect,
           // top_tokens from /predict are plain strings ["word1", "word2", ...]
-          // We assign decreasing attribution scores (1.0, 0.8, 0.6...) to rank them
+          // Assign decreasing attribution scores (1.0, 0.8, 0.6...) to rank them
           tokens: (p.topTokens as any[]).map((t: any, idx: number) => ({
             token: typeof t === "string" ? t : (t[0] ?? t.token ?? String(t)),
             attribution: typeof t === "string"
@@ -70,7 +70,7 @@ export default function XAIPage() {
   // Run fast attribution on mount
   useEffect(() => {
     if (isMounted) handleFastAttribution(text);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isMounted]);
 
   const handleExplain = async () => {

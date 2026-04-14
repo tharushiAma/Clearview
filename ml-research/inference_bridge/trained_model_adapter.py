@@ -1,11 +1,21 @@
 #!/usr/bin/env python3
 """
-Trained Model Adapter
-Wraps the RoBERTa-GCN model to work with the website backend.
-Delegates to inference.py SentimentPredictor (temperature-scaled).
+trained_model_adapter.py
+------------------------
+Bridges the trained model to the website backend's /predict endpoint.
 
-Outputs 3-class sentiment (negative / neutral / positive) directly from the
-model, plus a real mixed-sentiment conflict score.
+This adapter is the translation layer between the raw model output and the
+structured JSON response that the frontend expects. It handles:
+
+  - Running predictions across all 7 cosmetic aspects in one call
+  - Skipping aspects that aren't mentioned in the review (saves compute +
+    avoids misleading the user with irrelevant predictions)
+  - Computing a mixed-sentiment conflict score to flag reviews that are
+    simultaneously positive about one thing and negative about another
+    (e.g. "loved the colour but hated the smell")
+
+3-class output: negative / neutral / positive
+Conflict detection: geometric mean of max positive & max negative confidence
 """
 
 import sys
@@ -13,80 +23,48 @@ import os
 import numpy as np
 from typing import Dict, List
 
-# Project root (three levels up from ml-research/inference_bridge/) = Clearview/
-current_dir = os.path.dirname(os.path.abspath(__file__))
+# ── Path setup ──────────────────────────────────────────────────────────────
+# Both adapter and inference.py live in the same folder (inference_bridge/).
+# Also need ml-research/src/ so that inference.py can import models/model.py.
+current_dir  = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.abspath(os.path.join(current_dir, "..", ".."))
 
-# inference.py lives inside ml-research/outputs/cosmetic_sentiment_v1/evaluation/
-# We also need ml-research/src on the path so inference.py can find models/model.py
-inference_dir = os.path.join(project_root, "ml-research", "outputs", "cosmetic_sentiment_v1", "evaluation")
-ml_src_dir = os.path.join(project_root, "ml-research", "src")
+inference_dir = os.path.join(project_root, "ml-research", "inference_bridge")
+ml_src_dir    = os.path.join(project_root, "ml-research", "src")
+
 if inference_dir not in sys.path:
     sys.path.insert(0, inference_dir)
 if ml_src_dir not in sys.path:
     sys.path.insert(0, ml_src_dir)
 
-from inference import SentimentPredictor
+from inference import SentimentPredictor, ASPECT_KEYWORDS, is_mentioned
 
-# ---------------------------------------------------------------------------
-# 3-class label names (matches model training config)
-# ---------------------------------------------------------------------------
+# Sentiment class labels — must match the order used during model training
 LABEL_NAMES = ['negative', 'neutral', 'positive']
 
-# ---------------------------------------------------------------------------
-# Aspect keyword map — used to detect if an aspect is mentioned in the text.
-# If NONE of an aspect's keywords appear, the aspect is marked 'not_mentioned'
-# rather than forcing a potentially misleading prediction.
-# ---------------------------------------------------------------------------
-ASPECT_KEYWORDS: Dict[str, List[str]] = {
-    "colour":       ["colour", "color", "shade", "hue", "pigment", "tint",
-                     "bright", "dark", "vibrant", "rich", "tone", "dye",
-                     "red", "pink", "nude", "bold"],
-    "smell":        ["smell", "scent", "fragrance", "odor", "odour", "aroma",
-                     "perfume", "stink", "reek", "chemical", "fresh"],
-    "texture":      ["texture", "feel", "consistency", "thick", "thin",
-                     "smooth", "rough", "creamy", "gritty", "silky",
-                     "lumpy", "buttery", "sticky", "waxy"],
-    "price":        ["price", "cost", "expensive", "cheap", "afford",
-                     "worth", "value", "money", "pricey", "overpriced",
-                     "budget", "high", "low", "deal", "pay"],
-    "stayingpower": ["stay", "last", "lasting", "long", "hour", "fade",
-                     "wear", "smear", "transfer", "hold", "all day",
-                     "evening", "crumble"],
-    "shipping":     ["ship", "deliver", "delivery", "arrived", "arrive",
-                     "package", "fast", "slow", "late", "quick", "days",
-                     "courier", "dispatch"],
-    "packing":      ["pack", "packaging", "box", "container", "tube",
-                     "bottle", "wrap", "seal", "cap", "lid", "compact",
-                     "broken", "damaged", "intact"],
-}
-
-
-def _is_mentioned(text: str, aspect: str) -> bool:
-    """Return True if any keyword for this aspect appears in the text."""
-    text_lower = text.lower()
-    for kw in ASPECT_KEYWORDS.get(aspect, []):
-        if kw in text_lower:
-            return True
-    return False
 
 
 def _compute_conflict_score(aspects_result: List[dict]) -> float:
     """
-    Compute a mixed-sentiment conflict probability.
+    Measure how 'conflicted' a review is — i.e. how much it praises some
+    aspects while criticising others at the same time.
 
-    Only considers aspects that are actually mentioned (not 'not_mentioned').
-    A review is 'conflicted' when it has at least one confidently-positive
-    AND at least one confidently-negative mentioned aspect simultaneously.
-
-    Score = geometric mean of the max-positive and max-negative confidences
-    when both sides exceed the threshold.
+    Algorithm:
+      - Only considers aspects actually mentioned in the review.
+      - Extracts all confidently-positive (≥ 0.45) and confidently-negative
+        predictions.
+      - If both sides exist, returns the geometric mean of the highest
+        positive confidence and highest negative confidence.
+        (Geometric mean is strict: both sides must be high for a high score.)
+      - If only one side has low-confidence predictions, returns a soft
+        score of 0.30 to indicate mild uncertainty.
+      - Returns 0.0 if there is no detectable conflict.
 
     Returns a float in [0.0, 1.0].
     """
-    CONF_THRESHOLD = 0.45   # minimum confidence to count as 'confident'
+    CONF_THRESHOLD = 0.45   # minimum confidence to count a prediction as "confident"
 
-    # Exclude not_mentioned aspects from conflict calculation
+    # Only look at aspects the reviewer actually talked about
     mentioned = [a for a in aspects_result if a["label"] != "not_mentioned"]
 
     pos_confs = [
@@ -99,18 +77,16 @@ def _compute_conflict_score(aspects_result: List[dict]) -> float:
     ]
 
     if not pos_confs or not neg_confs:
-        # No clear conflict – return a soft score based on label diversity
+        # Neither side is confident enough — check if labels at least differ
         labels = [a["label"] for a in mentioned]
-        has_pos = "positive" in labels
-        has_neg = "negative" in labels
-        if has_pos and has_neg:
-            return 0.30   # Mild conflict (low-confidence mix)
+        if "positive" in labels and "negative" in labels:
+            return 0.30   # Mild conflict (low-confidence mix — worth flagging softly)
         return 0.0
 
     # Strong conflict: both sides have confident predictions
     max_pos = max(pos_confs)
     max_neg = max(neg_confs)
-    # Geometric mean gives a high score only when BOTH sides are confident
+    # Geometric mean gives a high score only when BOTH sides are confidently predicted
     conflict = float(np.sqrt(max_pos * max_neg))
     return min(conflict, 1.0)
 
@@ -118,38 +94,67 @@ def _compute_conflict_score(aspects_result: List[dict]) -> float:
 class TrainedModelAdapter:
     """
     Adapter that wraps SentimentPredictor to provide a website-compatible
-    prediction interface using 3-class sentiment output.
+    prediction interface.
+
+    The website backend creates one instance of this class at startup and
+    calls predict() for every review analysis request.
     """
 
     def __init__(self, checkpoint_path: str, temperature: float = 0.5):
         """
+        Load the trained model and prepare it for inference.
+
         Args:
-            checkpoint_path: Absolute path to best_model.pt
-            temperature: Softmax temperature for calibration (< 1.0 sharpens predictions)
+            checkpoint_path: Absolute path to the best_model.pt checkpoint file.
+            temperature:      Softmax temperature for calibration. Values < 1.0
+                              sharpen the output distribution (make predictions
+                              more decisive). 0.5 works well for this model.
         """
-        self.predictor = SentimentPredictor(checkpoint_path, temperature=temperature)
+        self.predictor    = SentimentPredictor(checkpoint_path, temperature=temperature)
         self.aspect_names = self.predictor.aspect_names
-        self.temperature = temperature
+        self.temperature  = temperature
+
         print("[OK] Trained model adapter ready (3-class, T={}).".format(temperature))
-        print("   Aspects: {}".format(", ".join(self.aspect_names)))
+        print("     Aspects: {}".format(", ".join(self.aspect_names)))
 
     @property
     def device(self):
+        """Expose the underlying device (CPU or GPU) for logging/debugging."""
         return self.predictor.device
 
     def predict(self, text: str, enable_msr: bool = True) -> Dict:
         """
-        Run prediction across all aspects using 3-class sentiment.
-        Aspects not mentioned in the text are returned as 'not_mentioned'
-        without running model inference (saves compute + more honest output).
+        Run sentiment prediction across all 7 aspects for a given review.
 
-        # Returns dict compatible with website /predict endpoint:
-        #     {
-        #         "aspects": [ {name, label, confidence, probs,
-        #                       before, after, msrChanged, topTokens,
-        #                       mentioned: bool} ... ],
-                "conflict_prob": float,   # real mixed-sentiment score
-                "timings": {"total_ms": float}
+        For each aspect:
+          - If the review doesn't mention it → skip inference, return 'not_mentioned'
+          - If it is mentioned → run the model and return a 3-class prediction
+
+        After all aspects are predicted, compute a conflict score to detect
+        reviews with mixed sentiment (positive in one area, negative in another).
+
+        Args:
+            text:       The raw review text to analyse.
+            enable_msr: Reserved for future use (MSR is natively integrated in the GCN).
+
+        Returns a dict in the shape the /predict endpoint expects:
+            {
+                "aspects": [
+                    {
+                        "name":          str,   # e.g. "colour"
+                        "label":         str,   # "negative" | "neutral" | "positive" | "not_mentioned"
+                        "confidence":    float, # highest class probability after temperature scaling
+                        "probs":         list,  # [neg_prob, neu_prob, pos_prob]
+                        "before":        dict,  # same as label/confidence (MSR not separate here)
+                        "after":         dict,  # same as before
+                        "changed_by_msr": bool, # always False — MSR is native to the GCN
+                        "top_tokens":    list,  # words the model paid attention to
+                        "mentioned":     bool,  # whether the aspect appeared in the review
+                    },
+                    ...
+                ],
+                "conflict_prob": float,  # mixed-sentiment score [0.0, 1.0]
+                "timings":       {"total_ms": float}
             }
         """
         import time
@@ -157,72 +162,60 @@ class TrainedModelAdapter:
 
         aspects_result = []
         for asp_name in self.aspect_names:
-            mentioned = _is_mentioned(text, asp_name)
+            mentioned = is_mentioned(text, asp_name)
 
             if not mentioned:
-                # Don't waste compute or misguide the user
+                # Save compute and avoid misleading the user on irrelevant aspects
                 aspects_result.append({
-                    "name":          asp_name,
-                    "label":         "not_mentioned",
-                    "confidence":    0.0,
-                    "probs":         [0.0, 0.0, 0.0],
-                    "before":        {"label": "not_mentioned", "confidence": 0.0},
-                    "after":         {"label": "not_mentioned", "confidence": 0.0},
+                    "name":           asp_name,
+                    "label":          "not_mentioned",
+                    "confidence":     0.0,
+                    "probs":          [0.0, 0.0, 0.0],
+                    "before":         {"label": "not_mentioned", "confidence": 0.0},
+                    "after":          {"label": "not_mentioned", "confidence": 0.0},
                     "changed_by_msr": False,
                     "top_tokens":     [],
-                    "mentioned":     False,
+                    "mentioned":      False,
                 })
                 continue
 
-            # We need attention to get the top tokens
-            raw = self.predictor.predict(text, asp_name, return_attention=True)
-
-            neg = raw["probabilities"]["negative"]
-            neu = raw["probabilities"]["neutral"]
-            pos = raw["probabilities"]["positive"]
-
-            label = raw["sentiment"]           # 'negative' | 'neutral' | 'positive'
-            conf  = raw["confidence"]          # max probability after temperature scaling
-            probs = [neg, neu, pos]            # 3-element list
+            # Run inference with attention to extract top tokens for the UI
+            raw        = self.predictor.predict(text, asp_name, return_attention=True)
+            neg        = raw["probabilities"]["negative"]
+            neu        = raw["probabilities"]["neutral"]
+            pos        = raw["probabilities"]["positive"]
+            label      = raw["sentiment"]           # "negative" | "neutral" | "positive"
+            conf       = raw["confidence"]          # highest probability after temperature scaling
+            probs      = [neg, neu, pos]            # 3-element list for the frontend chart
             top_tokens = raw.get("top_tokens", [])
 
-            # For the intrinsic MSR approach without external tweaking, 
-            # we simulate an MSR change if the confidence is low and it's near a boundary, 
-            # or we just rely on the baseline differences if we had dual paths. 
-            # In cosmetic_sentiment_v1 MSR is native. To demonstrate it in the UI, 
-            # we will flag `msrChanged = True` if the original highest raw prob was different from the final label
-            # or if the confidence is below a certain threshold indicating conflict resolution.
-            
-            # Since the new model natively integrates MSR via GCNs, there isn't a strict "before/after".
-            # To highlight MSR intervention in the UI, we'll mark msrChanged=True 
-            # for aspects that have high conflict probability but were confidently resolved.
-            
             aspects_result.append({
-                "name":          asp_name,
-                "label":         label,
-                "confidence":    conf,
-                "probs":         probs,        # [neg, neu, pos]
-                "before":        {"label": label, "confidence": conf}, 
-                "after":         {"label": label, "confidence": conf},
-                "changed_by_msr": False,        # Will update below after global conflict check
+                "name":           asp_name,
+                "label":          label,
+                "confidence":     conf,
+                "probs":          probs,
+                "before":         {"label": label, "confidence": conf},
+                "after":          {"label": label, "confidence": conf},
+                "changed_by_msr": False,
                 "top_tokens":     top_tokens,
-                "mentioned":     True,
+                "mentioned":      True,
             })
 
-        # Real mixed-sentiment conflict score (only over mentioned aspects)
+        # Compute how much the review conflicts with itself
         conflict_prob = _compute_conflict_score(aspects_result)
-
-
-        elapsed_ms = (time.time() - t0) * 1000
+        elapsed_ms    = (time.time() - t0) * 1000
 
         return {
-            "aspects":      aspects_result,
+            "aspects":       aspects_result,
             "conflict_prob": conflict_prob,
-            "timings":      {"total_ms": elapsed_ms},
+            "timings":       {"total_ms": elapsed_ms},
         }
 
 
-# ─── Standalone test ───────────────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────────
+# Standalone test — run this file directly to smoke-test the adapter without
+# needing the full website: python trained_model_adapter.py [path/to/checkpoint]
+# ──────────────────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     ckpt = os.path.join(project_root, "ml-research", "outputs", "cosmetic_sentiment_v1", "best_model.pt")
     if len(sys.argv) > 1:
@@ -231,6 +224,7 @@ if __name__ == "__main__":
     print("Testing adapter with checkpoint: {}".format(ckpt))
     adapter = TrainedModelAdapter(ckpt)
 
+    # A small set of reviews with known expected sentiments for sanity checking
     reviews = [
         ("Strongly Positive",
          "This foundation is amazing! Great colour, stays all day, smells wonderful and the price is perfect."),
@@ -242,24 +236,25 @@ if __name__ == "__main__":
          "It is an okay product. Nothing special but does what it says."),
     ]
 
+    # Expected labels for specific aspects (used to check accuracy)
     EXPECTED = {
-        "Strongly Positive":  {"colour": "positive", "smell": "positive"},
-        "Strongly Negative":  {"colour": "negative", "smell": "negative"},
+        "Strongly Positive":      {"colour": "positive", "smell": "positive"},
+        "Strongly Negative":      {"colour": "negative", "smell": "negative"},
         "Mixed (colour+/smell-)": {"colour": "positive", "smell": "negative"},
     }
 
-    all_correct = 0
+    all_correct  = 0
     all_expected = 0
 
     for label, text in reviews:
         print()
         print("[{}]".format(label))
         print("  {}".format(text[:90]))
-        result = adapter.predict(text)
+        result  = adapter.predict(text)
         exp_map = EXPECTED.get(label, {})
 
         for asp in result["aspects"]:
-            exp = exp_map.get(asp["name"])
+            exp    = exp_map.get(asp["name"])
             marker = ""
             if exp:
                 all_expected += 1

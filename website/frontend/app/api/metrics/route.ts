@@ -55,7 +55,7 @@ export async function GET() {
             ],
             balancedAccuracy: data.overall?.accuracy || 0.91,
             brierScore: data.brier_score || 0.082,
-            msrErrorReduction: data.msr_error_reduction || (mixed.mixed_detection_rate / 100) || 0.54,
+            msrErrorReduction: data.msr_error_reduction || (mixed.mixed_prevalence / 100) || 0.54,
             p95LatencyMs: data.p95_latency || 124,
             memoryUsageMB: data.memory || 452,
         };
