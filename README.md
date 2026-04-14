@@ -1,18 +1,18 @@
-# ClearView — Multi-Aspect Sentiment Analysis for Cosmetic Reviews
+# ClearView — Multi-Aspect Mixed Sentiment Resolution for Cosmetic Reviews
 
 My final year project. Classifies sentiment across 7 aspects of cosmetic product reviews (colour, smell, texture, price, stayingpower, packing, shipping) while handling severe class imbalance and resolving conflicting opinions within the same review.
 
 The core idea: a review like "I love the colour but the smell is awful" should be classified as `colour: positive, smell: negative` — not just "mixed". That sounds obvious but getting a model to actually do this correctly requires more than just a vanilla BERT fine-tune.
 
+## Architecture
+
+The system's full UML and component architecture design, covering the ML pipeline, Aspect-Aware inference bridge, and website integration, can be found in `Clearview_Architecture.drawio`.
+
 ## What's in here
 
-**`ml-research/`** — the actual ML work: RoBERTa + aspect attention + dependency GCN, hybrid loss functions, ablation experiments, XAI methods. See [`ml-research/README.md`](ml-research/README.md) for setup.
+**`ml-research/`** — the core ML pipeline: data preprocessing, RoBERTa + aspect attention + dependency GCN, hybrid loss functions, ablation experiments, inference bridge and XAI methods (SHAP, LIME, Integrated Gradients).
 
-**`website/`** — a Next.js frontend + FastAPI backend that lets you type in a review and see the predictions and explanations. See [`DEPLOYMENT.md`](DEPLOYMENT.md) to host it.
-
-**`thesis/`** — thesis chapters as markdown files.
-
-**`docs/`** — research notes and data analysis reports.
+**`website/`** — a Next.js frontend + FastAPI backend that lets you type in a review to see aspect-level sentiment predictions alongside detailed XAI visual explanations.
 
 ## Quick numbers
 
@@ -51,17 +51,15 @@ Frontend at <http://localhost:3000>, backend at <http://localhost:8000>.
 
 ML: PyTorch, HuggingFace Transformers, RoBERTa-base, Captum, SHAP, LIME, spaCy
 
-Website: Next.js, TypeScript, Tailwind CSS, FastAPI, Uvicorn
+Website: Next.js, TypeScript, Tailwind CSS, FastAPI
 
 ## Structure
 
 ```
 Clearview/
-├── ml-research/      # ML code, notebooks, trained model
-├── website/
-│   ├── frontend/     # Next.js app
-│   └── backend/      # FastAPI server
-├── thesis/           # Thesis chapters
-├── docs/             # Research notes
-└── DEPLOYMENT.md     # Hosting guide
+├── Clearview_Architecture.drawio # System architecture & UML diagram
+├── ml-research/                  # ML core pipeline, XAI bridge, and trained models
+└── website/
+    ├── frontend/                 # Next.js web application
+    └── backend/                  # FastAPI inference server serving XAI
 ```
