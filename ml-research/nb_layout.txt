@@ -1,0 +1,8 @@
+[0] markdown: # `evaluate.py` — Batch Evaluation Script\n\n## Purpose\nRuns **batch evaluation** of the trained model
+[1] code: print("⏳ Starting: Running MSR evaluation...")\nimport time\n_start_time = time.time()\nimport os, yaml
+[2] markdown: ## Loading the Checkpoint
+[3] code: print("⏳ Starting: Defining function load_model...")\nimport time\n_start_time = time.time()\ndef load_
+[4] markdown: ## Batch Prediction Loop
+[5] code: print("⏳ Starting: Defining function evaluate_model...")\nfrom tqdm.auto import tqdm\nimport time\n_sta
+[6] markdown: ## CLI Entry Point
+[7] code: print("⏳ Starting: Loading dependencies and libraries...")\nimport time\n_start_time = time.time()\n# ─

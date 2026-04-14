@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
       ckpt_path: body.ckpt_path,
     });
 
-    // We use the native http/https module to bypass the global fetch 5-minute timeout.
+    // Use the native http/https module to bypass the global fetch 5-minute timeout.
     const result = await new Promise<ExplainResponse>((resolve, reject) => {
       let url: URL;
       try {
@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
       }
 
       const client = url.protocol === 'https:' ? https : http;
-      
+
       const req = client.request(url, {
         method: 'POST',
         headers: {
@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
           reject(err);
         }
       });
-      
+
       req.on('timeout', () => {
         req.destroy();
         reject(new Error('TIMEOUT_ERROR'));
@@ -124,7 +124,7 @@ export async function POST(request: NextRequest) {
         { status: 504 }
       );
     }
-    
+
     if (error.message && error.message.includes('Backend server is not running')) {
       return NextResponse.json(
         {

@@ -24,7 +24,7 @@ if hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")  # type: ignore
 
 # This file lives at website/backend/backend_server.py
-# To import `from backend.main import app`, we need website/ on sys.path
+# To import `from backend.main import app`, need website/ on sys.path
 _this_file = os.path.abspath(__file__)
 _backend_dir = os.path.dirname(_this_file)
 _website_dir = os.path.dirname(_backend_dir)

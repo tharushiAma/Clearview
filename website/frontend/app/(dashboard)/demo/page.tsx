@@ -31,7 +31,7 @@ const SENTIMENT_COLORS: Record<SentimentLabel, string> = {
 
 export default function DemoPage() {
   const [text, setText] = useState(
-    "This lipstick has amazing staying power and the color is beautiful and looks same as the picture, but the smell is too strong and the packaging looks cheap."
+    "The color is beautiful as same as the picture, but the smell is bit strong for a lipstick and this is more expensive compared to other stores"
   );
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<PredictionResult | null>(null);

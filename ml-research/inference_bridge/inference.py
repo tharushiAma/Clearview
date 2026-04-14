@@ -1,23 +1,43 @@
 """
-Inference script for making predictions with trained model
+inference.py
+------------
+Core inference engine for the cosmetic review sentiment model.
+
+This file is the heart of the prediction system. It wraps the trained
+RoBERTa-GCN model and handles everything needed to turn raw review text
+into a sentiment prediction:
+  - Text cleaning (matching exactly what was done during training)
+  - Tokenisation via the RoBERTa tokenizer
+  - Forward pass through the model with temperature-scaled softmax
+  - Returns: sentiment label, confidence score, and class probabilities
+
+Following explainability methods are used
+  1. Attention weights       — fast, shows what the model "focused on"
+  2. LIME                    — perturbs words and measures their contribution
+  3. SHAP                    — game-theory approach to word attribution
+  4. Integrated Gradients    — mathematically principled gradient-based attribution
+
+Called by:
+  - trained_model_adapter.py  (for normal /predict requests from the website)
+  - trained_model_xai.py      (for /explain XAI requests from the website)
+  - XAI test notebook         (for standalone research and debugging)
 """
 
 import torch
-import yaml
 import numpy as np
 from transformers import RobertaTokenizer
-from pathlib import Path
 import sys
 import os
 import matplotlib.pyplot as plt
-import seaborn as sns
 from tqdm.auto import tqdm
 import time
 
+# ── Path setup ──────────────────────────────────────────────────────────────
+# Make sure Python can find both this directory (for local imports) and
+# ml-research/src/ where models/model.py lives.
 _this_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(_this_dir)
 
-# models/model.py lives in ml-research/src/models/ — add that directory to the path
 _ml_src_dir = os.path.abspath(os.path.join(_this_dir, "..", "src"))
 if _ml_src_dir not in sys.path:
     sys.path.insert(0, _ml_src_dir)
@@ -25,45 +45,97 @@ if _ml_src_dir not in sys.path:
 from models.model import create_model
 
 
-# ── Text cleaning (mirrors 02_preprocess_and_split.ipynb pipeline) ──────────
-# This ensures inference-time text matches what the model was trained on.
+# ── Text cleaning ────────────────────────────────────────────────────────────
+# These patterns and the function below exactly mirror 02_preprocess_and_split.ipynb.
+# Keeping inference cleaning identical to training is critical - any mismatch
+# means the model sees text patterns it has never been trained on.
 import re as _re
 import unicodedata as _ud
 import html as _html
 
-_HTML_TAG_RE    = _re.compile(r'<[^>]+>')
-_HTML_ENTITY_RE = _re.compile(r'&(?:#\d+|#x[\da-fA-F]+|[a-zA-Z]+);')
+_HTML_TAG_RE    = _re.compile(r'<[^>]+>')                               # <br>, <p>, etc.
+_HTML_ENTITY_RE = _re.compile(r'&(?:#\d+|#x[\da-fA-F]+|[a-zA-Z]+);')  # &amp;, &#39;, etc.
 _URL_RE         = _re.compile(r'https?://\S+|www\.\S+|ftp://\S+', _re.IGNORECASE)
 _EMAIL_RE       = _re.compile(r'[\w.+-]+@[\w-]+\.[a-zA-Z]{2,}', _re.IGNORECASE)
 
 def clean_text_for_inference(text: str) -> str:
-    """Master cleaning pipeline: validate -> NFC -> HTML -> URLs -> whitespace."""
+    """
+    Clean a review before sending it to the model.
+
+    Applies the same 5-step pipeline used during training so the model sees
+    familiar text patterns:
+      1. Unicode NFC normalisation
+      2. HTML entity decoding and tag removal
+      3. URL / email removal
+      4. Punctuation normalisation and invisible character removal
+      5. Whitespace collapse
+
+    Returns an empty string if the input is blank or not a string.
+    """
     if not isinstance(text, str) or not text.strip():
         return ""
-    
-    # 1. Unicode NFC normalisation
+
+    # Step 1: Normalise Unicode combining characters into a single canonical form
     text = _ud.normalize('NFC', text)
-    
-    # 2. HTML tag & entity removal
+
+    # Step 2: Decode HTML entities (e.g. &amp; → &) and strip remaining HTML tags
     text = _html.unescape(text)
     text = _HTML_ENTITY_RE.sub(' ', text)
     text = _HTML_TAG_RE.sub(' ', text)
-    
-    # 3. URL / e-mail removal
+
+    # Step 3: Replace URLs and email addresses with whitespace
     text = _URL_RE.sub(' ', text)
     text = _EMAIL_RE.sub(' ', text)
-    
-    # 4. Normalise punctuation and invisible characters
-    text = _re.sub(r'\.{3,}', '…', text)
-    text = _re.sub(r'!{2,}',   '!', text)
-    text = _re.sub(r'\?{2,}',  '?', text)
-    text = _re.sub(r'[\u200b-\u200f\u202a-\u202e\ufeff]', '', text)
-        
-    # 5. Whitespace collapse
+
+    # Step 4: Collapse noisy punctuation and remove invisible Unicode control chars
+    text = _re.sub(r'\.{3,}', '…', text)                               # "..." → single ellipsis
+    text = _re.sub(r'!{2,}',   '!', text)                              # "!!!" → "!"
+    text = _re.sub(r'\?{2,}',  '?', text)                              # "???" → "?"
+    text = _re.sub(r'[\u200b-\u200f\u202a-\u202e\ufeff]', '', text)    # zero-width & BOM chars
+
+    # Step 5: Collapse all whitespace (tabs, newlines, double-spaces) into single spaces
     text = _re.sub(r'[\t\r\n]+', ' ', text)
     text = _re.sub(r' {2,}', ' ', text)
-    
+
     return text.strip()
+
+# ── Aspect Mention Detection ────────────────────────────────────────────────
+# Before running expensive RoBERTa-GCN inference, need to perform a quick keyword check.
+# If a review doesn't contains any keywords for an aspect, skip it to avoid sentiment for missing features.
+ASPECT_KEYWORDS = {
+    "colour":       ["colour", "color", "shade", "hue", "pigment", "tint",
+                     "bright", "dark", "vibrant", "rich", "tone", "dye",
+                     "red", "pink", "nude", "bold"],
+    "smell":        ["smell", "scent", "fragrance", "odor", "odour", "aroma",
+                     "perfume", "stink", "reek", "chemical", "fresh"],
+    "texture":      ["texture", "feel", "consistency", "thick", "thin",
+                     "smooth", "rough", "creamy", "gritty", "silky",
+                     "lumpy", "buttery", "sticky", "waxy","feels"],
+    "price":        ["price", "cost", "expensive", "cheap", "afford",
+                     "worth", "value", "money", "pricey", "overpriced",
+                     "budget", "high", "low", "deal", "pay"],
+    "stayingpower": ["stay", "last", "lasting", "long", "hour", "fade",
+                     "wear", "smear", "transfer", "hold", "all day",
+                     "evening", "crumble"],
+    "shipping":     ["ship", "deliver", "delivery", "arrived", "arrive",
+                     "package", "fast", "slow", "late", "quick", "days",
+                     "courier", "dispatch"],
+    "packing":      ["pack", "packaging", "box", "container", "tube",
+                     "bottle", "wrap", "seal", "cap", "lid", "compact",
+                     "broken", "damaged", "intact"],
+}
+
+def is_mentioned(text: str, aspect: str) -> bool:
+    """Return True if the review text mentions keywords for this aspect."""
+    text_lower = text.lower()
+    for kw in ASPECT_KEYWORDS.get(aspect, []):
+        if kw in text_lower:
+            return True
+    return False
+
+def clean_token(token: str) -> str:
+    """Clean special RoBERTa characters (like 'Ġ') for safe terminal printing."""
+    return token.lstrip('Ġ▁').strip()
 
 
 class SentimentPredictor:
@@ -151,14 +223,6 @@ class SentimentPredictor:
         attention_mask = encoding['attention_mask'].to(self.device)
         aspect_id = torch.tensor([self.aspect_to_id[aspect]], dtype=torch.long).to(self.device)
         
-        # CRITICAL: The model was trained with the GCN path (edge_index provided).
-        # Without edge_index, model.forward() takes a shortcut at line ~255 and
-        # returns raw 'attn_predictions' from AspectAwareRoBERTa, bypassing the
-        # final_classifier that was actually optimised during training.
-        # Providing an empty edge_index list forces the GCN branch, which falls
-        # back to zero tensors for missing edges (model.py line 283) and then
-        # applies final_classifier on combined [attention + gcn] features.
-        # This is the same code path that achieved 92% weighted accuracy.
         empty_edge_index = [torch.zeros(2, 0, dtype=torch.long).to(self.device)]
         
         # Predict
@@ -176,10 +240,6 @@ class SentimentPredictor:
                 )
         
         # Apply temperature scaling before softmax.
-        # The model's raw logits have a small range (~0.1-0.3) which, without
-        # temperature scaling, results in near-uniform softmax output (~0.33 each).
-        # Dividing by temperature < 1.0 amplifies the difference between logits,
-        # producing confident, discriminative predictions.
         scaled_logits = logits / self.temperature
         probs = torch.softmax(scaled_logits, dim=1)[0]
         pred_class = torch.argmax(probs).item()
@@ -212,9 +272,6 @@ class SentimentPredictor:
             }
             
             # Extract Top 5 tokens (excluding special tokens and padding)
-            # NOTE: In RoBERTa's BPE tokenizer, 'Ġ' marks the START of a new word.
-            # We INCLUDE Ġ-prefixed tokens (they are the real words) and strip the prefix.
-            # We EXCLUDE only the true special tokens: <s>, </s>, <pad>.
             import numpy as np
             SPECIAL = {'<s>', '</s>', '<pad>', '<mask>'}
             # Common stopwords that carry no sentiment signal
@@ -248,12 +305,13 @@ class SentimentPredictor:
             
         return result
     
-    def predict_all_aspects(self, text):
+    def predict_all_aspects(self, text, filter_mentions=True):
         """
         Predict sentiment for all aspects
         
         Args:
             text: Input review text
+            filter_mentions: If True, skips aspects not mentioned in text
             
         Returns:
             predictions: Dict mapping aspect to prediction
@@ -263,6 +321,14 @@ class SentimentPredictor:
         print(f"Starting: Predicting for all {len(self.aspect_names)} aspects...")
         for aspect in tqdm(self.aspect_names, desc="Predicting aspects"):
             try:
+                if filter_mentions and not is_mentioned(text, aspect):
+                    predictions[aspect] = {
+                        'sentiment': 'not_mentioned',
+                        'confidence': 0.0,
+                        'probabilities': {'negative': 0.0, 'neutral': 0.0, 'positive': 0.0}
+                    }
+                    continue
+
                 pred = self.predict(text, aspect)
                 predictions[aspect] = pred
             except Exception as e:
@@ -303,9 +369,10 @@ class SentimentPredictor:
         token_weights.sort(key=lambda x: x[1], reverse=True)
         
         for token, weight in token_weights[:10]:  # Top 10 tokens
+            safe_token = clean_token(token)
             bar_length = int(weight * 50)
             bar = '█' * bar_length
-            print(f"{token:20s} {bar} {weight:.4f}")
+            print(f"{safe_token:20s} {bar} {weight:.4f}")
     
     def explain_with_lime(self, text, aspect, num_features=10, num_samples=1000):
         """
@@ -417,11 +484,12 @@ class SentimentPredictor:
         print(f"Top {num_features} influential words/phrases:")
         print("-" * 70)
         for word, weight in feature_weights[:num_features]:
-            direction = "POSITIVE" if weight > 0 else "NEGATIVE"
+            safe_word = clean_token(word)
+            direction = "Supports" if weight > 0 else "Opposes"
             bar_length = int(abs(weight) * 30)
             bar = '█' * bar_length
             color = '+' if weight > 0 else '-'
-            print(f"{word:20s} [{color}] {bar} {weight:+.4f} ({direction})")
+            print(f"{safe_word:20s} [{color}] {bar} {weight:+.4f} ({direction} {result['sentiment']})")
         
         # Create visualization
         fig = explanation.as_pyplot_figure(label=predicted_class)
@@ -480,7 +548,7 @@ class SentimentPredictor:
         valid_length = attention_mask[0].sum().item()
         tokens = tokens[:valid_length]
         
-        print(f"⌛ Starting: Generating SHAP explanation...")
+        print(f"Starting: Generating SHAP explanation...")
         # Create a wrapper function for SHAP
         def model_predict(input_ids_list):
             """Wrapper for SHAP predictions.
@@ -549,11 +617,12 @@ class SentimentPredictor:
         print(f"Top 10 influential tokens (SHAP values):")
         print("-" * 70)
         for token, value in token_importance[:10]:
-            direction = "POSITIVE" if value > 0 else "NEGATIVE"
+            safe_token = clean_token(token)
+            direction = "Supports" if value > 0 else "Opposes"
             bar_length = int(abs(value) * 50)
             bar = '█' * bar_length
             color = '+' if value > 0 else '-'
-            print(f"{token:20s} [{color}] {bar} {value:+.4f} ({direction})")
+            print(f"{safe_token:20s} [{color}] {bar} {value:+.4f} ({direction} {result['sentiment']})")
         
         # Create visualization
         if plot:
@@ -592,12 +661,11 @@ class SentimentPredictor:
     # Integrated Gradients
     # ─────────────────────────────────────────────────────────────────────
     def explain_with_integrated_gradients(self, text, aspect, target_label=None,
-                                          n_steps=50, top_k=12, save_path=None):
+                                          n_steps=50, top_k=10, save_path=None, silent=False):
         """
         Generate Integrated Gradients explanation for a prediction.
 
-        Integrated Gradients (Sundararajan et al., 2017) computes the
-        attribution of each input token by integrating gradients from a
+        Integrated Gradients computes the attribution of each input token by integrating gradients from a
         baseline (all-PAD) to the actual input along a straight-line path.
         This manual implementation uses a Riemann sum to bypass HuggingFace
         embedding graph disconnection issues while achieving the exact
@@ -612,6 +680,7 @@ class SentimentPredictor:
                           but slower; 50 is a good balance)
             top_k:        Number of top tokens to print
             save_path:    Optional path to save the bar-chart PNG
+            silent:       If True, suppresses console output and chart rendering.
 
         Returns:
             dict with keys:
@@ -648,7 +717,7 @@ class SentimentPredictor:
         self.model.eval()
 
         # Extract real text embeddings
-        # We need gradients on the inputs to roberta, so we extract word embeddings explicitly.
+        # Need gradients on the inputs to roberta, so extract word embeddings explicitly.
         with torch.no_grad():
             real_embeds = self.model.aspect_aware_roberta.roberta.embeddings.word_embeddings(input_ids)
             
@@ -659,7 +728,7 @@ class SentimentPredictor:
         # Accumulator for gradients
         total_gradients = torch.zeros_like(real_embeds).to(self.device)
 
-        print(f"⌛ Starting: Computing Integrated Gradients (steps={n_steps})...")
+        print(f"Starting: Computing Integrated Gradients (steps={n_steps})...")
         # Manual Integrated Gradients Loop (Riemann Sum)
         for i in tqdm(range(1, n_steps + 1), desc="IG steps"):
             alpha = i / n_steps
@@ -706,7 +775,8 @@ class SentimentPredictor:
             
             # Accumulate gradients
             with torch.no_grad():
-                total_gradients += interpolated_embeds.grad
+                if interpolated_embeds.grad is not None:
+                    total_gradients = total_gradients + interpolated_embeds.grad
 
         # Average the gradients and multiply by (input - baseline) as per IG formula
         avg_gradients = total_gradients / n_steps
@@ -724,26 +794,31 @@ class SentimentPredictor:
         max_abs = np.abs(scores).max() + 1e-9
         scores_norm = scores / max_abs
 
-        # ── Print results ─────────────────────────────────────────────────
-        print(f"\n{'='*70}")
-        print(f"Integrated Gradients Explanation")
-        print(f"{'='*70}")
-        print(f"Text:          {text}")
-        print(f"Aspect:        {aspect}")
-        print(f"Target class:  {target_label}")
-        print(f"Confidence:    {result['confidence']:.2%}")
-        print(f"{'='*70}\n")
+        # Print results 
+        if not silent:
+            print(f"\n{'='*70}")
+            print(f"Integrated Gradients Explanation")
+            print(f"{'='*70}")
+            print(f"Text:          {text}")
+            print(f"Aspect:        {aspect}")
+            print(f"Target class:  {target_label}")
+            print(f"Confidence:    {result['confidence']:.2%}")
+            print(f"{'='*70}\n")
 
-        token_scores = sorted(zip(tokens, scores_norm), key=lambda x: abs(x[1]), reverse=True)
-        print(f"Top {top_k} tokens by attribution:")
-        print("-" * 70)
-        for tok, sc in token_scores[:top_k]:
-            direction = "supports" if sc > 0 else "opposes"
-            bar = '█' * int(abs(sc) * 30)
-            sign = '+' if sc > 0 else '-'
-            print(f"  {tok:20s} [{sign}] {bar:<30s} {sc:+.3f}  ({direction} {target_label})")
+            token_scores = sorted(zip(tokens, scores_norm), key=lambda x: abs(x[1]), reverse=True)
+            print(f"Top {top_k} tokens by attribution:")
+            print("-" * 70)
+            for tok, sc in token_scores[:top_k]:
+                safe_tok = clean_token(tok)
+                direction = "supports" if sc > 0 else "opposes"
+                bar = '█' * int(abs(sc) * 30)
+                sign = '+' if sc > 0 else '-'
+                print(f"  {safe_tok:20s} [{sign}] {bar:<30s} {sc:+.3f}  ({direction} {target_label})")
+            print("-" * 70)
+        else:
+            token_scores = sorted(zip(tokens, scores_norm), key=lambda x: abs(x[1]), reverse=True)
 
-        # ── Visualise ─────────────────────────────────────────────────────
+        # Visualise 
         if save_path:
             fig, ax = plt.subplots(figsize=(12, max(4, valid_length * 0.22)))
             colors = ['#27ae60' if s > 0 else '#c0392b' for s in scores_norm]
@@ -770,6 +845,34 @@ class SentimentPredictor:
             'target_label': target_label,
             'confidence':   result['confidence']
         }
+
+def run_explanation_demo(predictor, method, text, aspect, save_path=None):
+    """
+    Helper function to run the chosen explanation method. 
+    Reuses the core visualization methods from SentimentPredictor.
+    """
+    if method == 'none':
+        return
+
+    # Handle 'all' by chaining the others
+    methods_to_run = [method]
+    if method == 'all':
+        methods_to_run = ['attention', 'lime', 'shap', 'ig']
+
+    for m in methods_to_run:
+        path = save_path
+        if path and method == 'all' and m != 'attention':
+             path = path.replace('.', f'_{m}.')
+
+        if m == 'attention':
+            predictor.visualize_attention(text, aspect)
+        elif m == 'lime':
+            predictor.visualize_lime(text, aspect, save_path=path)
+        elif m == 'shap':
+            predictor.explain_with_shap(text, aspect, plot=True, save_path=path)
+        elif m == 'ig':
+            predictor.explain_with_integrated_gradients(text, aspect, save_path=path)
+
 
 def main():
     """Interactive inference demo"""
@@ -798,51 +901,45 @@ def main():
     
     if args.text and args.aspect:
         # Single prediction mode
-        result = predictor.predict(args.text, args.aspect, return_attention=True)
-        
-        print(f"\nText: {args.text}")
-        print(f"Aspect: {args.aspect}")
-        print(f"\nPrediction: {result['sentiment']}")
-        print(f"Confidence: {result['confidence']:.2%}")
-        print(f"\nProbabilities:")
-        for sentiment, prob in result['probabilities'].items():
-            print(f"  {sentiment}: {prob:.2%}")
-        
-        # Generate explanations based on user choice
-        if args.explain in ['attention', 'all']:
+        if args.aspect.lower() == 'all':
+            predictions = predictor.predict_all_aspects(args.text)
+            print(f"\nText: {args.text}")
             print(f"\n{'='*70}")
-            print("ATTENTION-BASED EXPLANATION")
+            print("Predictions for all aspects:")
             print(f"{'='*70}")
-            if 'attention' in result:
-                tokens = result['attention']['tokens']
-                weights = result['attention']['weights']
-                token_weights = sorted(zip(tokens, weights), key=lambda x: x[1], reverse=True)
-                
-                print("\nTop 10 Attention Tokens:")
-                for token, weight in token_weights[:10]:
-                    bar_length = int(weight * 50)
-                    bar = '█' * bar_length
-                    print(f"  {token:20s} {bar} {weight:.4f}")
-        
-        if args.explain in ['lime', 'all']:
-            save_path = args.save_path if args.save_path else None
-            if save_path and args.explain == 'all':
-                save_path = save_path.replace('.', '_lime.')
-            predictor.visualize_lime(args.text, args.aspect, save_path=save_path)
-        
-        if args.explain in ['shap', 'all']:
-            save_path = args.save_path if args.save_path else None
-            if save_path and args.explain == 'all':
-                save_path = save_path.replace('.', '_shap.')
-            predictor.explain_with_shap(args.text, args.aspect, plot=True, save_path=save_path)
-        
-        if args.explain in ['ig', 'all']:
-            save_path = args.save_path if args.save_path else None
-            if save_path and args.explain == 'all':
-                save_path = save_path.replace('.', '_ig.')
-            predictor.explain_with_integrated_gradients(
-                args.text, args.aspect, save_path=save_path
-            )
+            for asp, pred in predictions.items():
+                if pred:
+                    label = pred['sentiment']
+                    if label == 'not_mentioned':
+                        print(f"{asp:15s}: [NOT MENTIONED]")
+                    else:
+                        print(f"{asp:15s}: {label:8s} ({pred['confidence']:.2%})")
+                else:
+                    print(f"{asp:15s}: ERROR")
+            
+            # Run XAI for all mentioned aspects if requested
+            if args.explain != 'none':
+                for asp, pred in predictions.items():
+                    if pred and pred['sentiment'] != 'not_mentioned':
+                        run_explanation_demo(predictor, args.explain, args.text, asp, save_path=args.save_path)
+        else:
+            result = predictor.predict(args.text, args.aspect, return_attention=True)
+            
+            print(f"\nText: {args.text}")
+            print(f"Aspect: {args.aspect}")
+            
+            # Check for mention
+            if not is_mentioned(args.text, args.aspect):
+                print(f"[NOTE] Aspect '{args.aspect}' is not explicitly mentioned in this text.")
+            
+            print(f"\nPrediction: {result['sentiment']}")
+            print(f"Confidence: {result['confidence']:.2%}")
+            print(f"\nProbabilities:")
+            for sentiment, prob in result['probabilities'].items():
+                print(f"  {sentiment}: {prob:.2%}")
+            
+            # Generate explanations using helper
+            run_explanation_demo(predictor, args.explain, args.text, args.aspect, save_path=args.save_path)
         
     else:
         # Interactive mode
@@ -865,6 +962,17 @@ def main():
             
             aspect = input(f"Enter aspect ({', '.join(predictor.aspect_names)}, or 'all'): ").strip()
             
+            if aspect.lower() != 'all' and aspect not in predictor.aspect_to_id:
+                print(f"Invalid aspect. Must be one of: {', '.join(predictor.aspect_names)}")
+                continue
+
+            # Ask for explanation method
+            default_xai = 'attention' if aspect.lower() != 'all' else 'none'
+            xai_prompt = f"Explainability method (attention/lime/shap/ig/all/none) [default: {default_xai}]: "
+            explain_method = input(xai_prompt).strip().lower()
+            if not explain_method:
+                explain_method = default_xai
+
             if aspect.lower() == 'all':
                 # Predict all aspects
                 predictions = predictor.predict_all_aspects(text)
@@ -875,35 +983,34 @@ def main():
                 
                 for asp, pred in predictions.items():
                     if pred:
-                        print(f"{asp:15s}: {pred['sentiment']:8s} ({pred['confidence']:.2%})")
+                        label = pred['sentiment']
+                        if label == 'not_mentioned':
+                            print(f"{asp:15s}: [NOT MENTIONED]")
+                        else:
+                            print(f"{asp:15s}: {label:8s} ({pred['confidence']:.2%})")
                     else:
                         print(f"{asp:15s}: ERROR")
-            
-            elif aspect in predictor.aspect_to_id:
-                # Ask for explanation method
-                explain_method = input("Explainability method (attention/lime/shap/all) [default: attention]: ").strip().lower()
-                if not explain_method:
-                    explain_method = 'attention'
                 
-                # Generate predictions and explanations
-                if explain_method == 'attention':
-                    predictor.visualize_attention(text, aspect)
-                elif explain_method == 'lime':
-                    predictor.visualize_lime(text, aspect)
-                elif explain_method == 'shap':
-                    predictor.explain_with_shap(text, aspect, plot=True)
-                elif explain_method == 'all':
-                    print("\n" + "="*70)
-                    print("Generating all explanations...")
-                    print("="*70)
-                    predictor.visualize_attention(text, aspect)
-                    predictor.visualize_lime(text, aspect)
-                    predictor.explain_with_shap(text, aspect, plot=True)
-                else:
-                    print(f"Invalid explanation method: {explain_method}")
+                # Run explanations for mentioned aspects
+                if explain_method != 'none':
+                    for asp, pred in predictions.items():
+                        if pred and pred['sentiment'] != 'not_mentioned':
+                            print(f"\n>>> Explaining aspect: {asp}")
+                            run_explanation_demo(predictor, explain_method, text, asp)
             
             else:
-                print(f"Invalid aspect. Must be one of: {', '.join(predictor.aspect_names)}")
+                # Single aspect prediction
+                if not is_mentioned(text, aspect):
+                    print(f"\n[NOTE] Aspect '{aspect}' is not explicitly mentioned in this text.")
+                    print("The model will still predict sentiment based on context, but this may be a hallucination.")
+                
+                # Run prediction and and explanation
+                result = predictor.predict(text, aspect, return_attention=(explain_method != 'none'))
+                
+                print(f"\nPrediction for '{aspect}': {result['sentiment']} ({result['confidence']:.2%})")
+                
+                if explain_method != 'none':
+                    run_explanation_demo(predictor, explain_method, text, aspect)
 
 
 if __name__ == "__main__":
