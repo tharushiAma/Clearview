@@ -20,7 +20,6 @@ Following explainability methods are used
 Called by:
   - trained_model_adapter.py  (for normal /predict requests from the website)
   - trained_model_xai.py      (for /explain XAI requests from the website)
-  - XAI test notebook         (for standalone research and debugging)
 """
 
 import torch

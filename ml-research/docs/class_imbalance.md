@@ -130,13 +130,3 @@ Classes whose total count was below the `rare_threshold` (= `MIN_EVAL_SAMPLES / 
 | PACKING | negative | 65 | 0.70% | Critical |
 | PACKING | neutral | 9 | 0.10% | **Critical** |
 
-### Mitigation strategies applied
-
-| Strategy | Where |
-|----------|-------|
-| Two-phase stratified split with rare-class reservation | `02_preprocess_and_split.ipynb` |
-| Class-balanced (CB) loss weighting | `A3_cb_only` ablation, full model |
-| Focal loss | `A3_focal_only` ablation, full model |
-| Hybrid loss (Focal + CB) | Default full-model configuration |
-| Synthetic data augmentation | `A4_no_augmentation` ablation |
-| Per-aspect classifier heads | `A5_shared_head` ablation |

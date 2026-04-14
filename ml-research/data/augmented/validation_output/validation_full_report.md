@@ -1,4 +1,4 @@
-# FINAL VALIDATION REPORT: Synthetic Review Dataset (ClearView MAMSR)
+# FINAL VALIDATION REPORT: Synthetic Review Dataset (ClearView)
 **Date:** March 23, 2026
 
 ---
