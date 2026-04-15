@@ -11,30 +11,16 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.abspath(os.path.join(current_dir, "..", ".."))
 
 # ── ml-research path resolution ──────────────────────────────────────────────
-ML_RESEARCH_DIR: str = ""
-for candidate in [
-    os.path.join(project_root, "ml-research"),
-    os.path.join(current_dir, "..", "ml-research"),
-]:
-    if os.path.exists(candidate):
-        ML_RESEARCH_DIR = candidate
-        break
+# Add ml-research/ to sys.path so inference_bridge imports work correctly
+_ml_research_dir = os.path.join(project_root, "ml-research")
+if os.path.exists(_ml_research_dir) and _ml_research_dir not in sys.path:
+    sys.path.insert(0, _ml_research_dir)
 
-if ML_RESEARCH_DIR and ML_RESEARCH_DIR not in sys.path:
-    sys.path.insert(0, ML_RESEARCH_DIR)
-
-# ── Checkpoint paths (env-var overridable) ───────────────────────────────────
+# ── Checkpoint path (env-var overridable) ────────────────────────────────────
 _default_trained = os.path.join(
     project_root, "ml-research", "outputs", "cosmetic_sentiment_v1", "best_model.pt"
 )
 TRAINED_CKPT: str = os.environ.get("CKPT_PATH", _default_trained)
-
-_default_legacy = os.path.join(
-    project_root, "ml-research", "outputs", "gold_msr_4class", "best_model.pt"
-)
-DEFAULT_CKPT: str = os.environ.get("LEGACY_CKPT_PATH", _default_legacy)
-if not os.path.exists(DEFAULT_CKPT):
-    DEFAULT_CKPT = TRAINED_CKPT
 
 # ── CORS (env-var overridable) ───────────────────────────────────────────────
 _origins_env = os.environ.get("ALLOWED_ORIGINS", "")

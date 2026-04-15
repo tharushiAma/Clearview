@@ -1,6 +1,6 @@
 # ClearView — Class imbalance handled Multi Aspect mixed sentiment resolution with Explainability in cosmetic domain
 
-My final year project. Classifies sentiment across 7 aspects of cosmetic product reviews (colour, smell, texture, price, stayingpower, packing, shipping) while handling severe class imbalance and resolving conflicting opinions within the same review.
+My final year project. Classifies sentiment across 7 aspects of cosmetic product reviews (colour, smell, texture, price, stayingpower, packing, shipping) while handling severe class imbalance and capturing aspect-specific conflicting opinions within the same review through aspect-wise prediction and conflict analysis.
 
 The core idea: a review like "I love the colour but the smell is awful" should be classified as `colour: positive, smell: negative` — not just "mixed". That sounds obvious but getting a model to actually do this correctly requires more than just a vanilla BERT fine-tune.
 
