@@ -1,4 +1,4 @@
-# ClearView — Class imbalance handled Multi Aspect mixed sentiment resolution with Explainability in cosmetic domain
+# ClearView - Class imbalance handled Multi Aspect mixed sentiment resolution with Explainability in cosmetic domain
 
 My final year project. Classifies sentiment across 7 aspects of cosmetic product reviews (colour, smell, texture, price, stayingpower, packing, shipping) while handling severe class imbalance and capturing aspect-specific conflicting opinions within the same review through aspect-wise prediction and conflict analysis.
 
