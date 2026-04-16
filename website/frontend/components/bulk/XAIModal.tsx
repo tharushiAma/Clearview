@@ -144,6 +144,7 @@ export function XAIModal({ text, onClose }: XAIModalProps) {
                                     <SelectItem value="ig">Integrated Gradients</SelectItem>
                                     <SelectItem value="lime">LIME</SelectItem>
                                     <SelectItem value="shap">SHAP</SelectItem>
+                                    <SelectItem value="attention">Attention Weights</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
@@ -187,7 +188,7 @@ export function XAIModal({ text, onClose }: XAIModalProps) {
                                             {exp.aspect}
                                         </span>
                                         <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded uppercase tracking-wider">
-                                            {exp.method === "ig" ? "Integrated Gradients" : exp.method}
+                                            {exp.method === "ig" ? "Integrated Gradients" : exp.method === "attention" ? "Attention Weights" : exp.method}
                                         </span>
                                     </div>
                                     <TokenHighlightViewer tokens={exp.tokens} />

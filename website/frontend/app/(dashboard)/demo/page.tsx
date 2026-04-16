@@ -20,6 +20,7 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { predict } from "@/lib/api";
 import type { PredictionResult, AspectPrediction, SentimentLabel } from "@/lib/types";
+import { useToast } from "@/hooks/use-toast";
 import { Play, AlertTriangle } from "lucide-react";
 
 const SENTIMENT_COLORS: Record<SentimentLabel, string> = {
@@ -30,6 +31,7 @@ const SENTIMENT_COLORS: Record<SentimentLabel, string> = {
 };
 
 export default function DemoPage() {
+  const { toast } = useToast();
   const [text, setText] = useState(
     "The color is beautiful as same as the picture, but the smell is bit strong for a lipstick and this is too expensive compared to other stores"
   );
@@ -50,6 +52,15 @@ export default function DemoPage() {
         msrStrength: 0.5,
       });
       setResult(response);
+    } catch (err) {
+      toast({
+        variant: "destructive",
+        title: "Prediction failed",
+        description:
+          err instanceof Error
+            ? err.message
+            : "An unexpected error occurred. Please try again.",
+      });
     } finally {
       setLoading(false);
     }

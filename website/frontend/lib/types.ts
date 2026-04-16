@@ -38,7 +38,7 @@ export interface PredictRequest {
 }
 
 // Explanation types
-export type ExplanationMethod = "ig" | "lime" | "shap";
+export type ExplanationMethod = "ig" | "lime" | "shap" | "attention";
 
 export interface TokenAttribution {
   token: string;

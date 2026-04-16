@@ -4,8 +4,8 @@ Write-Host "Starting ClearView Full Stack Application" -ForegroundColor Green
 Write-Host "================================================================================" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "This will start TWO servers:" -ForegroundColor Yellow
-Write-Host "  1. Python FastAPI Backend  (port 8000)  — from website/backend_server.py" -ForegroundColor Cyan
-Write-Host "  2. Next.js Frontend        (port 3000)  — from website/frontend/" -ForegroundColor Cyan
+Write-Host "  1. Python FastAPI Backend  (port 8000)  - from website/backend_server.py" -ForegroundColor Cyan
+Write-Host "  2. Next.js Frontend        (port 3000)  - from website/frontend/" -ForegroundColor Cyan
 Write-Host ""
 
 # Start backend in a new terminal window

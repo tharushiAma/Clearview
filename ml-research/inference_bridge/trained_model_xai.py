@@ -355,6 +355,60 @@ class TrainedModelXAI:
         }
 
     # ────────────────────────────────────────────────────────────────────────
+    # 5. Attention Weights
+    # ────────────────────────────────────────────────────────────────────────
+    def explain_attention_aspect(self, text: str, aspect: str, top_k: int = 10) -> dict:
+        """
+        Explain the prediction using raw attention weights.
+        
+        This relies on the model's self/cross-attention mechanism to see what 
+        words the model 'looked at' most when predicting the aspect sentiment.
+        Note: Attention weights are always positive magnitudes, so they indicate
+        importance rather than directional impact like IG or SHAP.
+        """
+        # Get prediction with attention
+        result = self.predictor.predict(text, aspect, return_attention=True)
+        pred_sentiment = result["sentiment"]
+        conf = result["confidence"]
+        
+        top_tokens = []
+        if "attention" in result:
+            tokens = result["attention"]["tokens"]
+            weights = result["attention"]["weights"]
+            
+            # Filter special tokens
+            pairs = []
+            for t, w in zip(tokens, weights):
+                if t not in ("<s>", "</s>", "<pad>", "<mask\>") and len(t.strip("Ġ▁ ")) > 0:
+                    clean_tok = self._clean_token(t)
+                    pairs.append([clean_tok, round(float(w), 6)])
+            
+            # Sort by highest attention
+            pairs.sort(key=lambda x: x[1], reverse=True)
+            
+            # Deduplicate
+            seen = set()
+            for t, w in pairs:
+                if t.lower() not in seen:
+                    seen.add(t.lower())
+                    top_tokens.append([t, w])
+                if len(top_tokens) >= top_k:
+                    break
+
+        return {
+            "top_tokens":  top_tokens,
+            "method":      "attention",
+            "task":        "aspect:{}".format(aspect),
+            "predicted":   pred_sentiment,
+            "confidence":  round(conf, 4),
+            "probs": {
+                "negative": round(result["probabilities"]["negative"], 4),
+                "neutral":  round(result["probabilities"]["neutral"],  4),
+                "positive": round(result["probabilities"]["positive"], 4),
+            }
+        }
+
+    # ────────────────────────────────────────────────────────────────────────
     # Helper Utilities
     # ────────────────────────────────────────────────────────────────────────
 

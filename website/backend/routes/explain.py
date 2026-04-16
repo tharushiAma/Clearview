@@ -43,9 +43,13 @@ def explain(request: ExplainRequest):
         ex = get_trained_xai()
         aspect_list = ex.aspect_names if request.aspect == "all" else [request.aspect]
 
-        print("[XAI] Step 1/2: Computing conflict explanation...")
-        ig_conflict = ex.explain_ig_conflict(request.text, enable_msr=True, top_k=10)
-        print("[OK]  Conflict explanation complete")
+        if request.methods == ["attention"]:
+            print("[XAI] Step 1/2: Skipping conflict calculation (attention fast-path)...")
+            ig_conflict = None
+        else:
+            print("[XAI] Step 1/2: Computing conflict explanation...")
+            ig_conflict = ex.explain_ig_conflict(request.text, enable_msr=True, top_k=10)
+            print("[OK]  Conflict explanation complete")
 
         bundle = {
             "text": request.text,
@@ -82,6 +86,10 @@ def explain(request: ExplainRequest):
                 )
             if "shap" in request.methods:
                 asp_data["shap_aspect"] = ex.explain_shap_aspect(
+                    request.text, asp, top_k=10
+                )
+            if "attention" in request.methods:
+                asp_data["attention_aspect"] = ex.explain_attention_aspect(
                     request.text, asp, top_k=10
                 )
 

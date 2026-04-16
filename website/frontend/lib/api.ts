@@ -6,7 +6,10 @@ export async function predict(req: { text: string; msrEnabled: boolean; msrStren
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ text: req.text, msr_strength: req.msrStrength, msr_enabled: req.msrEnabled }),
   });
-  if (!res.ok) throw new Error("Prediction failed");
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: "Prediction failed" }));
+    throw new Error(err.error || "Prediction failed");
+  }
   const data = await res.json();
 
   // Map backend lowercase labels to frontend uppercase SentimentLabel
@@ -119,6 +122,18 @@ export async function explain(req: { text: string; aspect: string; methods: stri
         aspect: aspName,
         method: "shap",
         tokens: (aspData.shap_aspect.top_tokens || []).map((t: any) => ({
+          token: t[0],
+          attribution: t[1]
+        }))
+      });
+    }
+
+    // Handle Attention
+    if (aspData.attention_aspect) {
+      explanations.push({
+        aspect: aspName,
+        method: "attention",
+        tokens: (aspData.attention_aspect.top_tokens || []).map((t: any) => ({
           token: t[0],
           attribution: t[1]
         }))
