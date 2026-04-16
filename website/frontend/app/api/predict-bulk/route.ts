@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-export const maxDuration = 300; // 5 minutes for large batches
+export const maxDuration = 600; // 10 minutes for large batches
 
 /**
  * Bulk Prediction API Route

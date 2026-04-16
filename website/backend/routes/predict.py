@@ -5,23 +5,10 @@ backend/routes/predict.py
 import time
 from typing import List
 
-import torch
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from ..config import DEFAULT_CKPT
-from ..model_cache import (
-    USE_TRAINED_MODEL,
-    get_trained_adapter,
-    get_model,
-    _legacy_model_available,
-)
-
-try:
-    from src.data_layer._common import ASPECTS, INV_LABEL
-except ImportError:
-    ASPECTS = []
-    INV_LABEL = {}
+from ..model_cache import get_trained_adapter
 
 router = APIRouter()
 
@@ -29,8 +16,6 @@ router = APIRouter()
 class PredictRequest(BaseModel):
     text: str
     msr_enabled: bool = True
-    msr_strength: float = 0.3
-    ckpt_path: str | None = None
 
 
 class BulkPredictRequest(BaseModel):
@@ -43,62 +28,10 @@ def predict(request: PredictRequest):
     """Run single-review prediction."""
     try:
         start = time.time()
-
-        if USE_TRAINED_MODEL:
-            adapter = get_trained_adapter()
-            result = adapter.predict(request.text, enable_msr=request.msr_enabled)
-            result["timings"] = {"total_ms": (time.time() - start) * 1000}
-            return result
-
-        # ── Legacy model path ───────────────────────────────────────────────
-        ckpt_path = request.ckpt_path or DEFAULT_CKPT
-        model, tokenizer, device = get_model(ckpt_path, request.msr_strength)
-
-        enc = tokenizer(
-            request.text,
-            truncation=True,
-            padding="max_length",
-            max_length=256,
-            return_tensors="pt",
-        )
-        input_ids = enc["input_ids"].to(device)
-        attn = enc["attention_mask"].to(device)
-
-        with torch.no_grad():
-            preds_b, probs_b, conf_b = model.predict(input_ids, attn, enable_msr=False)
-            preds_a, probs_a, conf_a = model.predict(
-                input_ids, attn, enable_msr=request.msr_enabled
-            )
-
-        aspects_res = []
-        for i, asp in enumerate(ASPECTS):
-            pb_cls = int(preds_b[0, i].item())
-            pa_cls = int(preds_a[0, i].item())
-            prob_b_vec = probs_b[0, i].detach().cpu().numpy().tolist()
-            prob_a_vec = probs_a[0, i].detach().cpu().numpy().tolist()
-            aspects_res.append(
-                {
-                    "name": asp,
-                    "label": INV_LABEL[pa_cls],
-                    "confidence": prob_a_vec[pa_cls],
-                    "probs": prob_a_vec,
-                    "before": {
-                        "label": INV_LABEL[pb_cls],
-                        "confidence": prob_b_vec[pb_cls],
-                    },
-                    "after": {
-                        "label": INV_LABEL[pa_cls],
-                        "confidence": prob_a_vec[pa_cls],
-                    },
-                    "changed_by_msr": pb_cls != pa_cls,
-                }
-            )
-
-        return {
-            "aspects": aspects_res,
-            "conflict_prob": float(conf_a[0].item()),
-            "timings": {"total_ms": (time.time() - start) * 1000},
-        }
+        adapter = get_trained_adapter()
+        result = adapter.predict(request.text, enable_msr=request.msr_enabled)
+        result["timings"] = {"total_ms": (time.time() - start) * 1000}
+        return result
 
     except Exception as e:
         print(f"[ERR] Prediction error: {e}")
@@ -114,81 +47,31 @@ def predict_bulk(request: BulkPredictRequest):
         if not request.reviews:
             raise HTTPException(status_code=400, detail="No reviews provided")
 
+        adapter = get_trained_adapter()
         rows = []
 
-        if USE_TRAINED_MODEL:
-            adapter = get_trained_adapter()
-            for i, text in enumerate(request.reviews):
-                try:
-                    res = adapter.predict(text, enable_msr=request.msr_enabled)
-                    rows.append(
-                        {
-                            "review_index": i,
-                            "text": text,
-                            "aspects": res.get("aspects", []),
-                            "conflict_prob": res.get("conflict_prob", 0.0),
-                        }
-                    )
-                except Exception as e:
-                    print(f"[WARN] Error processing review {i}: {e}")
-                    rows.append(
-                        {
-                            "review_index": i,
-                            "text": text,
-                            "aspects": [],
-                            "conflict_prob": 0.0,
-                            "error": str(e),
-                        }
-                    )
-        else:
-            if not _legacy_model_available:
-                raise RuntimeError("No model available.")
-            model, tokenizer, device = get_model(DEFAULT_CKPT, 0.3)
-            for i, text in enumerate(request.reviews):
-                try:
-                    enc = tokenizer(
-                        text,
-                        truncation=True,
-                        padding="max_length",
-                        max_length=256,
-                        return_tensors="pt",
-                    )
-                    input_ids = enc["input_ids"].to(device)
-                    attn = enc["attention_mask"].to(device)
-                    with torch.no_grad():
-                        preds_a, probs_a, conf_a = model.predict(
-                            input_ids, attn, enable_msr=request.msr_enabled
-                        )
-                    aspects_res = []
-                    for j, asp in enumerate(ASPECTS):
-                        pa_cls = int(preds_a[0, j].item())
-                        prob_a_vec = probs_a[0, j].detach().cpu().numpy().tolist()
-                        aspects_res.append(
-                            {
-                                "name": asp,
-                                "label": INV_LABEL[pa_cls],
-                                "confidence": prob_a_vec[pa_cls],
-                            }
-                        )
-                    rows.append(
-                        {
-                            "review_index": i,
-                            "text": text,
-                            "aspects": aspects_res,
-                            "conflict_prob": float(conf_a[0].item()),
-                        }
-                    )
-                except Exception as e:
-                    print(f"[WARN] Error processing review {i}: {e}")
-                    rows.append(
-                        {
-                            "review_index": i,
-                            "text": text,
-                            "aspects": [],
-                            "conflict_prob": 0.0,
-                            "error": str(e),
-                        }
-                    )
+        for i, text in enumerate(request.reviews):
+            try:
+                res = adapter.predict(text, enable_msr=request.msr_enabled)
+                rows.append(
+                    {
+                        "review_index": i,
+                        "text": text,
+                        "aspects": res.get("aspects", []),
+                        "conflict_prob": res.get("conflict_prob", 0.0),
+                    }
+                )
+            except Exception as e:
+                print(f"[WARN] Error processing review {i}: {e}")
+                rows.append(
+                    {
+                        "review_index": i,
+                        "text": text,
+                        "aspects": [],
+                        "conflict_prob": 0.0,
+                        "error": str(e),
+                    }
+                )
 
         # ── Aggregate statistics ────────────────────────────────────────────
         aspect_names_list: List[str] = []

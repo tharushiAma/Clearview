@@ -80,12 +80,12 @@ class TrainedModelXAI:
             Dictionary matching the frontend's expected XAI shape, containing
             top tokens, prediction details, and raw probabilities.
         """
-        # n_steps=50 gives a good balance between accuracy (satisfying the
+        # n_steps=25 gives a good balance between accuracy (satisfying the
         # completeness axiom) and execution speed for web requests.
         ig_res = self.predictor.explain_with_integrated_gradients(
             text=text,
             aspect=aspect,
-            n_steps=50,
+            n_steps=25,
             top_k=top_k,
             save_path=None,
             silent=True
@@ -160,9 +160,9 @@ class TrainedModelXAI:
             predictions[asp] = pred["sentiment"]
             
             # Now, get the actual Integrated Gradients attributions for this aspect
-            # (using a smaller n_steps=20 to keep multi-aspect conflict calculation fast)
+            # (using a smaller n_steps=10 to keep multi-aspect conflict calculation fast)
             ig_res = self.predictor.explain_with_integrated_gradients(
-                text=text, aspect=asp, n_steps=20, top_k=1000, save_path=None, silent=True
+                text=text, aspect=asp, n_steps=10, top_k=1000, save_path=None, silent=True
             )
             
             if "tokens" in ig_res and "attributions" in ig_res:
@@ -211,7 +211,7 @@ class TrainedModelXAI:
     # ────────────────────────────────────────────────────────────────────────
     # 3. LIME (Local Interpretable Model-agnostic Explanations)
     # ────────────────────────────────────────────────────────────────────────
-    def explain_lime_aspect(self, text: str, aspect: str, num_samples: int = 100, top_k: int = 10) -> dict:
+    def explain_lime_aspect(self, text: str, aspect: str, num_samples: int = 40, top_k: int = 10) -> dict:
         """
         Explain the prediction using LIME.
         
@@ -277,7 +277,7 @@ class TrainedModelXAI:
     # ────────────────────────────────────────────────────────────────────────
     # 4. SHAP (SHapley Additive exPlanations)
     # ────────────────────────────────────────────────────────────────────────
-    def explain_shap_aspect(self, text: str, aspect: str, max_evals: int = 100, top_k: int = 10) -> dict:
+    def explain_shap_aspect(self, text: str, aspect: str, max_evals: int = 40, top_k: int = 10) -> dict:
         """
         Explain the prediction using SHAP.
         
@@ -344,6 +344,60 @@ class TrainedModelXAI:
         return {
             "top_tokens":  top_tokens,
             "method":      "shap",
+            "task":        "aspect:{}".format(aspect),
+            "predicted":   pred_sentiment,
+            "confidence":  round(conf, 4),
+            "probs": {
+                "negative": round(result["probabilities"]["negative"], 4),
+                "neutral":  round(result["probabilities"]["neutral"],  4),
+                "positive": round(result["probabilities"]["positive"], 4),
+            }
+        }
+
+    # ────────────────────────────────────────────────────────────────────────
+    # 5. Attention Weights
+    # ────────────────────────────────────────────────────────────────────────
+    def explain_attention_aspect(self, text: str, aspect: str, top_k: int = 10) -> dict:
+        """
+        Explain the prediction using raw attention weights.
+        
+        This relies on the model's self/cross-attention mechanism to see what 
+        words the model 'looked at' most when predicting the aspect sentiment.
+        Note: Attention weights are always positive magnitudes, so they indicate
+        importance rather than directional impact like IG or SHAP.
+        """
+        # Get prediction with attention
+        result = self.predictor.predict(text, aspect, return_attention=True)
+        pred_sentiment = result["sentiment"]
+        conf = result["confidence"]
+        
+        top_tokens = []
+        if "attention" in result:
+            tokens = result["attention"]["tokens"]
+            weights = result["attention"]["weights"]
+            
+            # Filter special tokens
+            pairs = []
+            for t, w in zip(tokens, weights):
+                if t not in ("<s>", "</s>", "<pad>", "<mask\>") and len(t.strip("Ġ▁ ")) > 0:
+                    clean_tok = self._clean_token(t)
+                    pairs.append([clean_tok, round(float(w), 6)])
+            
+            # Sort by highest attention
+            pairs.sort(key=lambda x: x[1], reverse=True)
+            
+            # Deduplicate
+            seen = set()
+            for t, w in pairs:
+                if t.lower() not in seen:
+                    seen.add(t.lower())
+                    top_tokens.append([t, w])
+                if len(top_tokens) >= top_k:
+                    break
+
+        return {
+            "top_tokens":  top_tokens,
+            "method":      "attention",
             "task":        "aspect:{}".format(aspect),
             "predicted":   pred_sentiment,
             "confidence":  round(conf, 4),

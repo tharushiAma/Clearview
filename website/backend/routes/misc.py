@@ -9,7 +9,7 @@ import os
 from fastapi import APIRouter
 
 from ..config import TRAINED_CKPT
-from ..model_cache import _MODEL_CACHE, _EXPLAINER_CACHE
+from ..model_cache import _TRAINED_ADAPTER, _TRAINED_XAI
 
 # project_root is two levels above this file (backend/routes/ → backend/ → website/ → root)
 _project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
@@ -23,8 +23,8 @@ def health_check():
     return {
         "status": "running",
         "service": "ClearView ML Backend",
-        "models_loaded": len(_MODEL_CACHE),
-        "explainers_loaded": len(_EXPLAINER_CACHE),
+        "adapter_loaded": _TRAINED_ADAPTER is not None,
+        "xai_loaded": _TRAINED_XAI is not None,
     }
 
 

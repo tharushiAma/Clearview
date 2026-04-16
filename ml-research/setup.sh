@@ -42,7 +42,7 @@ fi
 
 # Download spaCy model
 echo -e "\n5. Downloading spaCy model for dependency parsing..."
-python -m spacy download xx_ent_wiki_sm
+python -m spacy download en_core_web_sm
 if [ $? -eq 0 ]; then
     echo "✓ spaCy model downloaded"
 else

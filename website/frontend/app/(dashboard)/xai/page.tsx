@@ -24,13 +24,14 @@ import { Sparkles, ChevronDown, Zap } from "lucide-react";
 
 export default function XAIPage() {
   const [text, setText] = useState(
-    "The color is beautiful as same as the picture, but the smell is bit strong for a lipstick and this is more expensive compared to other stores"
+    "The color is beautiful as same as the picture, but the smell is bit strong for a lipstick and this is too expensive compared to other stores"
   );
   const [selectedAspect, setSelectedAspect] = useState<Aspect | "all">("all");
   const [selectedMethod, setSelectedMethod] = useState<ExplanationMethod>("ig");
   const [loading, setLoading] = useState(false);
   const [fastLoading, setFastLoading] = useState(false);
   const [result, setResult] = useState<ExplanationBundle | null>(null);
+  const [predictions, setPredictions] = useState<{ aspect: string; label: string; confidence: number }[]>([]);
   const [fastTokens, setFastTokens] = useState<{ aspect: string; tokens: { token: string; attribution: number }[] }[]>([]);
   const [jsonOpen, setJsonOpen] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
@@ -44,8 +45,17 @@ export default function XAIPage() {
     if (!reviewText.trim()) return;
     setFastLoading(true);
     setFastTokens([]);
+    setPredictions([]);
     try {
       const res = await predict({ text: reviewText, msrEnabled: true, msrStrength: 0.5 });
+      // Save per-aspect predictions (label + confidence) for display
+      setPredictions(
+        (res.predictions || []).map((p: any) => ({
+          aspect: p.aspect,
+          label: p.label,
+          confidence: p.confidence,
+        }))
+      );
       const tokens = (res.predictions || [])
         .filter((p: any) => p.topTokens && p.topTokens.length > 0)
         .map((p: any) => ({
@@ -62,6 +72,7 @@ export default function XAIPage() {
       setFastTokens(tokens);
     } catch {
       setFastTokens([]);
+      setPredictions([]);
     } finally {
       setFastLoading(false);
     }
@@ -220,7 +231,7 @@ export default function XAIPage() {
               )}
               {!loading && (
                 <p className="text-xs text-muted-foreground text-center">
-                  ⏱ XAI analysis takes 1–2 min per aspect. Select one aspect for faster results.
+                  ⏱ XAI analysis takes 3-4 min per aspect. Select one aspect for faster results.
                 </p>
               )}
             </div>
@@ -243,14 +254,20 @@ export default function XAIPage() {
                   <Zap className="h-4 w-4 text-muted-foreground" />
                   <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Key Words Detected</span>
                 </div>
-                {fastTokens.map((asp) => (
-                  <div key={asp.aspect} className="space-y-2 border rounded-lg p-4 bg-card shadow-sm">
-                    <h4 className="text-sm font-semibold capitalize bg-primary/10 text-primary px-2.5 py-1 rounded-md inline-block">
-                      Aspect: {asp.aspect}
-                    </h4>
-                    <KeywordViewer tokens={asp.tokens} />
-                  </div>
-                ))}
+                {fastTokens.map((asp) => {
+                  const pred = predictions.find((p) => p.aspect === asp.aspect);
+                  return (
+                    <div key={asp.aspect} className="space-y-2 border rounded-lg p-4 bg-card shadow-sm">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h4 className="text-sm font-semibold capitalize bg-primary/10 text-primary px-2.5 py-1 rounded-md">
+                          Aspect: {asp.aspect}
+                        </h4>
+                        {pred && <SentimentBadge label={pred.label} confidence={pred.confidence} />}
+                      </div>
+                      <KeywordViewer tokens={asp.tokens} />
+                    </div>
+                  );
+                })}
                 <p className="text-xs text-muted-foreground pt-1">
                   ⚡ These are the most relevant words detected for each aspect. For full signed attribution (green = supports · red = opposes), use the Advanced Methods.
                 </p>
@@ -260,19 +277,35 @@ export default function XAIPage() {
             {/* Advanced (IG/LIME/SHAP) results */}
             {result && result.explanations && result.explanations.length > 0 ? (
               <div className="space-y-6 mt-4">
-                {result.explanations.map((exp) => (
-                  <div key={`${exp.aspect}-${exp.method}`} className="space-y-4 border rounded-lg p-5 bg-card shadow-sm">
-                    <div className="flex items-center gap-3 mb-2">
-                      <h4 className="text-sm font-semibold capitalize bg-primary/10 text-primary px-2.5 py-1 rounded-md">
-                        Aspect: {exp.aspect}
-                      </h4>
-                      <span className="text-xs font-medium text-muted-foreground bg-muted px-2.5 py-1 rounded-md uppercase tracking-wider">
-                        Method: {exp.method === 'ig' ? 'Integrated Gradients' : exp.method}
-                      </span>
+                {result.explanations.map((exp) => {
+                  const pred = predictions.find((p) => p.aspect === exp.aspect);
+                  return (
+                    <div key={`${exp.aspect}-${exp.method}`} className="space-y-4 border rounded-lg p-5 bg-card shadow-sm">
+                      <div className="flex items-center gap-3 flex-wrap mb-2">
+                        <h4 className="text-sm font-semibold capitalize bg-primary/10 text-primary px-2.5 py-1 rounded-md">
+                          Aspect: {exp.aspect}
+                        </h4>
+                        {pred && <SentimentBadge label={pred.label} confidence={pred.confidence} />}
+                        <span className="text-xs font-medium text-muted-foreground bg-muted px-2.5 py-1 rounded-md uppercase tracking-wider">
+                          Method: {exp.method === 'ig' ? 'Integrated Gradients' : exp.method}
+                        </span>
+                      </div>
+                      {/* Color legend - contextual to the prediction */}
+                      <div className="flex items-center gap-4 text-xs text-muted-foreground pb-1 border-b">
+                        <span className="font-medium">Attribution key:</span>
+                        <span className="flex items-center gap-1.5">
+                          <span className="inline-block w-3 h-3 rounded-sm" style={{ background: 'oklch(0.7 0.15 145)' }} />
+                          Green = supports the {pred?.label ?? 'predicted'} sentiment
+                        </span>
+                        <span className="flex items-center gap-1.5">
+                          <span className="inline-block w-3 h-3 rounded-sm" style={{ background: 'oklch(0.65 0.2 25)' }} />
+                          Red = opposes it
+                        </span>
+                      </div>
+                      <TokenHighlightViewer tokens={exp.tokens} />
                     </div>
-                    <TokenHighlightViewer tokens={exp.tokens} />
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : result ? (
               <div className="h-32 flex items-center justify-center text-muted-foreground text-sm">
@@ -319,6 +352,25 @@ export default function XAIPage() {
   );
 }
 
+// ── Sentiment badge ──────────────────────────────────────────────────────────
+const LABEL_CONFIG: Record<string, { bg: string; text: string; label: string }> = {
+  POS: { bg: "bg-emerald-100 dark:bg-emerald-900/40", text: "text-emerald-700 dark:text-emerald-300", label: "Positive" },
+  NEG: { bg: "bg-red-100 dark:bg-red-900/40",     text: "text-red-700 dark:text-red-300",         label: "Negative" },
+  NEU: { bg: "bg-sky-100 dark:bg-sky-900/40",     text: "text-sky-700 dark:text-sky-300",         label: "Neutral"  },
+  NULL: { bg: "bg-muted",                          text: "text-muted-foreground",                  label: "N/A"      },
+};
+
+function SentimentBadge({ label, confidence }: { label: string; confidence: number }) {
+  const cfg = LABEL_CONFIG[label] ?? LABEL_CONFIG.NULL;
+  return (
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${cfg.bg} ${cfg.text}`}>
+      {cfg.label}
+      <span className="opacity-70">({(confidence * 100).toFixed(0)}%)</span>
+    </span>
+  );
+}
+
+// ── Token highlight viewer (advanced / signed attribution) ────────────────────
 function TokenHighlightViewer({
   tokens,
 }: {
