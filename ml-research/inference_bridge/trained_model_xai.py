@@ -80,12 +80,12 @@ class TrainedModelXAI:
             Dictionary matching the frontend's expected XAI shape, containing
             top tokens, prediction details, and raw probabilities.
         """
-        # n_steps=50 gives a good balance between accuracy (satisfying the
+        # n_steps=25 gives a good balance between accuracy (satisfying the
         # completeness axiom) and execution speed for web requests.
         ig_res = self.predictor.explain_with_integrated_gradients(
             text=text,
             aspect=aspect,
-            n_steps=50,
+            n_steps=25,
             top_k=top_k,
             save_path=None,
             silent=True
@@ -160,9 +160,9 @@ class TrainedModelXAI:
             predictions[asp] = pred["sentiment"]
             
             # Now, get the actual Integrated Gradients attributions for this aspect
-            # (using a smaller n_steps=20 to keep multi-aspect conflict calculation fast)
+            # (using a smaller n_steps=10 to keep multi-aspect conflict calculation fast)
             ig_res = self.predictor.explain_with_integrated_gradients(
-                text=text, aspect=asp, n_steps=20, top_k=1000, save_path=None, silent=True
+                text=text, aspect=asp, n_steps=10, top_k=1000, save_path=None, silent=True
             )
             
             if "tokens" in ig_res and "attributions" in ig_res:
@@ -211,7 +211,7 @@ class TrainedModelXAI:
     # ────────────────────────────────────────────────────────────────────────
     # 3. LIME (Local Interpretable Model-agnostic Explanations)
     # ────────────────────────────────────────────────────────────────────────
-    def explain_lime_aspect(self, text: str, aspect: str, num_samples: int = 100, top_k: int = 10) -> dict:
+    def explain_lime_aspect(self, text: str, aspect: str, num_samples: int = 40, top_k: int = 10) -> dict:
         """
         Explain the prediction using LIME.
         
@@ -277,7 +277,7 @@ class TrainedModelXAI:
     # ────────────────────────────────────────────────────────────────────────
     # 4. SHAP (SHapley Additive exPlanations)
     # ────────────────────────────────────────────────────────────────────────
-    def explain_shap_aspect(self, text: str, aspect: str, max_evals: int = 100, top_k: int = 10) -> dict:
+    def explain_shap_aspect(self, text: str, aspect: str, max_evals: int = 40, top_k: int = 10) -> dict:
         """
         Explain the prediction using SHAP.
         

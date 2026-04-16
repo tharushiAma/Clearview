@@ -55,11 +55,20 @@ def explain(request: ExplainRequest):
             "progress": [],
         }
 
+        from inference_bridge.inference import is_mentioned
+        
         total = len(aspect_list)
         print(f"[XAI] Step 2/2: Analysing {total} aspect(s)...")
         for idx, asp in enumerate(aspect_list, 1):
             if asp not in ex.aspect_names:
                 continue
+            
+            # If requesting 'all' aspects, skip aspects completely absent from the text
+            # to massively speed up XAI requests.
+            if request.aspect == "all" and not is_mentioned(request.text, asp):
+                print(f"  [{idx}/{total}] Skipping '{asp}' (not mentioned)")
+                continue
+                
             print(f"  [{idx}/{total}] Analysing '{asp}'...")
             asp_data: dict = {}
 
