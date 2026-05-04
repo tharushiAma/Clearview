@@ -430,7 +430,7 @@ class SentimentPredictor:
                 # Use empty edge_index to force the GCN branch (same as predict())
                 empty_edge = [torch.zeros(2, 0, dtype=torch.long).to(self.device)]
                 
-                # Predict — apply temperature scaling for consistency with predict()
+                # Predict - apply temperature scaling for consistency with predict()
                 with torch.no_grad():
                     logits = self.model(input_ids, attention_mask, aspect_id,
                                         edge_index=empty_edge)

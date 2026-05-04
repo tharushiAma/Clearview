@@ -1,6 +1,15 @@
+// app/(dashboard)/xai/page.tsx
+// This file is responsible for the "Explainable AI" page where users dive deep into model attribution.
+// The "use client" directive enables state, effects, and interactivity in the browser.
 "use client";
 
+// -- REACT HOOKS --
+// useState: Saves data that changes the visual UI.
+// useEffect: Runs code automatically (e.g. when page loads).
+// useCallback: Caches a function in memory so it isn't recreated on every keystroke, improving performance.
 import { useState, useEffect, useCallback } from "react";
+
+// -- UI COMPONENTS --
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -18,37 +27,53 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { Spinner } from "@/components/ui/spinner";
-import { predict, explain } from "@/lib/api";
+import { predict, explain } from "@/lib/api"; // We pull in the API middleman functions!
 import { ASPECTS, type Aspect, type ExplanationBundle, type ExplanationMethod } from "@/lib/types";
 import { Sparkles, ChevronDown, Zap } from "lucide-react";
 
 export default function XAIPage() {
+  // 1. STATE INITIALIZATION
+  // Storing the textual review currently being analyzed.
   const [text, setText] = useState(
     "The color is beautiful as same as the picture, but the smell is bit strong for a lipstick and this is too expensive compared to other stores"
   );
+  
+  // Which dropdown options the user has clicked
   const [selectedAspect, setSelectedAspect] = useState<Aspect | "all">("all");
   const [selectedMethod, setSelectedMethod] = useState<ExplanationMethod>("ig");
-  const [loading, setLoading] = useState(false);
-  const [fastLoading, setFastLoading] = useState(false);
+  
+  // Loading states for different UI elements
+  const [loading, setLoading] = useState(false); // For the slow Math-heavy XAI
+  const [fastLoading, setFastLoading] = useState(false); // For the fast Attention tokens
+  
+  // Memory to store the data that comes back from Python
   const [result, setResult] = useState<ExplanationBundle | null>(null);
   const [predictions, setPredictions] = useState<{ aspect: string; label: string; confidence: number }[]>([]);
   const [fastTokens, setFastTokens] = useState<{ aspect: string; tokens: { token: string; attribution: number }[] }[]>([]);
+  
+  // UI states for expanding/collapsing sections
   const [jsonOpen, setJsonOpen] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
 
+  // 2. TIMING (LIFECYCLES)
+  // Run instantly once when the page is loaded to display the UI.
   useEffect(() => {
     setIsMounted(true);
   }, []);
 
-  // Fast attribution: uses top_tokens from /predict (attention-based, instant)
+  // 3. API CALL LOGIC
+  // Memory-cached function (useCallback) that triggers the fast /predict route to get instantaneous token attention.
   const handleFastAttribution = useCallback(async (reviewText: string) => {
-    if (!reviewText.trim()) return;
+    if (!reviewText.trim()) return; // Stop if text box is empty!
+    
     setFastLoading(true);
-    setFastTokens([]);
-    setPredictions([]);
+    setFastTokens([]); // Clear old visual data
+    setPredictions([]); 
+    
     try {
       const res = await predict({ text: reviewText, msrEnabled: true, msrStrength: 0.5 });
-      // Save per-aspect predictions (label + confidence) for display
+      
+      // Save the overall Positive/Negative results into our state.
       setPredictions(
         (res.predictions || []).map((p: any) => ({
           aspect: p.aspect,
@@ -56,20 +81,20 @@ export default function XAIPage() {
           confidence: p.confidence,
         }))
       );
+      
+      // Map the "topTokens" array from Python into an array of objects we can safely draw on screen.
       const tokens = (res.predictions || [])
         .filter((p: any) => p.topTokens && p.topTokens.length > 0)
         .map((p: any) => ({
           aspect: p.aspect,
-          // top_tokens from /predict are plain strings ["word1", "word2", ...]
-          // Assign decreasing attribution scores (1.0, 0.8, 0.6...) to rank them
           tokens: (p.topTokens as any[]).map((t: any, idx: number) => ({
             token: typeof t === "string" ? t : (t[0] ?? t.token ?? String(t)),
             attribution: typeof t === "string"
-              ? 1.0 - idx * 0.1          // descending importance for plain strings
+              ? 1.0 - idx * 0.1          
               : (Number(t[1] ?? t.attribution) || 0),
           })),
         }));
-      setFastTokens(tokens);
+      setFastTokens(tokens); // This triggers React to visually draw the grey Keyword boxes!
     } catch {
       setFastTokens([]);
       setPredictions([]);
@@ -78,19 +103,21 @@ export default function XAIPage() {
     }
   }, []);
 
-  // Run fast attribution on mount
+  // Run fast attribution AUTOMATICALLY as soon as the page finishes mounting.
   useEffect(() => {
     if (isMounted) handleFastAttribution(text);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isMounted]);
 
+  // Handle the heavy calculations (SHAP / LIME / IG).
   const handleExplain = async () => {
     setLoading(true);
     try {
+      // Calls the /api/explain route. This hits Python and can take 2-4 minutes.
       const response = await explain({
         text,
         aspect: selectedAspect,
-        methods: [selectedMethod],
+        methods: [selectedMethod], // Sends the selected method from the dropdown box!
         msrEnabled: true,
         msrStrength: 0.5,
       });
@@ -100,6 +127,7 @@ export default function XAIPage() {
     }
   };
 
+  // Safe fallback while the browser loads the Next.js chunk files.
   if (!isMounted) {
     return (
       <div className="space-y-6 animate-pulse">
@@ -113,9 +141,10 @@ export default function XAIPage() {
     );
   }
 
-
+  // 4. HTML / JSX RENDER LAYER
   return (
     <div className="space-y-6">
+      {/* Title */}
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">
           Explainable AI
@@ -126,7 +155,7 @@ export default function XAIPage() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
-        {/* Configuration Panel */}
+        {/* -- Configuration Panel (Left side) -- */}
         <Card className="lg:col-span-1">
           <CardHeader>
             <CardTitle className="text-base">Configuration</CardTitle>
@@ -136,8 +165,8 @@ export default function XAIPage() {
               <Label htmlFor="xai-text">Review Text</Label>
               <Textarea
                 id="xai-text"
-                value={text}
-                onChange={(e) => setText(e.target.value)}
+                value={text} // Links the UI explicitly to the 'text' memory variable
+                onChange={(e) => setText(e.target.value)} // As the user types, update the text state
                 rows={3}
                 className="resize-none"
               />
@@ -169,17 +198,19 @@ export default function XAIPage() {
             <div className="border-t pt-4 space-y-3">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Advanced Methods</p>
 
+              {/* The Aspect Dropdown Menu */}
               <div className="space-y-2">
                 <Label>Aspect</Label>
                 <Select
                   value={selectedAspect}
-                  onValueChange={(v) => setSelectedAspect(v as Aspect | "all")}
+                  onValueChange={(v) => setSelectedAspect(v as Aspect | "all")} // When they click an option, save it!
                 >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All aspects</SelectItem>
+                    {/* Loop through all predefined aspects so we don't have to copy-paste the HTML */}
                     {ASPECTS.map((aspect) => (
                       <SelectItem key={aspect} value={aspect} className="capitalize">
                         {aspect}
@@ -189,11 +220,12 @@ export default function XAIPage() {
                 </Select>
               </div>
 
+              {/* The Explanation Method Dropdown Menu */}
               <div className="space-y-2">
                 <Label>Explanation Method</Label>
                 <Select
                   value={selectedMethod}
-                  onValueChange={(v) => setSelectedMethod(v as ExplanationMethod)}
+                  onValueChange={(v) => setSelectedMethod(v as ExplanationMethod)} // When clicked, flip the state between ig/lime/shap!
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -238,7 +270,7 @@ export default function XAIPage() {
           </CardContent>
         </Card>
 
-        {/* Attribution Results */}
+        {/* -- Attribution Results (Right side) -- */}
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle className="text-base">Attribution Results</CardTitle>
@@ -247,13 +279,14 @@ export default function XAIPage() {
             </p>
           </CardHeader>
           <CardContent>
-            {/* Fast (attention) tokens — default */}
+            {/* Logic check: Only show the Fast Tokens if 'fastTokens' array is NOT empty and result is NULL. */}
             {fastTokens.length > 0 && !result && (
               <div className="space-y-4">
                 <div className="flex items-center gap-2 mb-2">
                   <Zap className="h-4 w-4 text-muted-foreground" />
                   <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Key Words Detected</span>
                 </div>
+                {/* Loop (map) through every aspect (like Price, Sizing) and render a Keyword strip! */}
                 {fastTokens.map((asp) => {
                   const pred = predictions.find((p) => p.aspect === asp.aspect);
                   return (
@@ -262,8 +295,10 @@ export default function XAIPage() {
                         <h4 className="text-sm font-semibold capitalize bg-primary/10 text-primary px-2.5 py-1 rounded-md">
                           Aspect: {asp.aspect}
                         </h4>
+                        {/* Custom sub-component that draws the Green POS / Red NEG badges */}
                         {pred && <SentimentBadge label={pred.label} confidence={pred.confidence} />}
                       </div>
+                      {/* Passing the raw keyword data into our visual helper component! */}
                       <KeywordViewer tokens={asp.tokens} />
                     </div>
                   );
@@ -274,7 +309,7 @@ export default function XAIPage() {
               </div>
             )}
 
-            {/* Advanced (IG/LIME/SHAP) results */}
+            {/* Logic check: Show the Advanced Math Models if 'result' state exists. */}
             {result && result.explanations && result.explanations.length > 0 ? (
               <div className="space-y-6 mt-4">
                 {result.explanations.map((exp) => {
@@ -290,7 +325,7 @@ export default function XAIPage() {
                           Method: {exp.method === 'ig' ? 'Integrated Gradients' : exp.method}
                         </span>
                       </div>
-                      {/* Color legend - contextual to the prediction */}
+                      {/* Color legend - explaining the mathematics physically! */}
                       <div className="flex items-center gap-4 text-xs text-muted-foreground pb-1 border-b">
                         <span className="font-medium">Attribution key:</span>
                         <span className="flex items-center gap-1.5">
@@ -302,12 +337,14 @@ export default function XAIPage() {
                           Red = opposes it
                         </span>
                       </div>
+                      {/* We pass the math data to a custom component that paints words red or green! */}
                       <TokenHighlightViewer tokens={exp.tokens} />
                     </div>
                   );
                 })}
               </div>
             ) : result ? (
+              // Fallback states
               <div className="h-32 flex items-center justify-center text-muted-foreground text-sm">
                 No attribution data returned.
               </div>
@@ -324,7 +361,8 @@ export default function XAIPage() {
         </Card>
       </div>
 
-      {/* Raw JSON (collapsible) */}
+      {/* -- Raw JSON Debugging Panel -- */}
+      {/* If result is null, this is totally hidden. If it exists, we show a clickable collapsible menu! */}
       {result && (
         <Collapsible open={jsonOpen} onOpenChange={setJsonOpen}>
           <Card>
@@ -341,6 +379,7 @@ export default function XAIPage() {
             <CollapsibleContent>
               <CardContent>
                 <pre className="text-xs overflow-auto max-h-96 p-4 rounded-lg bg-muted font-mono">
+                  {/* JSON.stringify turns actual object into a readable block of text */}
                   {JSON.stringify(result.rawJson, null, 2)}
                 </pre>
               </CardContent>
@@ -352,7 +391,9 @@ export default function XAIPage() {
   );
 }
 
-// ── Sentiment badge ──────────────────────────────────────────────────────────
+// ── Sub-components for styling logic ──────────────────────────────────────────────
+
+// A Dictionary holding css classes for badging.
 const LABEL_CONFIG: Record<string, { bg: string; text: string; label: string }> = {
   POS: { bg: "bg-emerald-100 dark:bg-emerald-900/40", text: "text-emerald-700 dark:text-emerald-300", label: "Positive" },
   NEG: { bg: "bg-red-100 dark:bg-red-900/40",     text: "text-red-700 dark:text-red-300",         label: "Negative" },
@@ -360,6 +401,7 @@ const LABEL_CONFIG: Record<string, { bg: string; text: string; label: string }> 
   NULL: { bg: "bg-muted",                          text: "text-muted-foreground",                  label: "N/A"      },
 };
 
+// Takes in a label string and confidence percentage and spits out a styled badge!
 function SentimentBadge({ label, confidence }: { label: string; confidence: number }) {
   const cfg = LABEL_CONFIG[label] ?? LABEL_CONFIG.NULL;
   return (
@@ -370,12 +412,13 @@ function SentimentBadge({ label, confidence }: { label: string; confidence: numb
   );
 }
 
-// ── Token highlight viewer (advanced / signed attribution) ────────────────────
+// Visualises the numbers from SHAP/LIME into actual background colors on text
 function TokenHighlightViewer({
   tokens,
 }: {
   tokens: { token: string; attribution: number }[];
 }) {
+  // Find the highest absolute math score so we can normalize the colors cleanly.
   const maxAttr = Math.max(...(tokens || []).map((t) => Math.abs(Number(t.attribution) || 0)), 0.001);
 
   return (
@@ -383,22 +426,23 @@ function TokenHighlightViewer({
       {(tokens || []).map((t, i) => {
         const attr = Number(t.attribution) || 0;
         const normalizedAttr = attr / maxAttr;
-        const isPositive = normalizedAttr > 0;
-        const intensity = Math.abs(normalizedAttr);
+        const isPositive = normalizedAttr > 0; // Number > 0 means mathematical support (Green)
+        const intensity = Math.abs(normalizedAttr); // 0.1 is pale color, 1.0 is vibrant bold color.
 
         return (
           <span
             key={i}
             className="px-1.5 py-0.5 rounded text-sm relative group cursor-default"
+            // We use inline styling here because Tailwind can't do exact decimal opacity calculations smoothly!
             style={{
               backgroundColor: isPositive
-                ? `oklch(0.7 0.15 145 / ${intensity * 0.6 + 0.1})`
-                : `oklch(0.65 0.2 25 / ${intensity * 0.6 + 0.1})`,
-              color: intensity > 0.5 ? "white" : "inherit",
+                ? `oklch(0.7 0.15 145 / ${intensity * 0.6 + 0.1})` // Green
+                : `oklch(0.65 0.2 25 / ${intensity * 0.6 + 0.1})`, // Red
+              color: intensity > 0.5 ? "white" : "inherit", // If background gets too dark, turn text white.
             }}
           >
             {t.token}
-            {/* Tooltip on hover */}
+            {/* Tooltip on hover: We physically draw a hidden span, and "group-hover:opacity-100" makes it appear when mouse touches parents! */}
             <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 text-xs rounded bg-popover text-popover-foreground shadow-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
               attribution: {attr.toFixed(3)}
             </span>
@@ -409,6 +453,7 @@ function TokenHighlightViewer({
   );
 }
 
+// A simpler viewer for non-math tokens (just spits out strings in grey boxes)
 function KeywordViewer({
   tokens,
 }: {
