@@ -37,6 +37,13 @@ if ml_src_dir not in sys.path:
 from inference import SentimentPredictor, is_mentioned
 
 
+# Common English function words that carry no sentiment signal.
+# Shared across all XAI methods so their outputs are consistent.
+_STOPWORDS = {'the', 'a', 'an', 'is', 'it', 'i', 'this', 'that', 'and',
+                         'or', 'but', 'to', 'of', 'in', 'for', 'with', 'my', 'so',
+                         'was', 'are', 'be', 'as', 'at', 'on', 'by', 'its'}
+
+
 class TrainedModelXAI:
     """
     XAI wrapper for the trained RoBERTa-GCN model.
@@ -80,12 +87,10 @@ class TrainedModelXAI:
             Dictionary matching the frontend's expected XAI shape, containing
             top tokens, prediction details, and raw probabilities.
         """
-        # n_steps=25 gives a good balance between accuracy (satisfying the
-        # completeness axiom) and execution speed for web requests.
         ig_res = self.predictor.explain_with_integrated_gradients(
             text=text,
             aspect=aspect,
-            n_steps=25,
+            n_steps=50,
             top_k=top_k,
             save_path=None,
             silent=True
@@ -97,7 +102,9 @@ class TrainedModelXAI:
             # Filter out special tokens (<s>, <pad>, etc.) and whitespace tokens
             if token not in ("<s>", "</s>", "<pad>", "<mask>") and len(token.strip("Ġ▁ ")) > 0:
                 clean_tok = self._clean_token(token)
-                top_tokens.append([clean_tok, round(float(attr), 6)])
+                # Skip stopwords and very short tokens — they have no sentiment signal
+                if clean_tok.isalpha() and len(clean_tok) > 2 and clean_tok.lower() not in _STOPWORDS:
+                    top_tokens.append([clean_tok, round(float(attr), 6)])
                 
         # Deduplicate while preserving the highest magnitude score
         top_tokens.sort(key=lambda x: abs(x[1]), reverse=True)
@@ -160,9 +167,8 @@ class TrainedModelXAI:
             predictions[asp] = pred["sentiment"]
             
             # Now, get the actual Integrated Gradients attributions for this aspect
-            # (using a smaller n_steps=10 to keep multi-aspect conflict calculation fast)
             ig_res = self.predictor.explain_with_integrated_gradients(
-                text=text, aspect=asp, n_steps=10, top_k=1000, save_path=None, silent=True
+                text=text, aspect=asp, n_steps=25, top_k=1000, save_path=None, silent=True
             )
             
             if "tokens" in ig_res and "attributions" in ig_res:
@@ -247,19 +253,28 @@ class TrainedModelXAI:
                 probs_list.append(probs)
             return np.array(probs_list)
 
-        explainer = LimeTextExplainer(class_names=["negative", "neutral", "positive"])
+        explainer = LimeTextExplainer(
+            class_names=["negative", "neutral", "positive"],
+            split_expression=r'\W+',
+            random_state=42
+        )
         exp       = explainer.explain_instance(
-            text, 
-            predictor_fn, 
-            labels=(target_idx,), 
-            num_features=top_k, 
+            text,
+            predictor_fn,
+            labels=(target_idx,),
+            num_features=top_k * 3,  # over-fetch so filtering still yields top_k results
             num_samples=num_samples
         )
 
         # Extract the features (words) that most influenced the target class
         lime_features = exp.as_list(label=target_idx)
-        
-        top_tokens = [[word, round(float(score), 6)] for word, score in lime_features]
+
+        # Filter stopwords and non-alphabetic tokens (e.g. punctuation artefacts)
+        top_tokens = [
+            [word, round(float(score), 6)]
+            for word, score in lime_features
+            if word.isalpha() and len(word) > 2 and word.lower() not in _STOPWORDS
+        ][:top_k]
 
         return {
             "top_tokens":  top_tokens,
@@ -322,12 +337,18 @@ class TrainedModelXAI:
             tokens = shap_values.data[0]
             values = shap_values.values[0, :, target_idx]
             
-            # Filter empty whitespace tokens
-            pairs = [[t.strip(), round(float(v), 6)] for t, v in zip(tokens, values) if t.strip()]
-            
+            # Filter empty tokens, stopwords, and non-alphabetic artefacts
+            pairs = [
+                [t.strip(), round(float(v), 6)]
+                for t, v in zip(tokens, values)
+                if t.strip() and t.strip().isalpha()
+                   and len(t.strip()) > 2
+                   and t.strip().lower() not in _STOPWORDS
+            ]
+
             # Sort by highest impact (positive or negative)
             pairs.sort(key=lambda x: abs(x[1]), reverse=True)
-            
+
             # Deduplicate
             seen = set()
             top_tokens = []
@@ -376,16 +397,18 @@ class TrainedModelXAI:
             tokens = result["attention"]["tokens"]
             weights = result["attention"]["weights"]
             
-            # Filter special tokens
+            # Filter special tokens, stopwords, and non-alphabetic artefacts
             pairs = []
             for t, w in zip(tokens, weights):
-                if t not in ("<s>", "</s>", "<pad>", "<mask\>") and len(t.strip("Ġ▁ ")) > 0:
+                if t not in ("<s>", "</s>", "<pad>", "<mask>") and len(t.strip("Ġ▁ ")) > 0:
                     clean_tok = self._clean_token(t)
-                    pairs.append([clean_tok, round(float(w), 6)])
-            
+                    # Only keep meaningful alphabetic words
+                    if clean_tok.isalpha() and len(clean_tok) > 2 and clean_tok.lower() not in _STOPWORDS:
+                        pairs.append([clean_tok, round(float(w), 6)])
+
             # Sort by highest attention
             pairs.sort(key=lambda x: x[1], reverse=True)
-            
+
             # Deduplicate
             seen = set()
             for t, w in pairs:

@@ -137,6 +137,17 @@ def clean_token(token: str) -> str:
     return token.lstrip('Ġ▁').strip()
 
 
+# ── Shared token-filtering constants ────────────────────────────────────────
+# Defined at module level so both the core predict() path and the CLI
+# visualize_* methods use exactly the same sets — matching trained_model_xai.py.
+_SPECIAL_TOKENS = {'<s>', '</s>', '<pad>', '<mask>'}
+
+# Common English function words that carry no sentiment signal.
+_STOPWORDS = {'the', 'a', 'an', 'is', 'it', 'i', 'this', 'that', 'and',
+              'or', 'but', 'to', 'of', 'in', 'for', 'with', 'my', 'so',
+              'was', 'are', 'be', 'as', 'at', 'on', 'by', 'its'}
+
+
 class SentimentPredictor:
     """
     Predictor class for making sentiment predictions
@@ -270,14 +281,9 @@ class SentimentPredictor:
                 'weights': attention.tolist()
             }
             
-            # Extract Top 5 tokens (excluding special tokens and padding)
+            # Extract top tokens (excluding special tokens, stopwords, and padding)
             import numpy as np
-            SPECIAL = {'<s>', '</s>', '<pad>', '<mask>'}
-            # Common stopwords that carry no sentiment signal
-            STOPWORDS = {'the', 'a', 'an', 'is', 'it', 'i', 'this', 'that', 'and',
-                         'or', 'but', 'to', 'of', 'in', 'for', 'with', 'my', 'so',
-                         'was', 'are', 'be', 'as', 'at', 'on', 'by', 'not', 'its'}
-            valid_tokens_idx = [i for i, t in enumerate(tokens) if t not in SPECIAL]
+            valid_tokens_idx = [i for i, t in enumerate(tokens) if t not in _SPECIAL_TOKENS]
             if valid_tokens_idx:
                 valid_weights = attention[valid_tokens_idx]
                 top_idx_relative = np.argsort(valid_weights)[-10:][::-1]  # grab top-10 candidates
@@ -286,7 +292,7 @@ class SentimentPredictor:
                 # Clean token strings: strip BPE prefix 'Ġ' (or '▁') and whitespace
                 top_tokens = [tokens[i].lstrip('Ġ▁').strip() for i in top_idx_absolute]
                 # Keep only meaningful alphabetic words (length > 2, not a stopword)
-                top_tokens = [t for t in top_tokens if t.isalpha() and len(t) > 2 and t.lower() not in STOPWORDS]
+                top_tokens = [t for t in top_tokens if t.isalpha() and len(t) > 2 and t.lower() not in _STOPWORDS]
                 # Deduplicate while preserving order
                 seen = set()
                 unique_tokens = []
@@ -362,13 +368,18 @@ class SentimentPredictor:
         
         print("Token Attention Weights:")
         print("-" * 70)
-        
-        # Sort by attention weight
+
+        # Sort by attention weight, then filter stopwords / special tokens
         token_weights = list(zip(tokens, weights))
         token_weights.sort(key=lambda x: x[1], reverse=True)
-        
-        for token, weight in token_weights[:10]:  # Top 10 tokens
-            safe_token = clean_token(token)
+        filtered = [
+            (clean_token(t), w) for t, w in token_weights
+            if t not in _SPECIAL_TOKENS
+            and clean_token(t).isalpha()
+            and len(clean_token(t)) > 2
+            and clean_token(t).lower() not in _STOPWORDS
+        ]
+        for safe_token, weight in filtered[:10]:
             bar_length = int(weight * 50)
             bar = '█' * bar_length
             print(f"{safe_token:20s} {bar} {weight:.4f}")
@@ -482,7 +493,12 @@ class SentimentPredictor:
         
         print(f"Top {num_features} influential words/phrases:")
         print("-" * 70)
-        for word, weight in feature_weights[:num_features]:
+        # Apply the same stopword filter used in the web path (trained_model_xai.py)
+        filtered_weights = [
+            (word, weight) for word, weight in feature_weights
+            if word.isalpha() and len(word) > 2 and word.lower() not in _STOPWORDS
+        ][:num_features]
+        for word, weight in filtered_weights:
             safe_word = clean_token(word)
             direction = "Supports" if weight > 0 else "Opposes"
             bar_length = int(abs(weight) * 30)
@@ -609,14 +625,19 @@ class SentimentPredictor:
         print(f"Predicted: {result['sentiment']} ({result['confidence']:.2%})")
         print(f"{'='*70}\n")
         
-        # Print top influential tokens
+        # Print top influential tokens — filter stopwords and special tokens
         token_importance = list(zip(tokens, values))
         token_importance.sort(key=lambda x: abs(x[1]), reverse=True)
-        
+        filtered_importance = [
+            (clean_token(t), v) for t, v in token_importance
+            if t not in _SPECIAL_TOKENS
+            and clean_token(t).isalpha()
+            and len(clean_token(t)) > 2
+            and clean_token(t).lower() not in _STOPWORDS
+        ]
         print(f"Top 10 influential tokens (SHAP values):")
         print("-" * 70)
-        for token, value in token_importance[:10]:
-            safe_token = clean_token(token)
+        for safe_token, value in filtered_importance[:10]:
             direction = "Supports" if value > 0 else "Opposes"
             bar_length = int(abs(value) * 50)
             bar = '█' * bar_length
@@ -805,10 +826,17 @@ class SentimentPredictor:
             print(f"{'='*70}\n")
 
             token_scores = sorted(zip(tokens, scores_norm), key=lambda x: abs(x[1]), reverse=True)
+            # Filter stopwords and special tokens for a cleaner console output
+            filtered_scores = [
+                (clean_token(tok), sc) for tok, sc in token_scores
+                if tok not in _SPECIAL_TOKENS
+                and clean_token(tok).isalpha()
+                and len(clean_token(tok)) > 2
+                and clean_token(tok).lower() not in _STOPWORDS
+            ]
             print(f"Top {top_k} tokens by attribution:")
             print("-" * 70)
-            for tok, sc in token_scores[:top_k]:
-                safe_tok = clean_token(tok)
+            for safe_tok, sc in filtered_scores[:top_k]:
                 direction = "supports" if sc > 0 else "opposes"
                 bar = '█' * int(abs(sc) * 30)
                 sign = '+' if sc > 0 else '-'
